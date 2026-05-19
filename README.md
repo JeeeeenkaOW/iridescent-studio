@@ -87,7 +87,7 @@ js/
     index.js                      ← SHADERS map + DEFAULT_SHADER
     mercury/                      ← warm silver Blinn-Phong + cursor mercury blob
     glass/                        ← refractive bg sampling + frost
-    obsidian/                     ← dark glass + accent inner glow + fresnel rim
+    obsidian/                     ← dark glass + rough surface + fresnel rim
       index.js                    ← manifest (id, name, GLSL, uniforms, controls, defaults)
       defaults.js                 ← initial uniform values + lighting preset
       controls.js                 ← material's sidebar UI (just material params,
@@ -125,8 +125,9 @@ js/
 | Mercury cursor blob               | `shaders/mercury/features/metaball.glsl.js`        |
 | Mercury silver / preset lighting  | `shaders/mercury/defaults.js`                      |
 | Obsidian dark-glass body          | `shaders/obsidian/features/composite.glsl.js`      |
+| Obsidian rough surface texture    | `shaders/obsidian/features/roughness.glsl.js`      |
 | Obsidian fresnel rim              | `shaders/obsidian/features/fresnel.glsl.js`        |
-| Obsidian default colours          | `shaders/obsidian/defaults.js`                     |
+| Obsidian default values           | `shaders/obsidian/defaults.js`                     |
 | Glass refraction + frost          | `shaders/glass/features/refraction.glsl.js`        |
 | Halo / vignette / grain (per mat) | `shaders/<material>/features/output.glsl.js`       |
 | SVG/PNG padding                   | `pipeline/rasterize.js` (PAD_RATIO)                |
@@ -183,10 +184,10 @@ highlight. With every effect off, it's plain silver.
 **Glass** — Refractive bg sampling with optional frost. Transparency,
 refraction, and frost are the three controls. Effects layer on top.
 
-**Obsidian** — Deep near-black glass body with a user-controllable
-accent colour for the inner glow, plus a fresnel rim and tight
-clearcoat highlight. Inspired by the D20 obsidian dice reference.
-Default accent is red. Effects layer on top.
+**Obsidian** — Deep near-black glass body with a procedural rough
+surface that breaks up specular reflections into a stippled volcanic-
+glass look, plus a fresnel rim and tight clearcoat highlight. Inspired
+by the D20 obsidian dice reference. Effects layer on top.
 
 ## Effects
 

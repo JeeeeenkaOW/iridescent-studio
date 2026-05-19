@@ -20,12 +20,11 @@ export function createUniforms(shared) {
     u_bgTex:      shared.u_bgTex,
 
     // Material
-    u_baseColor:      { value: hexToVec3(defaults.material.baseColor) },
-    u_accentColor:    { value: hexToVec3(defaults.material.accentColor) },
-    u_accentStrength: { value: defaults.material.accentStrength },
-    u_refraction:     { value: defaults.material.refraction },
-    u_fresnel:        { value: defaults.material.fresnel },
-    u_fresnelPower:   { value: defaults.material.fresnelPower },
+    u_baseColor:    { value: hexToVec3(defaults.material.baseColor) },
+    u_refraction:   { value: defaults.material.refraction },
+    u_fresnel:      { value: defaults.material.fresnel },
+    u_fresnelPower: { value: defaults.material.fresnelPower },
+    u_roughness:    { value: defaults.material.roughness },
 
     // Lighting (preset; Lighting effect overrides)
     u_diffuse:     { value: defaults.lighting.diffuse },

@@ -1,18 +1,19 @@
 // =========================================================
 // OBSIDIAN DEFAULTS — initial uniform values
 // =========================================================
-// A dark-glass material inspired by the D20 dice reference: deep
-// near-black body with a coloured "attenuation" glow inside thicker
-// regions, a sharp clearcoat highlight, and a fresnel rim where the
-// surface curves away from the viewer.
+// Dark-glass material inspired by the D20 dice reference: deep
+// near-black body with a fresnel rim, sharp clearcoat highlight,
+// and a fine procedural surface roughness that breaks up reflections
+// into a stippled, "rough volcanic glass" look.
 //
-// Controls exposed:
+// Controls:
 //   baseColor    — body colour (near-black by default)
-//   accentColor  — inner glow / attenuation tint (red by default)
-//   accentStrength — how much accent colour shows through
 //   refraction   — bg distortion at silhouette edges (lower than glass)
 //   fresnel      — strength of the rim highlight (0..1)
 //   fresnelPower — sharpness of the rim falloff (1..8)
+//   roughness    — strength of the procedural normal perturbation that
+//                  breaks up the specular highlight. 0 = smooth glass,
+//                  high = stippled obsidian.
 //
 // Lighting preset:
 //   Tight, bright specular (high shininess, mid intensity) — the
@@ -23,12 +24,11 @@ export const defaults = {
   name: 'Obsidian',
 
   material: {
-    baseColor:      '#0E0E10',  // near-black, slight cool
-    accentColor:    '#991111',  // dark red, matches dice attenuationColor
-    accentStrength: 0.55,       // 0..1
-    refraction:     0.04,       // 0..0.2 — small lensing at edges
-    fresnel:        0.7,        // 0..1 — rim intensity
-    fresnelPower:   4.0,        // 1..8 — rim sharpness
+    baseColor:    '#0E0E10',  // near-black, slight cool
+    refraction:   0.04,       // 0..0.2 — small lensing at edges
+    fresnel:      0.7,        // 0..1 — rim intensity
+    fresnelPower: 4.0,        // 1..8 — rim sharpness
+    roughness:    0.6,        // 0..1 — surface micro-perturbation strength
   },
 
   lighting: {
