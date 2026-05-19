@@ -26,7 +26,15 @@ const state = {
   inputKind: 'svg',
   inputBlob: null,
   material: DEFAULT_MATERIAL,
-  bgMode: 'dark',
+  tintColor: '#FFFFFF',
+  tintStrength: 0.0,
+  bg: {
+    mode: 'solid',                       // 'solid' | 'gradient' | 'image'
+    solid: '#000000',
+    gradient: { from: '#000000', to: '#202020', angle: 180 },
+    imageBlob: null,                     // File/Blob, or null
+    imageName: '',
+  },
   normals: 'edge',
   strength: 4.0,
   autoDrift: true,
@@ -50,17 +58,18 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 // UNIFORMS / MATERIAL
 // =========================================================
 const uniforms = {
-  u_resolution:  { value: new THREE.Vector2(1, 1) },
-  u_imgAspect:   { value: 1.0 },
-  u_mouse:       { value: new THREE.Vector2(0.5, 0.5) },
-  u_mouseVel:    { value: new THREE.Vector2(0, 0) },
-  u_time:        { value: 0 },
-  u_albedo:      { value: null },
-  u_normal:      { value: null },
-  u_bloom:       { value: null },
-  u_bgColor:     { value: new THREE.Vector3(0, 0, 0) },
-  u_lightMode:   { value: 0.0 },
-  u_paletteD:    { value: new THREE.Vector3(...MATERIALS[DEFAULT_MATERIAL].palette.phase) },
+  u_resolution:   { value: new THREE.Vector2(1, 1) },
+  u_imgAspect:    { value: 1.0 },
+  u_mouse:        { value: new THREE.Vector2(0.5, 0.5) },
+  u_mouseVel:     { value: new THREE.Vector2(0, 0) },
+  u_time:         { value: 0 },
+  u_albedo:       { value: null },
+  u_normal:       { value: null },
+  u_bloom:        { value: null },
+  u_bgTex:        { value: null },
+  u_paletteD:     { value: new THREE.Vector3(...MATERIALS[DEFAULT_MATERIAL].palette.phase) },
+  u_tintColor:    { value: new THREE.Vector3(1, 1, 1) },
+  u_tintStrength: { value: 0.0 },
 };
 
 const shaderMaterial = new THREE.ShaderMaterial({
@@ -141,6 +150,8 @@ function resize() {
   const h = viewport.clientHeight;
   renderer.setSize(w, h, false);
   uniforms.u_resolution.value.set(w, h);
+  // Redraw bg canvas so gradient/image follow the new aspect.
+  if (bgCtl && bgCtl.redraw) bgCtl.redraw();
 }
 window.addEventListener('resize', resize);
 
@@ -213,11 +224,13 @@ function loop() {
 // =========================================================
 // WIRE CONTROLS
 // =========================================================
+// statusEl is optional — the viewport overlay was removed; current
+// filename is shown in the sidebar's drop-current chip instead.
 const statusEl = document.getElementById('viewport-status');
 
 initUpload({ state, statusEl, rebuildAndResize });
 const matCtl = initMaterial({ state, uniforms });
-const bgCtl = initBackground({ state, uniforms, renderer });
+const bgCtl = initBackground({ state, uniforms, viewport });
 initNormals({ state, rebuild });
 initMotion({ state });
 initExport({
@@ -233,7 +246,6 @@ initExport({
 // BOOT
 // =========================================================
 (async () => {
-  bgCtl.applyBg();
   matCtl.applyMaterial(MATERIALS[state.material]);
   await rebuild();
   resize();
