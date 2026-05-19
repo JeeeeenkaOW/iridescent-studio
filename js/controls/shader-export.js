@@ -6,22 +6,25 @@
 // file the dev can open or hand off. No build, no imports beyond the
 // three.js CDN, no upload UI.
 //
-// The exported demo includes:
-//   - Vertex + fragment GLSL inlined as strings
-//   - Generated textures as base64 PNG data-URLs
-//   - All current uniform values hardcoded as defaults
-//   - Pointer + auto-drift loop (so the visual is animated)
-//   - Solid black background (the background tool is studio-only)
+// Per-shader serialization lives on each shader manifest as
+// `serializeForExport(snapshot)`. It returns `{ constants, uniforms }`:
+//
+//   constants — JS source lines defining the baked uniform values
+//               (e.g. `const BASE_COLOR_HEX = "#C7BDB3";`).
+//   uniforms  — object-literal entries for those values, dropped into
+//               the uniforms object passed to ShaderMaterial.
+//
+// The exporter assembles the surrounding scaffolding (renderer, scene,
+// textures, pointer loop, bg) and stitches the shader-specific pieces
+// in. Adding a new shader to the registry adds it to export for free,
+// as long as the manifest provides `serializeForExport`.
 //
 import { listShaders } from '../shaders/index.js';
 
-// Convert a CanvasTexture's source canvas to a base64 PNG data URL.
 function canvasToDataURL(tex) {
   if (!tex || !tex.image) return null;
   const c = tex.image;
-  // CanvasTexture.image is usually an HTMLCanvasElement
   if (c instanceof HTMLCanvasElement) return c.toDataURL('image/png');
-  // Fall back: paint it into a fresh canvas
   const tmp = document.createElement('canvas');
   tmp.width = c.width;
   tmp.height = c.height;
@@ -34,12 +37,11 @@ function buildExportedHTML({ shader, uniforms, snapshot, imgAspect }) {
   const normalURL = canvasToDataURL(uniforms.u_normal.value);
   const bloomURL  = canvasToDataURL(uniforms.u_bloom.value);
 
-  // Serialize Mercury-specific uniform values from the snapshot.
-  // (Other shaders, when added, will need their own serialization path.)
-  const iri  = snapshot?.iridescence ?? shader.defaults.iridescence;
-  const tint = snapshot?.tint ?? shader.defaults.tint;
+  if (typeof shader.serializeForExport !== 'function') {
+    throw new Error(`Shader "${shader.id}" is missing serializeForExport — cannot export.`);
+  }
+  const { constants, uniforms: uniformEntries } = shader.serializeForExport(snapshot);
 
-  // Helpers reused inside the exported file (kept inline for self-containment).
   const exportedJS = `
 const VERTEX_SHADER = ${JSON.stringify(shader.vertexShader)};
 const FRAGMENT_SHADER = ${JSON.stringify(shader.fragmentShader)};
@@ -49,13 +51,8 @@ const NORMAL_URL = ${JSON.stringify(normalURL)};
 const BLOOM_URL  = ${JSON.stringify(bloomURL)};
 const IMG_ASPECT = ${imgAspect};
 
-// --- uniform values baked from the studio at export time ---
-const IRI_PHASE          = ${JSON.stringify(iri.phase)};
-const IRI_INTENSITY      = ${iri.enabled === false ? 0 : iri.intensity};
-const IRI_COLOR_HEX      = ${JSON.stringify(iri.color)};
-const IRI_COLOR_STRENGTH = ${iri.colorStrength};
-const TINT_COLOR_HEX     = ${JSON.stringify(tint.color)};
-const TINT_STRENGTH      = ${tint.strength};
+// --- shader-specific uniform values baked at export time ---
+${constants}
 
 function hexToVec3(hex){
   const m = /^#?([0-9a-f]{6})$/i.exec((hex||'').trim());
@@ -117,12 +114,7 @@ function makeBgTexture(){
     u_normal:           { value: normal },
     u_bloom:            { value: bloom },
     u_bgTex:            { value: makeBgTexture() },
-    u_iriPhase:         { value: new THREE.Vector3(...IRI_PHASE) },
-    u_iriIntensity:     { value: IRI_INTENSITY },
-    u_iriColor:         { value: hexToVec3(IRI_COLOR_HEX) },
-    u_iriColorStrength: { value: IRI_COLOR_STRENGTH },
-    u_tintColor:        { value: hexToVec3(TINT_COLOR_HEX) },
-    u_tintStrength:     { value: TINT_STRENGTH },
+${uniformEntries}
   };
 
   const mat = new THREE.ShaderMaterial({

@@ -4,21 +4,57 @@
 // Mounts into `#shader-controls`, the host element provided by the
 // top-level shader picker. Builds:
 //
+//   - Material section (Blinn-Phong):
+//       · Base color
+//       · Diffuse strength
+//       · Specular strength
+//       · Shininess
 //   - Iridescence section:
 //       · on/off toggle
-//       · color picker + color strength slider
-//       · intensity slider
-//       · phase quick-picks (Pearl/Gold/Oil/Arctic)
-//   - Tint section (preserves the original tint behavior)
+//       · Hue slider (0..360°, rotates the cosine palette)
+//       · Intensity slider
 //
-// All changes write to uniforms directly. No state is held here beyond
-// what the DOM holds — the source of truth is the uniform values.
+// All changes write to uniforms directly. No state is held here
+// beyond what the DOM holds — the source of truth is the uniform
+// values.
 //
-import { defaults, iridescencePhasePresets } from './defaults.js';
+import { defaults } from './defaults.js';
+import { phaseFromHue } from './uniforms.js';
 import { hexToVec3 } from '../../util/color.js';
 
 export function initMercuryControls({ host, uniforms }) {
+  const d = defaults;
+
   host.innerHTML = `
+    <div class="section">
+      <div class="section-title">Material</div>
+
+      <div class="color-row">
+        <span class="color-row-label">Base color</span>
+        <div class="color-row-control">
+          <input type="color" id="mc-mat-base" value="${d.material.baseColor}">
+          <span class="color-row-hex" id="mc-mat-base-hex">${d.material.baseColor}</span>
+        </div>
+      </div>
+
+      <div class="range-row">
+        <div class="range-label"><span>Diffuse</span><span class="range-value" id="mc-mat-diffuse-val">${Math.round(d.material.diffuse * 100)}%</span></div>
+        <input type="range" id="mc-mat-diffuse" min="0" max="100" step="1" value="${Math.round(d.material.diffuse * 100)}">
+      </div>
+
+      <div class="range-row">
+        <div class="range-label"><span>Specular</span><span class="range-value" id="mc-mat-specular-val">${d.material.specular.toFixed(2)}</span></div>
+        <input type="range" id="mc-mat-specular" min="0" max="300" step="1" value="${Math.round(d.material.specular * 100)}">
+      </div>
+
+      <div class="range-row">
+        <div class="range-label"><span>Shininess</span><span class="range-value" id="mc-mat-shininess-val">${Math.round(d.material.shininess)}</span></div>
+        <input type="range" id="mc-mat-shininess" min="1" max="128" step="1" value="${Math.round(d.material.shininess)}">
+      </div>
+    </div>
+
+    <div class="div"></div>
+
     <div class="section">
       <div class="section-title">Iridescence</div>
 
@@ -27,57 +63,60 @@ export function initMercuryControls({ host, uniforms }) {
         <div class="toggle on" id="mc-iri-on"></div>
       </div>
 
-      <div class="color-row">
-        <span class="color-row-label">Color</span>
-        <div class="color-row-control">
-          <input type="color" id="mc-iri-color" value="${defaults.iridescence.color}">
-          <span class="color-row-hex" id="mc-iri-color-hex">${defaults.iridescence.color}</span>
-        </div>
+      <div class="range-row">
+        <div class="range-label"><span>Hue</span><span class="range-value" id="mc-iri-hue-val">0°</span></div>
+        <input type="range" id="mc-iri-hue" min="0" max="360" step="1" value="0">
       </div>
 
       <div class="range-row">
-        <div class="range-label"><span>Color strength</span><span class="range-value" id="mc-iri-color-strength-val">0%</span></div>
-        <input type="range" id="mc-iri-color-strength" min="0" max="100" step="1" value="0">
-      </div>
-
-      <div class="range-row">
-        <div class="range-label"><span>Intensity</span><span class="range-value" id="mc-iri-intensity-val">100%</span></div>
-        <input type="range" id="mc-iri-intensity" min="0" max="100" step="1" value="100">
-      </div>
-
-      <div class="section-title" style="margin-top:8px">Iridescence preset</div>
-      <div class="segmented cols-4" id="mc-iri-phase">
-        ${iridescencePhasePresets.map((p, i) => `
-          <button class="seg-btn${i === 0 ? ' active' : ''}" data-id="${p.id}">${p.name}</button>
-        `).join('')}
-      </div>
-    </div>
-
-    <div class="div"></div>
-
-    <div class="section">
-      <div class="section-title">Tint</div>
-      <div class="color-row">
-        <span class="color-row-label">Color</span>
-        <div class="color-row-control">
-          <input type="color" id="mc-tint-color" value="${defaults.tint.color}">
-          <span class="color-row-hex" id="mc-tint-hex">${defaults.tint.color}</span>
-        </div>
-      </div>
-      <div class="range-row">
-        <div class="range-label"><span>Strength</span><span class="range-value" id="mc-tint-strength-val">0%</span></div>
-        <input type="range" id="mc-tint-strength" min="0" max="100" step="1" value="0">
+        <div class="range-label"><span>Intensity</span><span class="range-value" id="mc-iri-intensity-val">${Math.round(d.iridescence.intensity * 100)}%</span></div>
+        <input type="range" id="mc-iri-intensity" min="0" max="100" step="1" value="${Math.round(d.iridescence.intensity * 100)}">
       </div>
     </div>
   `;
 
-  // ---------- Iridescence on/off ----------
-  let iriOn = defaults.iridescence.enabled;
-  let iriIntensitySlider = defaults.iridescence.intensity;   // last slider position (0..1)
+  // ---------- Material ----------
+  const matBase     = host.querySelector('#mc-mat-base');
+  const matBaseHex  = host.querySelector('#mc-mat-base-hex');
+  const matDiffuse  = host.querySelector('#mc-mat-diffuse');
+  const matDiffVal  = host.querySelector('#mc-mat-diffuse-val');
+  const matSpec     = host.querySelector('#mc-mat-specular');
+  const matSpecVal  = host.querySelector('#mc-mat-specular-val');
+  const matShin     = host.querySelector('#mc-mat-shininess');
+  const matShinVal  = host.querySelector('#mc-mat-shininess-val');
 
-  const toggle = host.querySelector('#mc-iri-on');
-  const intensityInput = host.querySelector('#mc-iri-intensity');
+  matBase.addEventListener('input', (e) => {
+    matBaseHex.textContent = e.target.value.toUpperCase();
+    uniforms.u_baseColor.value.copy(hexToVec3(e.target.value));
+  });
+
+  matDiffuse.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10) / 100;
+    matDiffVal.textContent = e.target.value + '%';
+    uniforms.u_diffuse.value = v;
+  });
+
+  matSpec.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10) / 100;   // 0..3
+    matSpecVal.textContent = v.toFixed(2);
+    uniforms.u_specular.value = v;
+  });
+
+  matShin.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    matShinVal.textContent = String(v);
+    uniforms.u_shininess.value = v;
+  });
+
+  // ---------- Iridescence ----------
+  let iriOn = d.iridescence.enabled;
+  let iriIntensitySlider = d.iridescence.intensity;
+
+  const toggle       = host.querySelector('#mc-iri-on');
+  const intensityIn  = host.querySelector('#mc-iri-intensity');
   const intensityVal = host.querySelector('#mc-iri-intensity-val');
+  const hueIn        = host.querySelector('#mc-iri-hue');
+  const hueVal       = host.querySelector('#mc-iri-hue-val');
 
   function pushIntensity() {
     uniforms.u_iriIntensity.value = iriOn ? iriIntensitySlider : 0.0;
@@ -86,71 +125,39 @@ export function initMercuryControls({ host, uniforms }) {
   toggle.addEventListener('click', () => {
     iriOn = !iriOn;
     toggle.classList.toggle('on', iriOn);
-    intensityInput.disabled = !iriOn;
+    intensityIn.disabled = !iriOn;
+    hueIn.disabled = !iriOn;
     pushIntensity();
   });
 
-  intensityInput.addEventListener('input', (e) => {
+  intensityIn.addEventListener('input', (e) => {
     iriIntensitySlider = parseInt(e.target.value, 10) / 100;
     intensityVal.textContent = e.target.value + '%';
     pushIntensity();
   });
 
-  // ---------- Iridescence color tint ----------
-  const iriColorInput = host.querySelector('#mc-iri-color');
-  const iriColorHex   = host.querySelector('#mc-iri-color-hex');
-  const iriColorStr   = host.querySelector('#mc-iri-color-strength');
-  const iriColorStrVal = host.querySelector('#mc-iri-color-strength-val');
-
-  iriColorInput.addEventListener('input', (e) => {
-    iriColorHex.textContent = e.target.value.toUpperCase();
-    uniforms.u_iriColor.value.copy(hexToVec3(e.target.value));
-  });
-  iriColorStr.addEventListener('input', (e) => {
-    iriColorStrVal.textContent = e.target.value + '%';
-    uniforms.u_iriColorStrength.value = parseInt(e.target.value, 10) / 100;
-  });
-
-  // ---------- Phase quick-picks ----------
-  const phaseButtons = host.querySelectorAll('#mc-iri-phase .seg-btn');
-  phaseButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      phaseButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const preset = iridescencePhasePresets.find(p => p.id === btn.dataset.id);
-      if (preset) uniforms.u_iriPhase.value.set(...preset.phase);
-    });
-  });
-
-  // ---------- Tint ----------
-  const tintColor = host.querySelector('#mc-tint-color');
-  const tintHex   = host.querySelector('#mc-tint-hex');
-  const tintStr   = host.querySelector('#mc-tint-strength');
-  const tintStrVal = host.querySelector('#mc-tint-strength-val');
-
-  tintColor.addEventListener('input', (e) => {
-    tintHex.textContent = e.target.value.toUpperCase();
-    uniforms.u_tintColor.value.copy(hexToVec3(e.target.value));
-  });
-  tintStr.addEventListener('input', (e) => {
-    tintStrVal.textContent = e.target.value + '%';
-    uniforms.u_tintStrength.value = parseInt(e.target.value, 10) / 100;
+  hueIn.addEventListener('input', (e) => {
+    const hue = parseInt(e.target.value, 10);
+    hueVal.textContent = hue + '°';
+    uniforms.u_iriPhase.value.copy(phaseFromHue(hue));
   });
 
   // Return a snapshot getter for export/preset-save use.
   return {
     snapshot() {
       return {
-        iridescence: {
-          enabled:       iriOn,
-          intensity:     iriIntensitySlider,
-          phase:         uniforms.u_iriPhase.value.toArray(),
-          color:         iriColorInput.value,
-          colorStrength: parseInt(iriColorStr.value, 10) / 100,
+        material: {
+          baseColor: matBase.value,
+          diffuse:   parseInt(matDiffuse.value, 10) / 100,
+          specular:  parseInt(matSpec.value, 10) / 100,
+          shininess: parseInt(matShin.value, 10),
         },
-        tint: {
-          color:    tintColor.value,
-          strength: parseInt(tintStr.value, 10) / 100,
+        iridescence: {
+          enabled:   iriOn,
+          intensity: iriIntensitySlider,
+          hue:       parseInt(hueIn.value, 10),
+          // Also snapshot the computed phase for export convenience.
+          phase:     uniforms.u_iriPhase.value.toArray(),
         },
       };
     },

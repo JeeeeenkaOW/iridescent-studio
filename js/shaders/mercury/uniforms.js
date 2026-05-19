@@ -7,8 +7,20 @@
 // shader is active.
 //
 import * as THREE from 'three';
-import { defaults } from './defaults.js';
+import { defaults, PEARL_BASIS } from './defaults.js';
 import { hexToVec3 } from '../../util/color.js';
+
+// Apply a hue rotation (degrees) to the Pearl-basis phase vector.
+// hue is added to every channel, which rotates the cosine palette
+// around the color wheel while preserving Pearl's channel offsets.
+export function phaseFromHue(hueDeg) {
+  const off = (hueDeg % 360) / 360;
+  return new THREE.Vector3(
+    PEARL_BASIS[0] + off,
+    PEARL_BASIS[1] + off,
+    PEARL_BASIS[2] + off,
+  );
+}
 
 export function createUniforms(shared) {
   return {
@@ -23,12 +35,14 @@ export function createUniforms(shared) {
     u_bloom:      shared.u_bloom,
     u_bgTex:      shared.u_bgTex,
 
-    // Mercury-specific
-    u_iriPhase:         { value: new THREE.Vector3(...defaults.iridescence.phase) },
-    u_iriIntensity:     { value: defaults.iridescence.enabled ? defaults.iridescence.intensity : 0.0 },
-    u_iriColor:         { value: hexToVec3(defaults.iridescence.color) },
-    u_iriColorStrength: { value: defaults.iridescence.colorStrength },
-    u_tintColor:        { value: hexToVec3(defaults.tint.color) },
-    u_tintStrength:     { value: defaults.tint.strength },
+    // Material (Blinn-Phong)
+    u_baseColor:  { value: hexToVec3(defaults.material.baseColor) },
+    u_diffuse:    { value: defaults.material.diffuse },
+    u_specular:   { value: defaults.material.specular },
+    u_shininess:  { value: defaults.material.shininess },
+
+    // Iridescence
+    u_iriPhase:     { value: phaseFromHue(defaults.iridescence.hue) },
+    u_iriIntensity: { value: defaults.iridescence.enabled ? defaults.iridescence.intensity : 0.0 },
   };
 }

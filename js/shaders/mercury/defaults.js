@@ -1,40 +1,39 @@
 // =========================================================
-// MERCURY DEFAULTS — initial uniform values + iri color sub-presets
+// MERCURY DEFAULTS — initial uniform values
 // =========================================================
-// `defaults` is what gets applied when Mercury is first selected, or
-// when the user clicks "Reset". With these values the output is
-// byte-identical to the original Pearl shader.
+// Two control groups:
 //
-// `iridescenceSubPresets` are the old palette phases promoted to
-// quick-pick buttons under the iridescence color picker. Pearl is the
-// default; the others are still here in case you want them.
+//   material:    Blinn-Phong lighting parameters. Honest labels —
+//                the shader is Blinn-Phong, not real PBR, so we
+//                expose what the math actually does.
 //
-// `tints` are some quick hex picks for the iridescence color tint —
-// purely a UX nicety, the picker takes any hex.
+//   iridescence: cosine-palette rainbow on the specular highlight.
+//                Hue is a 0..360° rotation of the palette phase
+//                (replaces the old Pearl/Gold/Oil/Arctic buttons).
+//                Intensity blends toward neutral white.
+//
+// At iridescence.enabled=true, intensity=1.0, hue=0, the output
+// is byte-identical to the original Pearl shader.
 //
 export const defaults = {
   name: 'Mercury',
 
-  iridescence: {
-    enabled:       true,
-    intensity:     1.0,                       // 0..1, 1 = full rainbow
-    phase:         [0.00, 0.18, 0.42],        // cosine-palette phase (Pearl)
-    color:         '#FFFFFF',                 // hex color tint
-    colorStrength: 0.0,                       // 0..1, 0 = no tint
+  material: {
+    baseColor:  '#C7BDB3',   // warm silver (0.78, 0.74, 0.70)
+    diffuse:    0.45,        // diffuse gain (0..1)
+    specular:   1.6,         // specular intensity (0..3)
+    shininess:  28.0,        // specular exponent (1..128, higher = tighter highlight)
   },
 
-  // Multiplicative tint on the final ornament (separate from iridescence)
-  tint: {
-    color:    '#FFFFFF',
-    strength: 0.0,
+  iridescence: {
+    enabled:    true,
+    intensity:  1.0,         // 0..1, 1 = full rainbow
+    hue:        0,           // 0..360°, rotates the cosine palette
   },
 };
 
-// Phase quick-picks for the iridescence section — these are the
-// pre-split Pearl/Gold/Oil/Arctic palette phases.
-export const iridescencePhasePresets = [
-  { id: 'pearl',  name: 'Pearl',  phase: [0.00, 0.18, 0.42] },
-  { id: 'gold',   name: 'Gold',   phase: [0.05, 0.15, 0.25] },
-  { id: 'oil',    name: 'Oil',    phase: [0.65, 0.85, 0.10] },
-  { id: 'arctic', name: 'Arctic', phase: [0.50, 0.55, 0.60] },
-];
+// Pearl-phase basis. The hue slider adds (hue/360°) to all three
+// channels of this vector, rotating the cosine palette through
+// the full color wheel while preserving Pearl's color separation.
+// At hue=0 we get the original Pearl phase.
+export const PEARL_BASIS = [0.00, 0.18, 0.42];

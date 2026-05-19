@@ -4,9 +4,9 @@
 // Each feature file in /features/ exports a string. This file stitches
 // them together.
 //
-// Mercury is the original "iridescent silver" shader: warm silver base,
-// Blinn-Phong specular, cosine-palette iridescence on the highlight,
-// mercury blob at the cursor.
+// Mercury is the "iridescent silver" shader: a Blinn-Phong material
+// with cosine-palette iridescence applied to the specular highlight,
+// and a mercury blob at the cursor.
 //
 // To tune a feature, open its file. To reorder/swap features, edit this
 // list. Adding a new feature = new file + one line here.
@@ -34,12 +34,16 @@ const uniformDeclarations = /* glsl */ `
   uniform sampler2D u_normal;
   uniform sampler2D u_bloom;
   uniform sampler2D u_bgTex;
+
+  // Material
+  uniform vec3 u_baseColor;
+  uniform float u_diffuse;
+  uniform float u_specular;
+  uniform float u_shininess;
+
+  // Iridescence
   uniform vec3 u_iriPhase;
   uniform float u_iriIntensity;
-  uniform vec3 u_iriColor;
-  uniform float u_iriColorStrength;
-  uniform vec3 u_tintColor;
-  uniform float u_tintStrength;
 `;
 
 export const fragmentShader = `
