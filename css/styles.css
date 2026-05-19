@@ -56,10 +56,6 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 /* ============ VIEWPORT ============ */
 .viewport{background:var(--s1);border:1px solid var(--b4);border-radius:5px;position:relative;overflow:hidden;min-height:600px}
 .viewport canvas{display:block;width:100%;height:100%}
-.viewport-hint{position:absolute;top:var(--sp-300);right:var(--sp-300);font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);background:rgba(0,0,0,.7);padding:4px 10px;pointer-events:none;display:flex;align-items:center;gap:8px;border:1px solid var(--b4);z-index:5}
-.viewport-hint::before{content:'';width:6px;height:6px;background:var(--ow);border-radius:50%;animation:pulse 1.4s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
-.viewport-status{position:absolute;bottom:var(--sp-300);left:var(--sp-300);font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);background:rgba(0,0,0,.7);padding:4px 10px;pointer-events:none;border:1px solid var(--b4);z-index:5}
 
 /* ============ DROP ZONE ============ */
 .drop-zone{position:relative;background:var(--s2);border:1px dashed var(--b3);border-radius:5px;padding:var(--sp-400);display:flex;flex-direction:column;align-items:center;gap:var(--sp-200);cursor:pointer;transition:border-color .15s,background .15s}
@@ -77,6 +73,7 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 /* ============ SEGMENTED ============ */
 .segmented{display:grid;gap:1px;background:var(--b4);border:1px solid var(--b4);border-radius:0}
 .segmented.cols-2{grid-template-columns:repeat(2,1fr)}
+.segmented.cols-3{grid-template-columns:repeat(3,1fr)}
 .segmented.cols-4{grid-template-columns:repeat(2,1fr)}
 .seg-btn{background:var(--s2);border:none;padding:8px 4px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);cursor:pointer;transition:background .12s,color .12s}
 .seg-btn:hover{background:var(--s3);color:var(--tp)}
@@ -112,6 +109,22 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 .recording.on{display:flex}
 .recording::before{content:'';width:8px;height:8px;background:#FFF;border-radius:50%;animation:rec-pulse .8s ease-in-out infinite}
 @keyframes rec-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ============ COLOR ROW (for color pickers in sections) ============ */
+.color-row{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-200);padding:var(--sp-200) var(--sp-300);background:var(--s2);border:1px solid var(--b4)}
+.color-row-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
+.color-row-control{display:flex;align-items:center;gap:var(--sp-200)}
+.color-row-hex{font-family:var(--font-brand);font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+input[type="color"]{-webkit-appearance:none;appearance:none;width:28px;height:20px;padding:0;border:1px solid var(--b3);background:transparent;cursor:pointer}
+input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
+input[type="color"]::-webkit-color-swatch{border:none}
+input[type="color"]::-moz-color-swatch{border:none}
+
+/* ============ BG PANEL ============ */
+.bg-panel{display:flex;flex-direction:column;gap:var(--sp-200)}
+.drop-zone-sm{padding:var(--sp-300)}
+.drop-zone-sm .drop-title{font-size:11px}
+.drop-zone-sm .drop-icon{width:24px;height:24px}
 
 /* ============ DIVIDER ============ */
 .div{height:1px;background:var(--b4);margin:var(--sp-100) 0}

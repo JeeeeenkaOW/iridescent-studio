@@ -26,7 +26,7 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx }) 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `iridescent_${Date.now()}.png`;
+      a.download = `wmf_${Date.now()}.png`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }, 'image/png');
@@ -57,7 +57,7 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx }) 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `iridescent_${Date.now()}.webm`;
+      a.download = `wmf_${Date.now()}.webm`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     };

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iridescent Shader Studio · Overwolf Internal Tools</title>
+<title>Web Material Forge · Overwolf Internal Tools</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./css/styles.css">
 
@@ -40,17 +40,15 @@
   <div class="tool">
 
     <section class="viewport" id="viewport">
-      <div class="viewport-hint">Live</div>
       <div class="recording" id="recording">Recording</div>
-      <div class="viewport-status" id="viewport-status">Default ornament</div>
     </section>
 
     <aside class="sidebar">
 
       <div class="sidebar-header">
         <p class="sidebar-eyebrow">Design Tools</p>
-        <h1 class="sidebar-title">Iridescent Shader Studio</h1>
-        <p class="sidebar-desc">Drop an SVG or PNG. Albedo, normal, and bloom maps generate from the image; a fragment shader fakes silver, iridescence, mercury, and motion. Same engine as the biennale skill.</p>
+        <h1 class="sidebar-title">Web Material Forge</h1>
+        <p class="sidebar-desc">Drop an SVG or PNG. Albedo, normal, and bloom maps generate from the image; a fragment shader fakes a range of materials &mdash; pearl, gold, oil, arctic &mdash; with motion. Same engine as the biennale skill.</p>
       </div>
 
       <!-- UPLOAD -->
@@ -84,6 +82,19 @@
           <button class="seg-btn" data-mat="oil">Oil</button>
           <button class="seg-btn" data-mat="arctic">Arctic</button>
         </div>
+
+        <div class="color-row">
+          <span class="color-row-label">Tint</span>
+          <div class="color-row-control">
+            <input type="color" id="mat-tint-color" value="#FFFFFF">
+            <span class="color-row-hex" id="mat-tint-hex">#FFFFFF</span>
+          </div>
+        </div>
+
+        <div class="range-row">
+          <div class="range-label"><span>Tint strength</span><span class="range-value" id="mat-tint-strength-val">0%</span></div>
+          <input type="range" id="mat-tint-strength" min="0" max="100" step="1" value="0">
+        </div>
       </div>
 
       <div class="div"></div>
@@ -91,9 +102,62 @@
       <!-- BACKGROUND -->
       <div class="section">
         <div class="section-title">Background</div>
-        <div class="segmented cols-2" id="seg-bg">
-          <button class="seg-btn active" data-bg="dark">Dark void</button>
-          <button class="seg-btn" data-bg="light">Parchment</button>
+        <div class="segmented cols-3" id="seg-bg">
+          <button class="seg-btn active" data-bg="solid">Solid</button>
+          <button class="seg-btn" data-bg="gradient">Gradient</button>
+          <button class="seg-btn" data-bg="image">Image</button>
+        </div>
+
+        <!-- Solid panel -->
+        <div class="bg-panel" id="bg-panel-solid">
+          <div class="color-row">
+            <span class="color-row-label">Color</span>
+            <div class="color-row-control">
+              <input type="color" id="bg-solid-color" value="#000000">
+              <span class="color-row-hex" id="bg-solid-hex">#000000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gradient panel -->
+        <div class="bg-panel" id="bg-panel-gradient" style="display:none">
+          <div class="color-row">
+            <span class="color-row-label">From</span>
+            <div class="color-row-control">
+              <input type="color" id="bg-grad-from" value="#000000">
+              <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
+            </div>
+          </div>
+          <div class="color-row">
+            <span class="color-row-label">To</span>
+            <div class="color-row-control">
+              <input type="color" id="bg-grad-to" value="#202020">
+              <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
+            </div>
+          </div>
+          <div class="range-row">
+            <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
+            <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
+          </div>
+        </div>
+
+        <!-- Image panel -->
+        <div class="bg-panel" id="bg-panel-image" style="display:none">
+          <div class="drop-zone drop-zone-sm" id="bg-img-drop">
+            <input type="file" id="bg-img-input" accept="image/png,image/jpeg,image/webp,image/gif">
+            <div class="drop-icon">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p class="drop-title">Drop image</p>
+            <p class="drop-sub">or <span class="drop-link">browse files</span></p>
+          </div>
+          <div class="drop-current" id="bg-img-current" style="display:none">
+            <span class="drop-current-name" id="bg-img-current-name"></span>
+            <button class="drop-current-clear" id="bg-img-clear" title="Remove">×</button>
+          </div>
         </div>
       </div>
 

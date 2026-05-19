@@ -1,33 +1,231 @@
 // =========================================================
-// BACKGROUND CONTROL — Dark void vs Parchment
+// BACKGROUND CONTROL — Solid / Gradient / Image
 // =========================================================
-// Switches u_lightMode and the clear color. Parchment is a warm
-// off-white (#f2ebdc) that pairs with the iridescent halo.
+// Three modes share one offscreen 2D canvas. Whenever mode/params change
+// (or the viewport resizes), we redraw the canvas and tag the texture
+// as needing a GPU upload. The shader samples u_bgTex with v_uv (full
+// viewport UVs, no aspect fit) so what's on the canvas IS what's behind
+// the ornament.
+//
+// Solid:    fillRect with state.bg.solid
+// Gradient: createLinearGradient at state.bg.gradient.angle, from→to
+// Image:    drawImage with cover-fit (centered, never distorted)
 //
 import * as THREE from 'three';
 
-export function initBackground({ state, uniforms, renderer }) {
-  function applyBg() {
-    if (state.bgMode === 'light') {
-      const bg = new THREE.Color('#f2ebdc');
-      renderer.setClearColor(bg, 1);
-      uniforms.u_bgColor.value.set(bg.r, bg.g, bg.b);
-      uniforms.u_lightMode.value = 1.0;
+const BG_RES = 1024;  // logical resolution of the bg canvas — plenty for a
+                      // background that gets sampled at viewport resolution.
+
+export function initBackground({ state, uniforms, viewport }) {
+  // ---------- offscreen canvas + texture ----------
+  const canvas = document.createElement('canvas');
+  canvas.width = BG_RES;
+  canvas.height = BG_RES;
+  const ctx = canvas.getContext('2d');
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.generateMipmaps = false;
+  uniforms.u_bgTex.value = texture;
+
+  // Cached HTMLImageElement for the loaded background image, if any.
+  let bgImage = null;
+
+  // ---------- redraw ----------
+  // Repaint the canvas based on state.bg. Called whenever any bg control
+  // changes. Resizes the canvas to match the viewport aspect so the
+  // gradient/image don't squish.
+  function redraw() {
+    const vw = viewport.clientWidth  || BG_RES;
+    const vh = viewport.clientHeight || BG_RES;
+    const aspect = vw / vh;
+    const w = aspect >= 1 ? BG_RES : Math.round(BG_RES * aspect);
+    const h = aspect >= 1 ? Math.round(BG_RES / aspect) : BG_RES;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+
+    if (state.bg.mode === 'solid') {
+      ctx.fillStyle = state.bg.solid;
+      ctx.fillRect(0, 0, w, h);
+    } else if (state.bg.mode === 'gradient') {
+      const { from, to, angle } = state.bg.gradient;
+      // Angle 0 = top-to-bottom in CSS convention. Convert to canvas
+      // gradient endpoints across the rect.
+      const rad = (angle - 90) * Math.PI / 180;
+      const cx = w / 2, cy = h / 2;
+      const len = Math.max(w, h);
+      const x0 = cx - Math.cos(rad) * len / 2;
+      const y0 = cy - Math.sin(rad) * len / 2;
+      const x1 = cx + Math.cos(rad) * len / 2;
+      const y1 = cy + Math.sin(rad) * len / 2;
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, from);
+      grad.addColorStop(1, to);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    } else if (state.bg.mode === 'image') {
+      // Fallback to solid black if no image loaded.
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+      if (bgImage && bgImage.naturalWidth) {
+        const ia = bgImage.naturalWidth / bgImage.naturalHeight;
+        const ca = w / h;
+        let dw, dh, dx, dy;
+        if (ia > ca) {
+          // image wider than canvas → fit height, crop sides
+          dh = h;
+          dw = h * ia;
+          dx = (w - dw) / 2;
+          dy = 0;
+        } else {
+          dw = w;
+          dh = w / ia;
+          dx = 0;
+          dy = (h - dh) / 2;
+        }
+        ctx.drawImage(bgImage, dx, dy, dw, dh);
+      }
+    }
+
+    texture.needsUpdate = true;
+  }
+
+  function applyBg() { redraw(); }
+
+  // ---------- DOM ----------
+  // Tabs
+  const tabs = document.querySelectorAll('#seg-bg .seg-btn');
+  const panels = {
+    solid:    document.getElementById('bg-panel-solid'),
+    gradient: document.getElementById('bg-panel-gradient'),
+    image:    document.getElementById('bg-panel-image'),
+  };
+  function showPanel(mode) {
+    for (const k of Object.keys(panels)) {
+      if (panels[k]) panels[k].style.display = (k === mode) ? 'flex' : 'none';
+    }
+  }
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.bg.mode = btn.dataset.bg;
+      showPanel(state.bg.mode);
+      redraw();
+    });
+  });
+  showPanel(state.bg.mode);
+
+  // Solid color
+  const solidColor = document.getElementById('bg-solid-color');
+  const solidHex   = document.getElementById('bg-solid-hex');
+  solidColor.value = state.bg.solid;
+  solidHex.textContent = state.bg.solid.toUpperCase();
+  solidColor.addEventListener('input', (e) => {
+    state.bg.solid = e.target.value;
+    solidHex.textContent = e.target.value.toUpperCase();
+    if (state.bg.mode === 'solid') redraw();
+  });
+
+  // Gradient
+  const gFrom = document.getElementById('bg-grad-from');
+  const gTo   = document.getElementById('bg-grad-to');
+  const gFromHex = document.getElementById('bg-grad-from-hex');
+  const gToHex   = document.getElementById('bg-grad-to-hex');
+  const gAngle   = document.getElementById('bg-grad-angle');
+  const gAngleVal = document.getElementById('bg-grad-angle-val');
+  gFrom.value = state.bg.gradient.from;
+  gTo.value   = state.bg.gradient.to;
+  gFromHex.textContent = state.bg.gradient.from.toUpperCase();
+  gToHex.textContent   = state.bg.gradient.to.toUpperCase();
+  gAngle.value = state.bg.gradient.angle;
+  gAngleVal.textContent = state.bg.gradient.angle + '°';
+  gFrom.addEventListener('input', (e) => {
+    state.bg.gradient.from = e.target.value;
+    gFromHex.textContent = e.target.value.toUpperCase();
+    if (state.bg.mode === 'gradient') redraw();
+  });
+  gTo.addEventListener('input', (e) => {
+    state.bg.gradient.to = e.target.value;
+    gToHex.textContent = e.target.value.toUpperCase();
+    if (state.bg.mode === 'gradient') redraw();
+  });
+  gAngle.addEventListener('input', (e) => {
+    state.bg.gradient.angle = parseInt(e.target.value, 10);
+    gAngleVal.textContent = state.bg.gradient.angle + '°';
+    if (state.bg.mode === 'gradient') redraw();
+  });
+
+  // Image upload
+  const imgDrop = document.getElementById('bg-img-drop');
+  const imgInput = document.getElementById('bg-img-input');
+  const imgCurrent = document.getElementById('bg-img-current');
+  const imgCurrentName = document.getElementById('bg-img-current-name');
+  const imgClear = document.getElementById('bg-img-clear');
+
+  function setImgUI(name) {
+    if (name) {
+      imgCurrent.style.display = 'flex';
+      imgCurrentName.textContent = name;
     } else {
-      renderer.setClearColor(0x000000, 1);
-      uniforms.u_bgColor.value.set(0, 0, 0);
-      uniforms.u_lightMode.value = 0.0;
+      imgCurrent.style.display = 'none';
+      imgCurrentName.textContent = '';
     }
   }
 
-  document.querySelectorAll('#seg-bg .seg-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#seg-bg .seg-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.bgMode = btn.dataset.bg;
-      applyBg();
+  async function handleImageFile(file) {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    const ok = ['image/png','image/jpeg','image/jpg','image/webp','image/gif']
+      .includes(file.type) || /\.(png|jpe?g|webp|gif)$/.test(name);
+    if (!ok) {
+      alert('Background image must be PNG, JPG, WebP, or GIF.');
+      return;
+    }
+    state.bg.imageBlob = file;
+    state.bg.imageName = file.name;
+    setImgUI(file.name);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+      img.src = url;
     });
+    bgImage = img;
+    URL.revokeObjectURL(url);
+    if (state.bg.mode === 'image') redraw();
+  }
+
+  imgDrop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    imgDrop.classList.add('drag-over');
+  });
+  imgDrop.addEventListener('dragleave', () => imgDrop.classList.remove('drag-over'));
+  imgDrop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    imgDrop.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) handleImageFile(e.dataTransfer.files[0]);
+  });
+  imgInput.addEventListener('change', () => {
+    if (imgInput.files[0]) handleImageFile(imgInput.files[0]);
+  });
+  imgClear.addEventListener('click', () => {
+    state.bg.imageBlob = null;
+    state.bg.imageName = '';
+    bgImage = null;
+    imgInput.value = '';
+    setImgUI('');
+    if (state.bg.mode === 'image') redraw();
   });
 
-  return { applyBg };
+  // Initial paint.
+  redraw();
+
+  return { applyBg, redraw };
 }

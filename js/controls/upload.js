@@ -13,7 +13,7 @@ export function initUpload({ state, statusEl, rebuildAndResize }) {
 
   function setStatus(name) {
     state.svgName = name;
-    statusEl.textContent = name;
+    if (statusEl) statusEl.textContent = name;
     if (name === 'Default ornament') {
       dropCurrent.style.display = 'none';
     } else {

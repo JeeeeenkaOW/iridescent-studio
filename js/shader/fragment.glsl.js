@@ -30,9 +30,10 @@ const uniformDeclarations = /* glsl */ `
   uniform sampler2D u_albedo;
   uniform sampler2D u_normal;
   uniform sampler2D u_bloom;
-  uniform vec3 u_bgColor;
-  uniform float u_lightMode;
+  uniform sampler2D u_bgTex;
   uniform vec3 u_paletteD;
+  uniform vec3 u_tintColor;
+  uniform float u_tintStrength;
 `;
 
 export const fragmentShader = `
