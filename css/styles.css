@@ -129,6 +129,9 @@ input[type="color"]::-moz-color-swatch{border:none}
 /* ============ DIVIDER ============ */
 .div{height:1px;background:var(--b4);margin:var(--sp-100) 0}
 
+/* ============ SHADER CONTROLS HOST ============ */
+#shader-controls{display:flex;flex-direction:column;gap:var(--sp-400)}
+
 /* ============ FOOTER ============ */
 footer{margin-top:auto;border-top:1px solid var(--b4);padding:var(--sp-400) var(--sp-800);display:flex;align-items:center;gap:var(--sp-800)}
 .rune{flex:1;font-family:var(--font-brand);font-weight:var(--fw-bold);font-size:11px;letter-spacing:.08em;color:var(--ow);opacity:.45;white-space:nowrap;overflow:hidden;line-height:1}
