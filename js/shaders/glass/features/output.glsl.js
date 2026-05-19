@@ -31,7 +31,7 @@ export const compositeBlock = /* glsl */ `
 
     // Grazing reflectance: F.x (the Fresnel scalar, equal across
     // channels for our near-neutral F0) ramps from 0 at centre to
-    // 1 at silhouette. We brighten `through` by that factor so
+    // 1 at silhouette. We brighten 'through' by that factor so
     // edges read as reflective. Without this, glass looks like
     // a flat tinted hole.
     vec3 reflectedBg = mix(through, vec3(1.0), F.x * 0.6);
