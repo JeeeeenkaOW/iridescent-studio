@@ -85,9 +85,13 @@ js/
     shader-export.js              ← single-file HTML export of active material+effects
   shaders/                        ← material registry
     index.js                      ← SHADERS map + DEFAULT_SHADER
+    _shared/                      ← GLSL helpers used by every material
+      helpers.glsl.js             ← Schlick Fresnel, hemisphere ambient, ACES tonemap
+      ambient.js                  ← shared sky/ground default hex colors
     mercury/                      ← warm silver Blinn-Phong + cursor mercury blob
-    glass/                        ← refractive bg sampling + frost
-    obsidian/                     ← dark glass + rough surface + fresnel rim
+    glass/                        ← refractive bg sampling + Fresnel reflectance
+    obsidian/                     ← dark glass + 3-octave rough surface + fresnel rim
+    ceramic/                      ← white porcelain + subsurface inner glow
       index.js                    ← manifest (id, name, GLSL, uniforms, controls, defaults)
       defaults.js                 ← initial uniform values + lighting preset
       controls.js                 ← material's sidebar UI (just material params,
@@ -176,25 +180,40 @@ js/
 
 ## Materials
 
+All four materials share a realism baseline: Schlick Fresnel
+reflectance, hemisphere ambient (sky/ground directional ambient),
+light-color-tinted diffuse and specular, and ACES filmic tonemap on
+the final output. Each adds its own character on top.
+
 **Mercury** — Warm silver Blinn-Phong with a mercury blob that follows
-the cursor. With the Iridescence effect enabled at full intensity and
-hue 0, this matches the original studio's rainbow look on the
-highlight. With every effect off, it's plain silver.
+the cursor. F0 reflectance is a slightly warm silver (metals inherit
+their tint in reflection). With the Iridescence effect on, you get
+the original studio's rainbow on the highlight; with everything off,
+it's plain warm silver.
 
-**Glass** — Refractive bg sampling with optional frost. Transparency,
-refraction, and frost are the three controls. Effects layer on top.
+**Glass** — Refractive bg sampling with optional frost. The realism
+pass added grazing-angle reflectance via Fresnel, which is what makes
+glass look like glass (reflective at the edges, transparent through
+the middle) instead of a flat tinted hole.
 
-**Obsidian** — Deep near-black glass body with a procedural rough
-surface that breaks up specular reflections into a stippled volcanic-
-glass look, plus a fresnel rim and tight clearcoat highlight. Inspired
-by the D20 obsidian dice reference. Effects layer on top.
+**Obsidian** — Deep near-black glass body with a 3-octave procedural
+rough surface that breaks up specular reflections into a fine stippled
+volcanic-glass look, plus a fresnel clearcoat rim. Inspired by the D20
+obsidian dice reference. Roughness slider goes from polished glass
+(0%) to coarse pumice (100%).
+
+**Ceramic** — White porcelain: opaque matte body with a soft Fresnel
+highlight, a fake subsurface inner glow (warm tint × bloom), and the
+hemisphere ambient. Light, soft, and recognizable as bone china. The
+inner glow color and strength are tunable.
 
 ## Effects
 
 **Lighting** — Override the active material's preset Blinn-Phong
-parameters: diffuse mix, specular intensity, shininess, virtual
-light height. Off by default → material's preset values rule.
-On → sliders take over.
+parameters: diffuse, specular, shininess, light height, AND light
+color. Off by default → material's preset values rule (white light,
+preset gain). On → sliders take over and the color picker tints both
+diffuse and specular.
 
 **Iridescence** — Cosine-palette rainbow tint on the specular
 highlight and silhouette halo. Off by default. Works on any material.
@@ -208,8 +227,10 @@ on any material.
 The "Shader HTML" button in the Export section produces a single,
 self-contained HTML file with:
 
-- the active material's GLSL (including effect helpers/apply blocks) inlined
-- all current uniform values hardcoded — both material and enabled effects
+- the active material's GLSL (including effect helpers/apply blocks
+  and the shared Fresnel/ambient/tonemap helpers) inlined
+- all current uniform values hardcoded — both material and enabled
+  effects, including light color
 - if the Lighting effect is enabled, its slider values bake in and
   override the material's preset lighting uniforms
 - the three generated textures (albedo, normal, bloom) baked as base64

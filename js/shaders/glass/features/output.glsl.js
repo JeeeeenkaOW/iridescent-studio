@@ -1,42 +1,48 @@
 // =========================================================
-// HALO + OUTPUT — exposes halo intermediates for effects
+// HALO + COMPOSITE + OUTPUT
 // =========================================================
 // Halo block declares `halo`, `haloMask`, `haloIntensity` so the
-// Iridescence effect (which runs between halo and output) can
+// Iridescence effect (running between halo and composite) can
 // overwrite `halo` with palette colour.
 //
-// Composite + output: refracted bg blended by transparency, plus
-// specular highlight, plus halo.
+// Composite — realism additions:
+//   - Hemisphere ambient adds direction to the otherwise flat
+//     transparency read.
+//   - Grazing-angle reflectance: Fresnel scalar (F.x as proxy for
+//     reflection brightness) mixes `through` toward a reflective
+//     bright value at silhouette edges. This is what makes real
+//     glass look like glass instead of a transparent hole.
 //
-// Tuneables (hardcoded):
-//   - halo intensity:    0.25   (subtle — glass isn't a glowy material)
-//   - halo mask falloff: 0.7
-//   - vignette range:    0.35 → 1.15
-//   - grain:             0.018
+// Output adds ACES tonemap.
 //
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
     float haloIntensity = 0.25;
-    // Default glass halo: cool-blue, monochromatic. Iridescence effect
-    // can overwrite this.
     vec3 halo = vec3(0.7, 0.8, 0.9) * haloMask * haloIntensity;
 `;
 
 export const compositeBlock = /* glsl */ `
     // The "solid" appearance of glass when transparency is 0 —
-    // a very light frosted white. Acts as the opaque limit.
-    vec3 solid = vec3(0.92, 0.94, 0.96);
+    // a very light frosted white tinted by hemisphere ambient.
+    vec3 solid = vec3(0.92, 0.94, 0.96) * hemiAmbient(N, u_skyColor, u_groundColor) * 2.0;
 
     // What you see through the ornament.
     vec3 through = mix(solid, glassBg, u_transparency);
 
-    // specular vec3 was set up in flowBlock and may have been tinted
+    // Grazing reflectance: F.x (the Fresnel scalar, equal across
+    // channels for our near-neutral F0) ramps from 0 at centre to
+    // 1 at silhouette. We brighten `through` by that factor so
+    // edges read as reflective. Without this, glass looks like
+    // a flat tinted hole.
+    vec3 reflectedBg = mix(through, vec3(1.0), F.x * 0.6);
+    through = reflectedBg;
+
+    // specular was set up in flowBlock and may have been tinted
     // by the iridescence effect by this point.
     vec3 ornament = through + specular;
 `;
 
 export const outputBlock = /* glsl */ `
-    // Bg outside the ornament — straight, no refraction.
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     vec3 fg = ornament * mask + halo;
@@ -44,6 +50,9 @@ export const outputBlock = /* glsl */ `
 
     float vig = 1.0 - smoothstep(0.35, 1.15, length(v_uv - 0.5));
     col *= vig;
+
+    col = acesTonemap(col);
+
     col += (hash(v_uv * u_resolution + u_time) - 0.5) * 0.018;
     gl_FragColor = vec4(col, 1.0);
 `;

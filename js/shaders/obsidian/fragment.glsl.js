@@ -1,30 +1,23 @@
 // =========================================================
 // OBSIDIAN FRAGMENT SHADER — assembled from feature snippets + effects
 // =========================================================
-// Plain dark glass inspired by the D20 dice reference: near-black body
-// + procedural rough surface (breaks up reflections into a stippled
-// volcanic-glass look) + sharp clearcoat highlight + fresnel rim.
-// Effects (iridescence, chromatic aberration, lighting overrides) layer
-// in via EFFECTS_* slots, same convention as Mercury and Glass.
+// Plain dark glass with realism passes: procedural rough surface,
+// Schlick Fresnel-coloured specular, hemisphere ambient, ACES tonemap.
 //
 // Assembly order in main():
 //
 //   sample      → albedo / normal / bloom, mask, baseline N
-//   roughness   → perturbs N with high-freq noise (rough surface)
-//   lighting    → NdotL, spec (uses perturbed N → stippled highlight)
-//   refraction  → throughBg (bg sampled with perturbed N offset)
-//   fresnel     → fresnel rim term (uses perturbed N.z)
-//   flow        → iriT, flow, baseline `specular` (white vec3)
-//   halo        → haloMask, haloIntensity, default halo (neutral white)
+//   roughness   → perturbs N (3-octave noise breaking up reflections)
+//   lighting    → NdotL, NdotV, spec (reads perturbed N)
+//   refraction  → throughBg
+//   fresnel     → user-facing rim term `fresnel` (separate from Schlick)
+//   flow        → iriT, flow, Fresnel-coloured `specular` vec3
+//   halo        → haloMask, haloIntensity, default halo
 //
 //   EFFECTS_APPLY ← effects tint specular / overwrite halo / etc
 //
-//   composite   → ornament = body + specular + fresnel (after effects)
-//   output      → bg + ornament + halo + vignette + grain
-//
-// Composite runs AFTER effects so iridescence's tint to `specular` is
-// visible in the final ornament. Halo runs BEFORE effects so the
-// iridescence effect can overwrite it with palette colour.
+//   composite   → ornament = ambient + diffuse + specular + rim
+//   output      → bg + ornament + halo + vignette + ACES + grain
 //
 import { noiseHelpers }    from './features/noise.glsl.js';
 import { fitUVHelper }     from './features/fit-uv.glsl.js';
@@ -36,6 +29,7 @@ import { fresnelBlock }    from './features/fresnel.glsl.js';
 import { flowBlock }       from './features/flow-fbm.glsl.js';
 import { compositeBlock }  from './features/composite.glsl.js';
 import { haloBlock, outputBlock } from './features/output.glsl.js';
+import { sharedMaterialHelpers } from '../_shared/helpers.glsl.js';
 import { listEffects } from '../../effects/index.js';
 
 const materialUniforms = /* glsl */ `
@@ -57,12 +51,18 @@ const materialUniforms = /* glsl */ `
   uniform float u_fresnel;
   uniform float u_fresnelPower;
   uniform float u_roughness;
+  uniform vec3  u_f0;
 
-  // Lighting (preset by material; Lighting effect overrides)
+  // Lighting (preset; Lighting effect overrides)
   uniform float u_diffuse;
   uniform float u_specular;
   uniform float u_shininess;
   uniform float u_lightHeight;
+  uniform vec3  u_lightColor;
+
+  // Ambient (hemisphere)
+  uniform vec3  u_skyColor;
+  uniform vec3  u_groundColor;
 `;
 
 function buildFragmentShader() {
@@ -76,6 +76,7 @@ function buildFragmentShader() {
     ${effectUniforms}
 
     ${noiseHelpers}
+    ${sharedMaterialHelpers}
     ${effectHelpers}
 
     ${fitUVHelper}

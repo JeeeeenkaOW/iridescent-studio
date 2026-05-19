@@ -6,17 +6,18 @@
 // chromatic aberration) are separate — see /js/effects/.
 //
 // To add a new material: create a folder under /shaders/, build the
-// manifest (see mercury/index.js, glass/index.js, obsidian/index.js),
-// and import + add here.
+// manifest, and import + add here.
 //
 import { mercuryShader }  from './mercury/index.js';
 import { glassShader }    from './glass/index.js';
 import { obsidianShader } from './obsidian/index.js';
+import { ceramicShader }  from './ceramic/index.js';
 
 export const SHADERS = {
   mercury:  mercuryShader,
   glass:    glassShader,
   obsidian: obsidianShader,
+  ceramic:  ceramicShader,
 };
 
 export const DEFAULT_SHADER = 'mercury';

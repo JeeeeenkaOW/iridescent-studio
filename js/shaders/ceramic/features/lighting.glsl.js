@@ -1,7 +1,7 @@
 // =========================================================
 // LIGHTING — Blinn-Phong with cursor as point light
 // =========================================================
-// Same setup as Mercury and Glass.
+// Same setup as Mercury / Glass / Obsidian.
 //
 export const lightingBlock = /* glsl */ `
     vec3 lightV = vec3(mouseTexUV - texUV, u_lightHeight);

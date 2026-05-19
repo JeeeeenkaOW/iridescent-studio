@@ -1,24 +1,13 @@
 // =========================================================
 // OUTPUT — final compositing
 // =========================================================
-// Baseline halo is a soft white ring around silhouette edges. The
-// Iridescence effect overwrites `halo` with palette colour when on.
-//
-// Realism addition: ACES tonemap is applied AFTER vignette but BEFORE
-// grain. Without tonemapping, highlights blow out to white; with it,
-// they roll off cleanly and pushed-up Lighting effect sliders don't
-// destroy the image.
-//
-// Tuneables (hardcoded):
-//   - halo intensity:      0.32
-//   - halo mask falloff:   0.7
-//   - vignette range:      0.35 → 1.15
-//   - grain:               0.018
+// Halo for ceramic is faint and warm-neutral. Iridescence effect
+// overwrites with palette colour when enabled.
 //
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
-    float haloIntensity = 0.32;
-    vec3 halo = vec3(1.0) * haloMask * haloIntensity;
+    float haloIntensity = 0.20;
+    vec3 halo = vec3(1.0, 0.97, 0.93) * haloMask * haloIntensity;
 `;
 
 export const outputBlock = /* glsl */ `

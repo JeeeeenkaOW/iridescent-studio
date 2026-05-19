@@ -1,42 +1,39 @@
 // =========================================================
 // MERCURY MATERIAL — manifest
 // =========================================================
-// A material manifest is a self-contained bundle: its own GLSL,
-// uniforms, sidebar controls, defaults. The top-level material picker
-// (controls/shader.js) swaps between manifests like this.
-//
-// Material exports vs effect exports:
-//   - Material owns base appearance + lighting *defaults*.
-//   - Effects own iridescence / chromatic aberration / lighting
-//     overrides. Their serializers run alongside the material's.
-//
 import { vertexShader }   from './vertex.glsl.js';
 import { fragmentShader } from './fragment.glsl.js';
 import { createUniforms } from './uniforms.js';
 import { initMercuryControls } from './controls.js';
 import { defaults } from './defaults.js';
 
-// Serializer for the HTML exporter. Returns constants + uniform
-// entries for the MATERIAL only. Effect serializers run separately
-// and their output is merged in by the exporter.
 function serializeForExport(snapshot) {
   const mat = snapshot?.material ?? defaults.material;
-  const lit = defaults.lighting; // preset; Lighting effect overrides via its own serializer
+  const lit = defaults.lighting;
+  const amb = defaults.ambient;
 
   const constants = `
-const BASE_COLOR_HEX = ${JSON.stringify(mat.baseColor)};
-const DIFFUSE_PRESET   = ${lit.diffuse};
-const SPECULAR_PRESET  = ${lit.specular};
-const SHININESS_PRESET = ${lit.shininess};
-const HEIGHT_PRESET    = ${lit.height};
+const BASE_COLOR_HEX    = ${JSON.stringify(mat.baseColor)};
+const F0_COLOR_HEX      = ${JSON.stringify(mat.f0Color ?? defaults.material.f0Color)};
+const DIFFUSE_PRESET    = ${lit.diffuse};
+const SPECULAR_PRESET   = ${lit.specular};
+const SHININESS_PRESET  = ${lit.shininess};
+const HEIGHT_PRESET     = ${lit.height};
+const LIGHT_COLOR_HEX   = ${JSON.stringify(lit.color)};
+const SKY_HEX           = ${JSON.stringify(amb.sky)};
+const GROUND_HEX        = ${JSON.stringify(amb.ground)};
 `.trim();
 
   const uniformEntries = `
     u_baseColor:   { value: hexToVec3(BASE_COLOR_HEX) },
+    u_f0:          { value: hexToVec3(F0_COLOR_HEX) },
     u_diffuse:     { value: DIFFUSE_PRESET },
     u_specular:    { value: SPECULAR_PRESET },
     u_shininess:   { value: SHININESS_PRESET },
     u_lightHeight: { value: HEIGHT_PRESET },
+    u_lightColor:  { value: hexToVec3(LIGHT_COLOR_HEX) },
+    u_skyColor:    { value: hexToVec3(SKY_HEX) },
+    u_groundColor: { value: hexToVec3(GROUND_HEX) },
 `.trim();
 
   return { constants, uniformEntries };
@@ -45,7 +42,7 @@ const HEIGHT_PRESET    = ${lit.height};
 export const mercuryShader = {
   id: 'mercury',
   name: 'Mercury',
-  description: 'Warm silver Blinn-Phong with a mercury blob at the cursor. Layer iridescence and other effects on top.',
+  description: 'Warm silver Blinn-Phong with Fresnel reflectance, hemisphere ambient, and a mercury blob at the cursor.',
   vertexShader,
   fragmentShader,
   createUniforms,

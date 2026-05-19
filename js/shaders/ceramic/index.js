@@ -1,10 +1,10 @@
 // =========================================================
-// OBSIDIAN MATERIAL — manifest
+// CERAMIC MATERIAL — manifest
 // =========================================================
 import { vertexShader }   from './vertex.glsl.js';
 import { fragmentShader } from './fragment.glsl.js';
 import { createUniforms } from './uniforms.js';
-import { initObsidianControls } from './controls.js';
+import { initCeramicControls } from './controls.js';
 import { defaults } from './defaults.js';
 
 function serializeForExport(snapshot) {
@@ -14,10 +14,8 @@ function serializeForExport(snapshot) {
 
   const constants = `
 const BASE_COLOR_HEX    = ${JSON.stringify(mat.baseColor)};
-const REFRACTION        = ${mat.refraction};
-const FRESNEL           = ${mat.fresnel};
-const FRESNEL_POWER     = ${mat.fresnelPower};
-const ROUGHNESS         = ${mat.roughness};
+const SSS_COLOR_HEX     = ${JSON.stringify(mat.sssColor)};
+const SSS_STRENGTH      = ${mat.sssStrength};
 const F0_COLOR_HEX      = ${JSON.stringify(mat.f0Color ?? defaults.material.f0Color)};
 const DIFFUSE_PRESET    = ${lit.diffuse};
 const SPECULAR_PRESET   = ${lit.specular};
@@ -29,32 +27,30 @@ const GROUND_HEX        = ${JSON.stringify(amb.ground)};
 `.trim();
 
   const uniformEntries = `
-    u_baseColor:    { value: hexToVec3(BASE_COLOR_HEX) },
-    u_refraction:   { value: REFRACTION },
-    u_fresnel:      { value: FRESNEL },
-    u_fresnelPower: { value: FRESNEL_POWER },
-    u_roughness:    { value: ROUGHNESS },
-    u_f0:           { value: hexToVec3(F0_COLOR_HEX) },
-    u_diffuse:      { value: DIFFUSE_PRESET },
-    u_specular:     { value: SPECULAR_PRESET },
-    u_shininess:    { value: SHININESS_PRESET },
-    u_lightHeight:  { value: HEIGHT_PRESET },
-    u_lightColor:   { value: hexToVec3(LIGHT_COLOR_HEX) },
-    u_skyColor:     { value: hexToVec3(SKY_HEX) },
-    u_groundColor:  { value: hexToVec3(GROUND_HEX) },
+    u_baseColor:   { value: hexToVec3(BASE_COLOR_HEX) },
+    u_sssColor:    { value: hexToVec3(SSS_COLOR_HEX) },
+    u_sssStrength: { value: SSS_STRENGTH },
+    u_f0:          { value: hexToVec3(F0_COLOR_HEX) },
+    u_diffuse:     { value: DIFFUSE_PRESET },
+    u_specular:    { value: SPECULAR_PRESET },
+    u_shininess:   { value: SHININESS_PRESET },
+    u_lightHeight: { value: HEIGHT_PRESET },
+    u_lightColor:  { value: hexToVec3(LIGHT_COLOR_HEX) },
+    u_skyColor:    { value: hexToVec3(SKY_HEX) },
+    u_groundColor: { value: hexToVec3(GROUND_HEX) },
 `.trim();
 
   return { constants, uniformEntries };
 }
 
-export const obsidianShader = {
-  id: 'obsidian',
-  name: 'Obsidian',
-  description: 'Dark glass with a 3-octave rough surface, Schlick Fresnel, hemisphere ambient, and a clearcoat rim. Inspired by D20 obsidian dice.',
+export const ceramicShader = {
+  id: 'ceramic',
+  name: 'Ceramic',
+  description: 'White porcelain: matte body with soft Fresnel highlight, fake subsurface inner glow, hemisphere ambient, and ACES tonemap.',
   vertexShader,
   fragmentShader,
   createUniforms,
-  initControls: initObsidianControls,
+  initControls: initCeramicControls,
   defaults,
   serializeForExport,
 };

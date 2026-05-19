@@ -1,5 +1,5 @@
 // =========================================================
-// MERCURY UNIFORMS
+// CERAMIC UNIFORMS
 // =========================================================
 import * as THREE from 'three';
 import { defaults } from './defaults.js';
@@ -8,7 +8,6 @@ import { listEffects } from '../../effects/index.js';
 
 export function createUniforms(shared) {
   const u = {
-    // Shared
     u_resolution: shared.u_resolution,
     u_imgAspect:  shared.u_imgAspect,
     u_mouse:      shared.u_mouse,
@@ -21,6 +20,8 @@ export function createUniforms(shared) {
 
     // Material
     u_baseColor:   { value: hexToVec3(defaults.material.baseColor) },
+    u_sssColor:    { value: hexToVec3(defaults.material.sssColor) },
+    u_sssStrength: { value: defaults.material.sssStrength },
     u_f0:          { value: hexToVec3(defaults.material.f0Color) },
 
     // Lighting (preset; Lighting effect overrides)

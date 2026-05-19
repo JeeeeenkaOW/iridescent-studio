@@ -1,23 +1,9 @@
 // =========================================================
 // GLASS FRAGMENT SHADER — assembled from feature snippets + effects
 // =========================================================
-// Glass is refraction-based: bg sampled with normal-driven UV offset,
-// optionally frosted, blended into the silhouette by transparency.
-// Effects (iridescence etc) layer in via EFFECTS_* slots, same
-// convention as Mercury and Obsidian.
-//
-// Assembly order in main():
-//
-//   sample      → albedo / normal / bloom reads, mask
-//   lighting    → NdotL, spec (reads u_lightHeight, u_shininess)
-//   refraction  → glassBg (refracted+frosted bg sample)
-//   flow        → iriT, flow, baseline `specular` vec3
-//   halo        → haloMask, haloIntensity, default halo (cool-blue)
-//
-//   EFFECTS_APPLY ← effects tint specular / overwrite halo / etc
-//
-//   composite   → ornament = through + specular   (after effects)
-//   output      → bg + ornament + halo + vignette + grain
+// Refraction-based glass: bg read with normal-driven UV offset,
+// optionally frosted. Realism pass adds Schlick Fresnel grazing-angle
+// reflection, hemisphere ambient, ACES tonemap.
 //
 import { noiseHelpers }    from './features/noise.glsl.js';
 import { fitUVHelper }     from './features/fit-uv.glsl.js';
@@ -26,6 +12,7 @@ import { lightingBlock }   from './features/lighting.glsl.js';
 import { refractionBlock } from './features/refraction.glsl.js';
 import { flowBlock }       from './features/flow-fbm.glsl.js';
 import { haloBlock, compositeBlock, outputBlock } from './features/output.glsl.js';
+import { sharedMaterialHelpers } from '../_shared/helpers.glsl.js';
 import { listEffects } from '../../effects/index.js';
 
 const materialUniforms = /* glsl */ `
@@ -41,16 +28,22 @@ const materialUniforms = /* glsl */ `
   uniform sampler2D u_bloom;
   uniform sampler2D u_bgTex;
 
-  // Glass material
+  // Material
   uniform float u_transparency;
   uniform float u_refraction;
   uniform float u_frost;
+  uniform vec3  u_f0;
 
-  // Lighting (preset by material; Lighting effect overrides)
+  // Lighting (preset; Lighting effect overrides)
   uniform float u_diffuse;
   uniform float u_specular;
   uniform float u_shininess;
   uniform float u_lightHeight;
+  uniform vec3  u_lightColor;
+
+  // Ambient (hemisphere)
+  uniform vec3  u_skyColor;
+  uniform vec3  u_groundColor;
 `;
 
 function buildFragmentShader() {
@@ -64,6 +57,7 @@ function buildFragmentShader() {
     ${effectUniforms}
 
     ${noiseHelpers}
+    ${sharedMaterialHelpers}
     ${effectHelpers}
 
     ${fitUVHelper}

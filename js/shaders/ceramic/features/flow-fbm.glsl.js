@@ -1,13 +1,13 @@
 // =========================================================
 // FLOW — minimal flow setup so effects can layer cleanly
 // =========================================================
-// Glass has no metaball. Effects (Iridescence) read `flow` and `iriT`;
-// we set them up so the effect "just works" if enabled on Glass.
+// Ceramic has no metaball or noise-driven surface texture; effects
+// (Iridescence) still need `flow` and `iriT` set up though.
 //
-// Specular is computed here with Schlick Fresnel against u_f0
-// (dielectric, low F0) and tinted by u_lightColor. The result is a
-// faint highlight on flat surface, ramping bright at silhouette edges
-// — exactly the look real glass has.
+// Specular: Schlick Fresnel against u_f0 (dielectric, low F0)
+// × u_lightColor × u_specular. With ceramic's low default shininess
+// (broad highlight), the spec reads as a soft sheen rather than
+// a hot point.
 //
 export const flowBlock = /* glsl */ `
     vec2 flowUV = texUV * 2.4 + vec2(u_time * 0.025, u_time * 0.018);

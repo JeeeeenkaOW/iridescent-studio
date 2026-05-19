@@ -62,12 +62,14 @@ const LT_DIFFUSE   = ${snap.diffuse};
 const LT_SPECULAR  = ${snap.specular};
 const LT_SHININESS = ${snap.shininess};
 const LT_HEIGHT    = ${snap.height};
+const LT_COLOR_HEX = ${JSON.stringify(snap.color)};
 `.trim();
       const u = `
     u_diffuse:     { value: LT_DIFFUSE },
     u_specular:    { value: LT_SPECULAR },
     u_shininess:   { value: LT_SHININESS },
     u_lightHeight: { value: LT_HEIGHT },
+    u_lightColor:  { value: hexToVec3(LT_COLOR_HEX) },
 `.trim();
       return { constants: c, uniformEntries: u };
     }

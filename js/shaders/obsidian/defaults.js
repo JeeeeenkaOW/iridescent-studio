@@ -1,40 +1,41 @@
 // =========================================================
 // OBSIDIAN DEFAULTS — initial uniform values
 // =========================================================
-// Dark-glass material inspired by the D20 dice reference: deep
-// near-black body with a fresnel rim, sharp clearcoat highlight,
-// and a fine procedural surface roughness that breaks up reflections
-// into a stippled, "rough volcanic glass" look.
+// Dark-glass material inspired by the D20 dice reference: near-black
+// body with a procedural rough surface, sharp clearcoat highlight,
+// and a fresnel rim.
 //
-// Controls:
-//   baseColor    — body colour (near-black by default)
-//   refraction   — bg distortion at silhouette edges (lower than glass)
-//   fresnel      — strength of the rim highlight (0..1)
-//   fresnelPower — sharpness of the rim falloff (1..8)
-//   roughness    — strength of the procedural normal perturbation that
-//                  breaks up the specular highlight. 0 = smooth glass,
-//                  high = stippled obsidian.
+// Realism pass:
+//   - F0 dielectric (0.04) tinted slightly cool — natural obsidian
+//     has a slight blue-grey reflectance cast.
+//   - Hemisphere ambient (subtle on a dark body but lifts the
+//     silhouette away from pure flat black).
+//   - ACES tonemap (mostly relevant when Lighting effect pushes spec).
 //
-// Lighting preset:
-//   Tight, bright specular (high shininess, mid intensity) — the
-//   "clearcoat" feel from the dice. Light height is mid-low so the
-//   highlight reads as a sharp point catching light.
-//
+import { AMBIENT_SKY, AMBIENT_GROUND } from '../_shared/ambient.js';
+
 export const defaults = {
   name: 'Obsidian',
 
   material: {
     baseColor:    '#0E0E10',  // near-black, slight cool
-    refraction:   0.04,       // 0..0.2 — small lensing at edges
-    fresnel:      0.7,        // 0..1 — rim intensity
-    fresnelPower: 4.0,        // 1..8 — rim sharpness
-    roughness:    0.6,        // 0..1 — surface micro-perturbation strength
+    refraction:   0.04,
+    fresnel:      0.7,        // user-facing fresnel intensity (separate from F0)
+    fresnelPower: 4.0,
+    roughness:    0.6,
+    f0Color:      '#0C0F14',  // ~0.04, slight cool cast
   },
 
   lighting: {
-    diffuse:   0.18,    // low diffuse — material is mostly dark
-    specular:  1.4,     // bright specular for clearcoat sheen
-    shininess: 80.0,    // tight highlight
-    height:    0.12,    // low → highlight stretches with light
+    diffuse:   0.18,
+    specular:  1.4,
+    shininess: 80.0,
+    height:    0.12,
+    color:     '#FFFFFF',
+  },
+
+  ambient: {
+    sky:    AMBIENT_SKY,
+    ground: AMBIENT_GROUND,
   },
 };

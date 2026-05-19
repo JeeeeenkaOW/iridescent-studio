@@ -1,22 +1,16 @@
 // =========================================================
 // GLASS DEFAULTS — initial uniform values
 // =========================================================
-// Glass is a refraction-based material: the background behind the
-// ornament is sampled with the surface normal as a UV offset, then
-// optionally blurred for a frosted look.
+// Refraction-based material: bg sampled with normal-driven UV offset,
+// optionally frosted. Realism pass adds Schlick Fresnel (real glass
+// is very reflective at grazing angles — this is the single thing
+// missing from the original look), hemisphere ambient, ACES tonemap.
 //
-// Controls (kept minimal per original spec):
+// F0 for dielectrics (glass, water, plastic) is ~0.04. We tint it
+// very faintly cool to give the reflections a "real glass" cast.
 //
-//   transparency — overall opacity of the ornament. 0 = fully solid,
-//                  1 = fully transparent.
-//   refraction   — how far the normal distorts the background UV.
-//   frost        — radius of the blur applied to the refracted sample.
-//
-// Lighting preset:
-//   Tight, weak highlight that doesn't compete with the refraction
-//   read. The Lighting effect can override these if the user wants
-//   to push specular strength up.
-//
+import { AMBIENT_SKY, AMBIENT_GROUND } from '../_shared/ambient.js';
+
 export const defaults = {
   name: 'Glass',
 
@@ -24,12 +18,19 @@ export const defaults = {
     transparency: 0.85,
     refraction:   0.06,
     frost:        0.0,
+    f0Color:      '#0B0E12',   // ~0.04 with faint cool cast
   },
 
   lighting: {
-    diffuse:   0.0,     // glass diffuse is mostly subsumed by refraction
-    specular:  0.9,     // baseline — read by output block as `spec * 0.9`
-    shininess: 48.0,    // tight highlight
+    diffuse:   0.0,
+    specular:  0.9,
+    shininess: 48.0,
     height:    0.16,
+    color:     '#FFFFFF',
+  },
+
+  ambient: {
+    sky:    AMBIENT_SKY,
+    ground: AMBIENT_GROUND,
   },
 };

@@ -1,32 +1,31 @@
 // =========================================================
-// MERCURY FRAGMENT SHADER — assembled from feature snippets + effects
+// CERAMIC FRAGMENT SHADER — assembled from feature snippets + effects
 // =========================================================
-// Mercury: warm-silver Blinn-Phong with a mercury blob at the cursor.
-// Realism pass adds Fresnel-coloured specular, hemisphere ambient,
-// and ACES tonemap.
+// Bone-white porcelain: opaque matte body, soft clearcoat, subsurface
+// glow on interior, hemisphere ambient, ACES tonemap.
 //
 // Assembly order in main():
 //
 //   sample      → albedo / normal / bloom reads, mask
-//   metaball    → mercury blob at cursor
-//   lighting    → NdotL, NdotV, spec, half-vector
-//   flow        → iriT, flow, Fresnel-coloured `specular` (vec3)
-//   halo        → haloMask, haloIntensity, default halo (white)
+//   lighting    → NdotL, NdotV, spec
+//   subsurface  → sssTint (vec3) — inner warm glow
+//   flow        → iriT, flow, Fresnel-coloured `specular` vec3
+//   halo        → haloMask, haloIntensity, default halo
 //
 //   EFFECTS_APPLY ← effects tint specular / overwrite halo / etc
 //
-//   composite   → ornament = ambient + diffuse + specular  (after effects)
-//   output      → bg + ornament + halo + vignette + ACES tonemap + grain
+//   composite   → ornament = ambient + diffuse + sssTint + specular
+//   output      → bg + ornament + halo + vignette + ACES + grain
 //
-import { noiseHelpers }   from './features/noise.glsl.js';
-import { fitUVHelper }    from './features/fit-uv.glsl.js';
-import { sampleBlock }    from './features/sample.glsl.js';
-import { metaballBlock }  from './features/metaball.glsl.js';
-import { lightingBlock }  from './features/lighting.glsl.js';
-import { flowBlock }      from './features/flow-fbm.glsl.js';
-import { compositeBlock } from './features/composite.glsl.js';
+import { noiseHelpers }    from './features/noise.glsl.js';
+import { fitUVHelper }     from './features/fit-uv.glsl.js';
+import { sampleBlock }     from './features/sample.glsl.js';
+import { lightingBlock }   from './features/lighting.glsl.js';
+import { subsurfaceBlock } from './features/subsurface.glsl.js';
+import { flowBlock }       from './features/flow-fbm.glsl.js';
+import { compositeBlock }  from './features/composite.glsl.js';
 import { haloBlock, outputBlock } from './features/output.glsl.js';
-import { sharedMaterialHelpers }   from '../_shared/helpers.glsl.js';
+import { sharedMaterialHelpers } from '../_shared/helpers.glsl.js';
 import { listEffects } from '../../effects/index.js';
 
 const materialUniforms = /* glsl */ `
@@ -44,9 +43,11 @@ const materialUniforms = /* glsl */ `
 
   // Material
   uniform vec3 u_baseColor;
+  uniform vec3 u_sssColor;
+  uniform float u_sssStrength;
   uniform vec3 u_f0;
 
-  // Lighting (preset by material; Lighting effect overrides)
+  // Lighting (preset; Lighting effect overrides)
   uniform float u_diffuse;
   uniform float u_specular;
   uniform float u_shininess;
@@ -54,8 +55,8 @@ const materialUniforms = /* glsl */ `
   uniform vec3  u_lightColor;
 
   // Ambient (hemisphere)
-  uniform vec3  u_skyColor;
-  uniform vec3  u_groundColor;
+  uniform vec3 u_skyColor;
+  uniform vec3 u_groundColor;
 `;
 
 function buildFragmentShader() {
@@ -76,8 +77,8 @@ function buildFragmentShader() {
 
     void main(){
       ${sampleBlock}
-      ${metaballBlock}
       ${lightingBlock}
+      ${subsurfaceBlock}
       ${flowBlock}
       ${haloBlock}
 

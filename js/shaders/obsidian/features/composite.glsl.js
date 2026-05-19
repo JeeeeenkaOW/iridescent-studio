@@ -1,35 +1,29 @@
 // =========================================================
 // COMPOSITE — assemble the obsidian body
 // =========================================================
-// Plain dark glass. Layered:
-//
-//   1. DARKENED REFRACTED BG
-//      The bg seen "through" the obsidian, heavily attenuated. Multiplied
-//      by 0.15 so it reads as a hint of light through dense dark material.
-//
-//   2. DIFFUSE × BASE COLOR
-//      Standard Blinn-Phong diffuse with small ambient. Low intensity
-//      (u_diffuse defaults low for obsidian) so the body stays dark.
-//
-//   3. SPECULAR
-//      The clearcoat highlight, broken up by the roughness perturbation
-//      to N. Tinted by the iridescence effect if enabled.
-//
-//   4. FRESNEL RIM
-//      White rim where the silhouette curves away from the camera.
+// Plain dark glass with realism additions:
+//   - Hemisphere ambient breaks up the otherwise flat body.
+//   - Diffuse term picks up light color.
+//   - Internal refraction stays at 0.15× (a hint of light through
+//     dense glass).
 //
 export const compositeBlock = /* glsl */ `
     vec3 base = u_baseColor;
 
-    // Diffuse term: base × NdotL with small ambient. NdotL was computed
-    // against the rough-perturbed normal, so the lit area is itself stippled.
-    vec3 diffuse = base * (0.12 + u_diffuse * NdotL);
+    // Hemisphere ambient — even on near-black this adds direction
+    // so the silhouette doesn't read as a flat cutout.
+    vec3 ambient = base * hemiAmbient(N, u_skyColor, u_groundColor) * 0.6;
 
-    // Refracted bg, heavily attenuated — light leaking through dense glass.
+    // Diffuse: base × NdotL × light color, on top of ambient.
+    vec3 diffuse = ambient + base * u_diffuse * NdotL * u_lightColor;
+
+    // Refracted bg, heavily attenuated — light leaking through.
     vec3 internal = throughBg * 0.15;
 
     vec3 body = diffuse + internal;
 
     // Add specular (possibly iridescence-tinted) and fresnel rim.
-    vec3 ornament = body + specular + vec3(fresnel);
+    // Fresnel rim is tinted by light color too — a coloured light
+    // catching the edge.
+    vec3 ornament = body + specular + fresnel * u_lightColor;
 `;
