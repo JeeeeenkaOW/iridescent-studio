@@ -1,9 +1,9 @@
 // =========================================================
-// GLASS SHADER — manifest
+// GLASS MATERIAL — manifest
 // =========================================================
-// A refraction-based material: ornament samples the background
-// behind it with a normal-driven UV offset, optionally blurred
-// for a frosted look. No iridescence — keep it clean.
+// Refraction-based material: ornament samples the background behind
+// it with a normal-driven UV offset, optionally frosted. Effects layer
+// in on top (iridescence will tint the spec & halo if enabled).
 //
 import { vertexShader }       from './vertex.glsl.js';
 import { fragmentShader }     from './fragment.glsl.js';
@@ -13,20 +13,29 @@ import { defaults }           from './defaults.js';
 
 function serializeForExport(snapshot) {
   const mat = snapshot?.material ?? defaults.material;
+  const lit = defaults.lighting;
 
   const constants = `
-const TRANSPARENCY = ${mat.transparency};
-const REFRACTION   = ${mat.refraction};
-const FROST        = ${mat.frost};
+const TRANSPARENCY     = ${mat.transparency};
+const REFRACTION       = ${mat.refraction};
+const FROST            = ${mat.frost};
+const DIFFUSE_PRESET   = ${lit.diffuse};
+const SPECULAR_PRESET  = ${lit.specular};
+const SHININESS_PRESET = ${lit.shininess};
+const HEIGHT_PRESET    = ${lit.height};
 `.trim();
 
-  const uniforms = `
+  const uniformEntries = `
     u_transparency: { value: TRANSPARENCY },
     u_refraction:   { value: REFRACTION },
     u_frost:        { value: FROST },
+    u_diffuse:      { value: DIFFUSE_PRESET },
+    u_specular:     { value: SPECULAR_PRESET },
+    u_shininess:    { value: SHININESS_PRESET },
+    u_lightHeight:  { value: HEIGHT_PRESET },
 `.trim();
 
-  return { constants, uniforms };
+  return { constants, uniformEntries };
 }
 
 export const glassShader = {

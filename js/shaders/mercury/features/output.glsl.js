@@ -1,33 +1,39 @@
 // =========================================================
 // OUTPUT — final compositing
 // =========================================================
-// Single rendering style (the old "dark void" look). The background
-// shows through wherever the ornament doesn't cover the pixel, sampled
-// from u_bgTex (driven by Solid / Gradient / Image background mode in
-// background.js).
+// Baseline halo is a soft white ring around silhouette edges, driven
+// by bloom. The Iridescence effect (if enabled) overwrites the `halo`
+// vec3 with palette-tinted halo via its applyGlsl block, which runs
+// BEFORE this block executes its halo-into-fg merge.
 //
-// Important: mask/bloom can have garbage outside the fitted image rect
-// because sample.glsl.js clamps the UV. We use `inside` to gate the
-// ornament+halo contribution so they only render within that rect.
-//
-//   - Background fills the whole viewport
-//   - Ornament composited over the bg (gated by `inside`)
-//   - Iridescent halo around the ornament edges (bloom-driven, gated)
-//   - Soft radial vignette over everything
-//   - 1.8% grain
+// Order in main() is:
+//   1. sample / metaball / lighting / flow / composite
+//      → produces specular (vec3), iri-related intermediates, halo defaults
+//   2. effects apply (EFFECTS_APPLY)
+//      → tints specular, overwrites halo
+//   3. output (this block)
+//      → composites everything onto bg
 //
 // Tuneables (hardcoded — many material preset targets):
 //   - halo intensity:      0.32
 //   - halo mask falloff:   0.7
-//   - halo tint offset:    0.25
 //   - vignette range:      0.35 → 1.15
 //   - grain:               0.018
 //
+// Note: `halo`, `haloMask`, and `haloIntensity` are declared in the
+// HALO block above this one so the iridescence effect (which runs
+// between halo and output) can overwrite `halo` cleanly.
+//
+export const haloBlock = /* glsl */ `
+    float haloMask = bloom * (1.0 - mask * 0.7);
+    float haloIntensity = 0.32;
+    // Default halo: warm-neutral, picks up scene lighting. Effects can
+    // overwrite this — see iridescence's applyGlsl.
+    vec3 halo = vec3(1.0) * haloMask * haloIntensity;
+`;
+
 export const outputBlock = /* glsl */ `
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
-
-    float haloMask = bloom * (1.0 - mask * 0.7);
-    vec3 halo = iridescence(u_time * 0.06 + flow * 0.4 + 0.25) * haloMask * 0.32;
 
     // Ornament + halo only contribute inside the fitted image rect.
     vec3 fg = ornament * mask + halo;

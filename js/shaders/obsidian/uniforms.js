@@ -1,12 +1,14 @@
 // =========================================================
-// GLASS UNIFORMS
+// OBSIDIAN UNIFORMS
 // =========================================================
+import * as THREE from 'three';
 import { defaults } from './defaults.js';
+import { hexToVec3 } from '../../util/color.js';
 import { listEffects } from '../../effects/index.js';
 
 export function createUniforms(shared) {
   const u = {
-    // shared (driven by main.js render loop / texture pipeline)
+    // Shared
     u_resolution: shared.u_resolution,
     u_imgAspect:  shared.u_imgAspect,
     u_mouse:      shared.u_mouse,
@@ -17,10 +19,13 @@ export function createUniforms(shared) {
     u_bloom:      shared.u_bloom,
     u_bgTex:      shared.u_bgTex,
 
-    // Glass-specific
-    u_transparency: { value: defaults.material.transparency },
-    u_refraction:   { value: defaults.material.refraction },
-    u_frost:        { value: defaults.material.frost },
+    // Material
+    u_baseColor:      { value: hexToVec3(defaults.material.baseColor) },
+    u_accentColor:    { value: hexToVec3(defaults.material.accentColor) },
+    u_accentStrength: { value: defaults.material.accentStrength },
+    u_refraction:     { value: defaults.material.refraction },
+    u_fresnel:        { value: defaults.material.fresnel },
+    u_fresnelPower:   { value: defaults.material.fresnelPower },
 
     // Lighting (preset; Lighting effect overrides)
     u_diffuse:     { value: defaults.lighting.diffuse },

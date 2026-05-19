@@ -1,20 +1,34 @@
 // =========================================================
-// GLASS FRAGMENT SHADER — assembled from feature snippets
+// GLASS FRAGMENT SHADER — assembled from feature snippets + effects
 // =========================================================
-// Glass is a refraction-based material. The background behind the
-// ornament is sampled with normal-driven UV offset (refraction) and
-// optionally blurred (frost), then blended into the ornament by
-// transparency. A subtle spec highlight reads as light catching the
-// surface.
+// Glass is refraction-based: bg sampled with normal-driven UV offset,
+// optionally frosted, blended into the silhouette by transparency.
+// Effects (iridescence etc) layer in via EFFECTS_* slots, same
+// convention as Mercury and Obsidian.
 //
-import { noiseHelpers }       from './features/noise.glsl.js';
-import { fitUVHelper }        from './features/fit-uv.glsl.js';
-import { sampleBlock }        from './features/sample.glsl.js';
-import { lightingBlock }      from './features/lighting.glsl.js';
-import { refractionBlock }    from './features/refraction.glsl.js';
-import { outputBlock }        from './features/output.glsl.js';
+// Assembly order in main():
+//
+//   sample      → albedo / normal / bloom reads, mask
+//   lighting    → NdotL, spec (reads u_lightHeight, u_shininess)
+//   refraction  → glassBg (refracted+frosted bg sample)
+//   flow        → iriT, flow, baseline `specular` vec3
+//   halo        → haloMask, haloIntensity, default halo (cool-blue)
+//
+//   EFFECTS_APPLY ← effects tint specular / overwrite halo / etc
+//
+//   composite   → ornament = through + specular   (after effects)
+//   output      → bg + ornament + halo + vignette + grain
+//
+import { noiseHelpers }    from './features/noise.glsl.js';
+import { fitUVHelper }     from './features/fit-uv.glsl.js';
+import { sampleBlock }     from './features/sample.glsl.js';
+import { lightingBlock }   from './features/lighting.glsl.js';
+import { refractionBlock } from './features/refraction.glsl.js';
+import { flowBlock }       from './features/flow-fbm.glsl.js';
+import { haloBlock, compositeBlock, outputBlock } from './features/output.glsl.js';
+import { listEffects } from '../../effects/index.js';
 
-const uniformDeclarations = /* glsl */ `
+const materialUniforms = /* glsl */ `
   precision highp float;
   varying vec2 v_uv;
   uniform vec2 u_resolution;
@@ -31,22 +45,44 @@ const uniformDeclarations = /* glsl */ `
   uniform float u_transparency;
   uniform float u_refraction;
   uniform float u_frost;
+
+  // Lighting (preset by material; Lighting effect overrides)
+  uniform float u_diffuse;
+  uniform float u_specular;
+  uniform float u_shininess;
+  uniform float u_lightHeight;
 `;
 
-export const fragmentShader = `
-  ${uniformDeclarations}
+function buildFragmentShader() {
+  const effects = listEffects();
+  const effectUniforms = effects.map(e => e.uniformsGlsl || '').join('\n');
+  const effectHelpers  = effects.map(e => e.helpersGlsl  || '').join('\n');
+  const effectApply    = effects.map(e => e.applyGlsl    || '').join('\n');
 
-  ${noiseHelpers}
+  return `
+    ${materialUniforms}
+    ${effectUniforms}
 
-  ${fitUVHelper}
+    ${noiseHelpers}
+    ${effectHelpers}
 
-  void main(){
-    ${sampleBlock}
+    ${fitUVHelper}
 
-    ${lightingBlock}
+    void main(){
+      ${sampleBlock}
+      ${lightingBlock}
+      ${refractionBlock}
+      ${flowBlock}
+      ${haloBlock}
 
-    ${refractionBlock}
+      // ---- EFFECTS APPLY ----
+      ${effectApply}
+      // -----------------------
 
-    ${outputBlock}
-  }
-`;
+      ${compositeBlock}
+      ${outputBlock}
+    }
+  `;
+}
+
+export const fragmentShader = buildFragmentShader();

@@ -5,26 +5,31 @@
 // ornament is sampled with the surface normal as a UV offset, then
 // optionally blurred for a frosted look.
 //
-// Controls (kept minimal per request):
+// Controls (kept minimal per original spec):
 //
-//   transparency — overall opacity of the ornament. 0 = fully solid
-//                  (no glass), 1 = fully transparent (background
-//                  shows through, modulated by refraction + frost).
+//   transparency — overall opacity of the ornament. 0 = fully solid,
+//                  1 = fully transparent.
 //   refraction   — how far the normal distorts the background UV.
-//                  0 = pure transparency (no lensing), high =
-//                  strong lens distortion at silhouette edges.
-//   frost        — radius of the blur applied to the refracted
-//                  sample. 0 = clear glass, high = heavy frost.
+//   frost        — radius of the blur applied to the refracted sample.
 //
-//   Spec is fixed at modest values to give the silhouette a faint
-//   highlight without competing with the refraction read.
+// Lighting preset:
+//   Tight, weak highlight that doesn't compete with the refraction
+//   read. The Lighting effect can override these if the user wants
+//   to push specular strength up.
 //
 export const defaults = {
   name: 'Glass',
 
   material: {
-    transparency: 0.85,   // 0..1
-    refraction:   0.06,   // 0..0.20 reasonable range
-    frost:        0.0,    // 0..1, mapped internally to a blur radius
+    transparency: 0.85,
+    refraction:   0.06,
+    frost:        0.0,
+  },
+
+  lighting: {
+    diffuse:   0.0,     // glass diffuse is mostly subsumed by refraction
+    specular:  0.9,     // baseline — read by output block as `spec * 0.9`
+    shininess: 48.0,    // tight highlight
+    height:    0.16,
   },
 };

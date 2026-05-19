@@ -20,6 +20,7 @@
 // as long as the manifest provides `serializeForExport`.
 //
 import { listShaders } from '../shaders/index.js';
+import { listEffects } from '../effects/index.js';
 
 function canvasToDataURL(tex) {
   if (!tex || !tex.image) return null;
@@ -32,7 +33,7 @@ function canvasToDataURL(tex) {
   return tmp.toDataURL('image/png');
 }
 
-function buildExportedHTML({ shader, uniforms, snapshot, imgAspect }) {
+function buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, imgAspect }) {
   const albedoURL = canvasToDataURL(uniforms.u_albedo.value);
   const normalURL = canvasToDataURL(uniforms.u_normal.value);
   const bloomURL  = canvasToDataURL(uniforms.u_bloom.value);
@@ -40,7 +41,46 @@ function buildExportedHTML({ shader, uniforms, snapshot, imgAspect }) {
   if (typeof shader.serializeForExport !== 'function') {
     throw new Error(`Shader "${shader.id}" is missing serializeForExport — cannot export.`);
   }
-  const { constants, uniforms: uniformEntries } = shader.serializeForExport(snapshot);
+  // Material serializer — covers material uniforms + lighting preset.
+  const matSer = shader.serializeForExport(snapshot);
+
+  // Effect serializers — one per registered effect. Each returns
+  // { constants, uniformEntries }. The Lighting effect, when enabled,
+  // overrides the four lighting uniforms the material already baked
+  // by re-declaring them in its uniformEntries; we apply effects'
+  // entries AFTER the material's so they take precedence.
+  const effectSerialized = listEffects().map(eff => {
+    const snap = effectsSnapshot?.[eff.id];
+    const enabled = !!snap?.enabled;
+    if (typeof eff.serializeForExport !== 'function') return { constants: '', uniformEntries: '' };
+
+    // Special-case Lighting: when enabled, override the material's
+    // baked lighting uniforms with the user's slider values.
+    if (eff.id === 'lighting' && enabled) {
+      const c = `
+const LT_DIFFUSE   = ${snap.diffuse};
+const LT_SPECULAR  = ${snap.specular};
+const LT_SHININESS = ${snap.shininess};
+const LT_HEIGHT    = ${snap.height};
+`.trim();
+      const u = `
+    u_diffuse:     { value: LT_DIFFUSE },
+    u_specular:    { value: LT_SPECULAR },
+    u_shininess:   { value: LT_SHININESS },
+    u_lightHeight: { value: LT_HEIGHT },
+`.trim();
+      return { constants: c, uniformEntries: u };
+    }
+
+    return eff.serializeForExport(snap, enabled);
+  });
+
+  const allConstants = [matSer.constants, ...effectSerialized.map(e => e.constants)]
+    .filter(Boolean).join('\n');
+  // Material entries first, then effect entries — effect entries win
+  // on duplicate keys (object-literal later-wins behaviour at parse).
+  const allUniformEntries = [matSer.uniformEntries, ...effectSerialized.map(e => e.uniformEntries)]
+    .filter(Boolean).join('\n');
 
   const exportedJS = `
 const VERTEX_SHADER = ${JSON.stringify(shader.vertexShader)};
@@ -51,8 +91,8 @@ const NORMAL_URL = ${JSON.stringify(normalURL)};
 const BLOOM_URL  = ${JSON.stringify(bloomURL)};
 const IMG_ASPECT = ${imgAspect};
 
-// --- shader-specific uniform values baked at export time ---
-${constants}
+// --- material + effect uniform values baked at export time ---
+${allConstants}
 
 function hexToVec3(hex){
   const m = /^#?([0-9a-f]{6})$/i.exec((hex||'').trim());
@@ -114,7 +154,7 @@ function makeBgTexture(){
     u_normal:           { value: normal },
     u_bloom:            { value: bloom },
     u_bgTex:            { value: makeBgTexture() },
-${uniformEntries}
+${allUniformEntries}
   };
 
   const mat = new THREE.ShaderMaterial({
@@ -205,7 +245,7 @@ ${exportedJS}
 </html>`;
 }
 
-export function initShaderExport({ getActiveShader, getUniforms, getSnapshot }) {
+export function initShaderExport({ getActiveShader, getUniforms, getSnapshot, getEffectsSnapshot }) {
   const btn = document.getElementById('btn-shader-html');
   if (!btn) return;
 
@@ -213,9 +253,10 @@ export function initShaderExport({ getActiveShader, getUniforms, getSnapshot }) 
     const shader = getActiveShader();
     const uniforms = getUniforms();
     const snapshot = getSnapshot();
+    const effectsSnapshot = getEffectsSnapshot ? getEffectsSnapshot() : {};
     const imgAspect = uniforms.u_imgAspect?.value ?? 1.0;
 
-    const html = buildExportedHTML({ shader, uniforms, snapshot, imgAspect });
+    const html = buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, imgAspect });
 
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);

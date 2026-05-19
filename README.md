@@ -33,17 +33,28 @@ No build step, no config — Netlify serves the static files as-is.
 
 ## Architecture
 
-The studio is built around **shader presets**. Each shader preset is a
-self-contained bundle in `js/shaders/<id>/`:
+The studio is built around two registries that compose at runtime:
 
-- its own GLSL (vertex + fragment + feature files)
-- its own uniforms factory
-- its own sidebar controls
-- its own defaults
+**Materials** (`js/shaders/<id>/`) — the base appearance of the ornament.
+Mercury, Glass, and Obsidian are all materials. A material is a
+self-contained bundle: its own GLSL, uniforms, sidebar controls, defaults.
+Only one material is active at a time; the top-level material picker
+swaps between them.
 
-The top-level shader picker (in the sidebar, under "Shader") swaps
-between them. Shared concerns — the texture pipeline, background,
-normals, motion, export — live outside any shader and feed all of them.
+**Effects** (`js/effects/<id>/`) — independent layers that can be applied
+on top of any material. Iridescence, Chromatic Aberration, and Lighting
+overrides are all effects. Each effect declares uniforms, GLSL helpers,
+an "apply" block, and a controls UI. Multiple effects can be enabled at
+once, and they work across all materials — iridescence on glass, on
+obsidian, on mercury, anywhere.
+
+At assembly time, each material's fragment shader includes effect-uniform
+declarations, effect helpers, and an `EFFECTS_APPLY` slot where each
+effect's apply block runs in order. With every effect disabled, materials
+render their plain baseline; the registry is the same shape either way.
+
+Shared concerns — texture pipeline, background, normals, motion, export —
+live outside both registries and feed every material.
 
 ## File map
 
@@ -57,93 +68,149 @@ js/
     color.js                      ← hex ↔ THREE.Vector3 helpers
   pipeline/                       ← SVG/PNG → textures (CPU, runs on rebuild)
     rasterize.js                  ← raster + normalize + luminance extraction
+                                    (also adds 6% padding around the SVG so
+                                     Sobel/bloom don't clip at the edges)
     gaussian-blur.js              ← shared 3-pass box blur ≈ gaussian
     normals-sobel.js              ← edge-emphasis normal map
     normals-sdf.js                ← sculpted (distance-transform) normal map
     bloom.js                      ← blurred luminance, used for halo/shadow
-  controls/                       ← shared sidebar sections (not shader-specific)
+  controls/                       ← shared sidebar sections
     upload.js                     ← drop zone for source SVG/PNG
     background.js                 ← Solid / Gradient / Image bg modes
     normals.js                    ← Sobel/SDF + strength slider
     motion.js                     ← auto-drift toggle
     export.js                     ← PNG snapshot + WebM recording
-    shader.js                     ← top-level shader picker (swaps active shader)
-    shader-export.js              ← single-file HTML export of active shader
-  shaders/                        ← shader preset registry
+    shader.js                     ← top-level material picker
+    effects.js                    ← Effects panel host (cards + toggles)
+    shader-export.js              ← single-file HTML export of active material+effects
+  shaders/                        ← material registry
     index.js                      ← SHADERS map + DEFAULT_SHADER
-    mercury/                      ← the original iridescent silver shader
+    mercury/                      ← warm silver Blinn-Phong + cursor mercury blob
+    glass/                        ← refractive bg sampling + frost
+    obsidian/                     ← dark glass + accent inner glow + fresnel rim
       index.js                    ← manifest (id, name, GLSL, uniforms, controls, defaults)
-      defaults.js                 ← initial uniform values + iri color quick-picks
-      controls.js                 ← Mercury's sidebar UI (iridescence + tint)
-      uniforms.js                 ← Mercury's uniforms factory
+      defaults.js                 ← initial uniform values + lighting preset
+      controls.js                 ← material's sidebar UI (just material params,
+                                    no lighting/iridescence/CA — those are effects)
+      uniforms.js                 ← uniforms factory; merges in each effect's uniforms
       vertex.glsl.js              ← passthrough vertex shader
-      fragment.glsl.js            ← stitches feature files into final shader
-      features/                   ← GLSL feature files for Mercury
-        noise.glsl.js
-        iridescence.glsl.js       ← IQ cosine palette + on/off + color tint
-        fit-uv.glsl.js
-        sample.glsl.js
-        metaball.glsl.js
-        lighting.glsl.js
-        flow-fbm.glsl.js
-        chromatic-aberration.glsl.js
-        composite.glsl.js
-        output.glsl.js
+      fragment.glsl.js            ← stitches feature files + effect slots
+      features/                   ← GLSL feature files for this material
+        sample.glsl.js            ← albedo/normal/bloom reads + mask
+        lighting.glsl.js          ← Blinn-Phong (reads u_lightHeight, u_shininess)
+        flow-fbm.glsl.js          ← flow noise + baseline `specular` vec3
+        composite.glsl.js         ← diffuse + specular → ornament
+        output.glsl.js            ← halo block + final compositing
+        …                         ← plus material-specific blocks
+                                    (metaball for Mercury, refraction for Glass/Obsidian,
+                                     fresnel for Obsidian)
+  effects/                        ← effect registry
+    index.js                      ← EFFECTS array — order = sidebar order = apply order
+    lighting/                     ← override material lighting params when enabled
+    iridescence/                  ← cosine-palette tint on specular + halo
+    chromatic-aberration/         ← RGB-split fringe on silhouette edges
+      index.js                    ← manifest (defaults, glsl, controls, serializer)
+      defaults.js                 ← initial values incl. `enabled` flag
+      uniforms.js                 ← createUniforms() — merged into material's uniforms
+      glsl.js                     ← three named exports: uniforms, helpers, apply
+      controls.js                 ← effect's own slider UI (rendered inside its card)
 ```
 
 ## Where things live (quick lookup)
 
 | If you want to tune…              | Open…                                              |
 |-----------------------------------|----------------------------------------------------|
-| Iridescence math (Mercury)        | `shaders/mercury/features/iridescence.glsl.js`     |
+| Iridescence math                  | `effects/iridescence/glsl.js`                      |
+| Chromatic aberration math         | `effects/chromatic-aberration/glsl.js`             |
 | Mercury cursor blob               | `shaders/mercury/features/metaball.glsl.js`        |
-| Mercury highlights / shininess    | `shaders/mercury/features/lighting.glsl.js`        |
-| Mercury color flow / shimmer      | `shaders/mercury/features/flow-fbm.glsl.js`        |
-| Halo / vignette / grain           | `shaders/mercury/features/output.glsl.js`          |
-| Chromatic aberration              | `shaders/mercury/features/chromatic-aberration.glsl.js` |
-| Base "silver" color               | `shaders/mercury/features/composite.glsl.js`       |
-| Mercury default uniform values    | `shaders/mercury/defaults.js`                      |
-| Mercury sidebar UI                | `shaders/mercury/controls.js`                      |
-| Phase quick-picks (Pearl/Gold/…)  | `shaders/mercury/defaults.js`                      |
+| Mercury silver / preset lighting  | `shaders/mercury/defaults.js`                      |
+| Obsidian dark-glass body          | `shaders/obsidian/features/composite.glsl.js`      |
+| Obsidian fresnel rim              | `shaders/obsidian/features/fresnel.glsl.js`        |
+| Obsidian default colours          | `shaders/obsidian/defaults.js`                     |
+| Glass refraction + frost          | `shaders/glass/features/refraction.glsl.js`        |
+| Halo / vignette / grain (per mat) | `shaders/<material>/features/output.glsl.js`       |
+| SVG/PNG padding                   | `pipeline/rasterize.js` (PAD_RATIO)                |
 | Edge-style normals                | `pipeline/normals-sobel.js`                        |
 | Sculpted-style normals            | `pipeline/normals-sdf.js`                          |
 | Auto-drift path                   | `main.js` (autoPath function)                      |
 | Shader HTML export                | `controls/shader-export.js`                        |
-| Add a new shader preset           | duplicate `shaders/mercury/`, register in `shaders/index.js` |
+| Add a new material                | duplicate a folder under `shaders/`, register      |
+| Add a new effect                  | duplicate a folder under `effects/`, register      |
 
-## Adding a new shader preset
+## Adding a new material
 
 1. Copy `js/shaders/mercury/` to `js/shaders/<your-id>/`.
 2. Edit the GLSL in `features/` and `fragment.glsl.js` for the new look.
-3. Edit `defaults.js` and `uniforms.js` to declare the uniforms your
-   shader needs. (Shared uniforms — resolution, mouse, time, textures,
-   bg — are passed in automatically; you only declare your own.)
-4. Edit `controls.js` to expose the knobs you want the user to tune.
-5. Edit `index.js` (the manifest) — update `id`, `name`, `description`.
-6. Register it in `js/shaders/index.js` by importing and adding to the
-   `SHADERS` map.
+3. Edit `defaults.js` — set `material` params and a `lighting` preset
+   (the four lighting uniforms every material declares).
+4. Edit `uniforms.js` to declare your material's uniforms. Keep the
+   `listEffects().forEach(eff => Object.assign(u, eff.createUniforms()))`
+   block at the bottom so effect uniforms get merged in.
+5. In `fragment.glsl.js`, follow the assembly contract:
+   - Declare the four lighting uniforms (`u_diffuse`, `u_specular`,
+     `u_shininess`, `u_lightHeight`) — effects rely on them.
+   - In `main()`, set up `specular` (vec3), `iriT` (float), `flow` (float),
+     `blob` (float — use 0.0 if your material has no metaball), and `halo`
+     (vec3) **before** the `EFFECTS_APPLY` slot. Effects read or modify them.
+   - Do the final composite AFTER `EFFECTS_APPLY` so any tint to `specular`
+     survives into the ornament.
+6. Edit `controls.js` to expose your material parameters (no lighting or
+   iridescence controls — those belong in Effects).
+7. Update `serializeForExport` in `index.js` to bake your uniforms.
+8. Register in `js/shaders/index.js`.
 
-The shader picker, render loop, texture pipeline, background, and
-HTML export will pick it up automatically.
+## Adding a new effect
 
-## Mercury
+1. Copy `js/effects/chromatic-aberration/` to `js/effects/<your-id>/`.
+2. In `glsl.js`, export `uniforms` (declarations), `helpers` (functions),
+   and `apply` (the inline block injected at `EFFECTS_APPLY`).
+3. Inside `apply`, you can read any of the intermediates every material
+   exposes: `specular` (vec3), `iriT`, `flow`, `blob`, `texUV`, `sUV`,
+   `mask`, `bloom`, `N`, `NdotL`, `halo`, `haloMask`, `haloIntensity`.
+   You can modify `specular`, `halo`, and `mask` (the CA effect rewrites
+   `mask` to produce its fringe).
+4. Edit `defaults.js`, `uniforms.js`, `controls.js`, `index.js`.
+5. Register in `js/effects/index.js`. Order matters — it determines
+   both sidebar order and apply order in `main()`.
 
-The default shader. Warm silver base + Blinn-Phong specular +
-cosine-palette iridescence on the highlight + mercury blob at the
-cursor. Iridescence can be toggled off entirely (intensity → 0,
-material becomes plain silver), tinted toward any hex color, and the
-phase can be set via the Pearl / Gold / Oil / Arctic quick-picks.
+## Materials
 
-With iridescence enabled at full intensity and color strength 0 +
-Pearl phase, the output is byte-identical to the original studio.
+**Mercury** — Warm silver Blinn-Phong with a mercury blob that follows
+the cursor. With the Iridescence effect enabled at full intensity and
+hue 0, this matches the original studio's rainbow look on the
+highlight. With every effect off, it's plain silver.
+
+**Glass** — Refractive bg sampling with optional frost. Transparency,
+refraction, and frost are the three controls. Effects layer on top.
+
+**Obsidian** — Deep near-black glass body with a user-controllable
+accent colour for the inner glow, plus a fresnel rim and tight
+clearcoat highlight. Inspired by the D20 obsidian dice reference.
+Default accent is red. Effects layer on top.
+
+## Effects
+
+**Lighting** — Override the active material's preset Blinn-Phong
+parameters: diffuse mix, specular intensity, shininess, virtual
+light height. Off by default → material's preset values rule.
+On → sliders take over.
+
+**Iridescence** — Cosine-palette rainbow tint on the specular
+highlight and silhouette halo. Off by default. Works on any material.
+
+**Chromatic Aberration** — RGB channel split along X, weighted by
+silhouette edge bloom so fringing appears on ornament edges. Works
+on any material.
 
 ## Shader HTML export
 
 The "Shader HTML" button in the Export section produces a single,
 self-contained HTML file with:
 
-- the active shader's GLSL inlined
-- all current uniform values hardcoded
+- the active material's GLSL (including effect helpers/apply blocks) inlined
+- all current uniform values hardcoded — both material and enabled effects
+- if the Lighting effect is enabled, its slider values bake in and
+  override the material's preset lighting uniforms
 - the three generated textures (albedo, normal, bloom) baked as base64
   PNG data URLs
 - the same pointer + idle-drift loop as the studio

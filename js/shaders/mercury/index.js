@@ -1,60 +1,51 @@
 // =========================================================
-// MERCURY SHADER — manifest
+// MERCURY MATERIAL — manifest
 // =========================================================
-// A "shader preset" is a self-contained bundle: its own GLSL, its own
-// uniforms, its own sidebar controls, its own defaults. The top-level
-// shader picker (controls/shader.js) swaps between manifests like this.
+// A material manifest is a self-contained bundle: its own GLSL,
+// uniforms, sidebar controls, defaults. The top-level material picker
+// (controls/shader.js) swaps between manifests like this.
 //
-// To add a new shader preset, copy this folder, rename the import paths,
-// and register it in /js/shaders/index.js.
+// Material exports vs effect exports:
+//   - Material owns base appearance + lighting *defaults*.
+//   - Effects own iridescence / chromatic aberration / lighting
+//     overrides. Their serializers run alongside the material's.
 //
 import { vertexShader }   from './vertex.glsl.js';
 import { fragmentShader } from './fragment.glsl.js';
 import { createUniforms } from './uniforms.js';
 import { initMercuryControls } from './controls.js';
-import { defaults, PEARL_BASIS } from './defaults.js';
+import { defaults } from './defaults.js';
 
-// Serializer for the HTML exporter. Given a controls snapshot, returns
-// (a) a string of `const FOO = ...;` lines to inline at the top of the
-// exported demo, and (b) a string of `key: { value: ... }` pairs to
-// drop into the uniforms object literal.
+// Serializer for the HTML exporter. Returns constants + uniform
+// entries for the MATERIAL only. Effect serializers run separately
+// and their output is merged in by the exporter.
 function serializeForExport(snapshot) {
   const mat = snapshot?.material ?? defaults.material;
-  const iri = snapshot?.iridescence ?? defaults.iridescence;
-  const hue = iri.hue ?? 0;
-  const off = (hue % 360) / 360;
-  const phase = iri.phase ?? [
-    PEARL_BASIS[0] + off,
-    PEARL_BASIS[1] + off,
-    PEARL_BASIS[2] + off,
-  ];
-  const iriIntensity = iri.enabled === false ? 0 : iri.intensity;
+  const lit = defaults.lighting; // preset; Lighting effect overrides via its own serializer
 
   const constants = `
 const BASE_COLOR_HEX = ${JSON.stringify(mat.baseColor)};
-const DIFFUSE        = ${mat.diffuse};
-const SPECULAR       = ${mat.specular};
-const SHININESS      = ${mat.shininess};
-const IRI_PHASE      = ${JSON.stringify(phase)};
-const IRI_INTENSITY  = ${iriIntensity};
+const DIFFUSE_PRESET   = ${lit.diffuse};
+const SPECULAR_PRESET  = ${lit.specular};
+const SHININESS_PRESET = ${lit.shininess};
+const HEIGHT_PRESET    = ${lit.height};
 `.trim();
 
-  const uniforms = `
-    u_baseColor:    { value: hexToVec3(BASE_COLOR_HEX) },
-    u_diffuse:      { value: DIFFUSE },
-    u_specular:     { value: SPECULAR },
-    u_shininess:    { value: SHININESS },
-    u_iriPhase:     { value: new THREE.Vector3(...IRI_PHASE) },
-    u_iriIntensity: { value: IRI_INTENSITY },
+  const uniformEntries = `
+    u_baseColor:   { value: hexToVec3(BASE_COLOR_HEX) },
+    u_diffuse:     { value: DIFFUSE_PRESET },
+    u_specular:    { value: SPECULAR_PRESET },
+    u_shininess:   { value: SHININESS_PRESET },
+    u_lightHeight: { value: HEIGHT_PRESET },
 `.trim();
 
-  return { constants, uniforms };
+  return { constants, uniformEntries };
 }
 
 export const mercuryShader = {
   id: 'mercury',
   name: 'Mercury',
-  description: 'Warm silver base with cosine-palette iridescence on the highlight. Mercury blob follows the cursor.',
+  description: 'Warm silver Blinn-Phong with a mercury blob at the cursor. Layer iridescence and other effects on top.',
   vertexShader,
   fragmentShader,
   createUniforms,

@@ -25,6 +25,7 @@ import { initNormals } from './controls/normals.js';
 import { initMotion } from './controls/motion.js';
 import { initExport } from './controls/export.js';
 import { initShader } from './controls/shader.js';
+import { initEffects } from './controls/effects.js';
 import { initShaderExport } from './controls/shader-export.js';
 
 // =========================================================
@@ -262,9 +263,21 @@ initExport({
 
 // Shader picker — calls back with the chosen shader. We swap meshes
 // and return the new uniforms object so the shader's controls can
-// wire themselves to it.
+// wire themselves to it. The Effects host re-mounts every shader
+// change because each material's uniforms object is fresh.
+const effectsHost = document.getElementById('effects-host');
+let effectsCtl = null;
+
 const shaderCtl = initShader({
   onShaderChange: (shader) => setActiveShader(shader),
+  onMount: (uniforms /* , shader */) => {
+    // (Re-)mount the Effects panel against the new uniform object.
+    // We deliberately re-create rather than rebind so each effect's
+    // controls re-read the new uniforms' preset values (relevant for
+    // the Lighting effect, which seeds its sliders from u_diffuse etc).
+    effectsHost.innerHTML = '';
+    effectsCtl = initEffects({ host: effectsHost, uniforms });
+  },
 });
 
 // Shader HTML export — reads from whatever shader is active.
@@ -272,6 +285,7 @@ initShaderExport({
   getActiveShader: () => activeShader,
   getUniforms:     () => activeUniforms,
   getSnapshot:     () => shaderCtl.snapshot(),
+  getEffectsSnapshot: () => effectsCtl?.snapshot?.() ?? {},
 });
 
 // =========================================================

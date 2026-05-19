@@ -1,30 +1,27 @@
 // =========================================================
-// MERCURY UNIFORMS — three.js uniform object for this shader
+// MERCURY UNIFORMS
 // =========================================================
-// Each shader preset exports its own uniforms factory. Shared uniforms
-// (resolution, mouse, time, textures, bg) are passed in from main.js
-// so the texture pipeline and pointer logic don't need to know which
-// shader is active.
+// Returns a uniform object containing:
+//   - shared uniforms from main.js (resolution, mouse, time, textures)
+//   - mercury's own material uniforms (base color)
+//   - the four lighting uniforms every material declares
+//     (preset to mercury's lighting defaults; the Lighting effect
+//     can override them)
+//   - each effect's uniforms (from each effect's createUniforms())
+//
+// Effects' uniforms live in the same object as the material's so a
+// single ShaderMaterial covers everything. Effects controls write
+// to them through the shared uniforms object handed back to them
+// by the Effects host.
 //
 import * as THREE from 'three';
-import { defaults, PEARL_BASIS } from './defaults.js';
+import { defaults } from './defaults.js';
 import { hexToVec3 } from '../../util/color.js';
-
-// Apply a hue rotation (degrees) to the Pearl-basis phase vector.
-// hue is added to every channel, which rotates the cosine palette
-// around the color wheel while preserving Pearl's channel offsets.
-export function phaseFromHue(hueDeg) {
-  const off = (hueDeg % 360) / 360;
-  return new THREE.Vector3(
-    PEARL_BASIS[0] + off,
-    PEARL_BASIS[1] + off,
-    PEARL_BASIS[2] + off,
-  );
-}
+import { listEffects } from '../../effects/index.js';
 
 export function createUniforms(shared) {
-  return {
-    // shared (driven by main.js render loop / texture pipeline)
+  const u = {
+    // Shared
     u_resolution: shared.u_resolution,
     u_imgAspect:  shared.u_imgAspect,
     u_mouse:      shared.u_mouse,
@@ -35,14 +32,20 @@ export function createUniforms(shared) {
     u_bloom:      shared.u_bloom,
     u_bgTex:      shared.u_bgTex,
 
-    // Material (Blinn-Phong)
-    u_baseColor:  { value: hexToVec3(defaults.material.baseColor) },
-    u_diffuse:    { value: defaults.material.diffuse },
-    u_specular:   { value: defaults.material.specular },
-    u_shininess:  { value: defaults.material.shininess },
+    // Material
+    u_baseColor:   { value: hexToVec3(defaults.material.baseColor) },
 
-    // Iridescence
-    u_iriPhase:     { value: phaseFromHue(defaults.iridescence.hue) },
-    u_iriIntensity: { value: defaults.iridescence.enabled ? defaults.iridescence.intensity : 0.0 },
+    // Lighting (preset defaults for this material; Lighting effect overrides)
+    u_diffuse:     { value: defaults.lighting.diffuse },
+    u_specular:    { value: defaults.lighting.specular },
+    u_shininess:   { value: defaults.lighting.shininess },
+    u_lightHeight: { value: defaults.lighting.height },
   };
+
+  // Merge in each effect's uniforms.
+  listEffects().forEach(eff => {
+    Object.assign(u, eff.createUniforms());
+  });
+
+  return u;
 }
