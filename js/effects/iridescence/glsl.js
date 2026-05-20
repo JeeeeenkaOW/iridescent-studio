@@ -1,11 +1,11 @@
 // =========================================================
 // IRIDESCENCE EFFECT — GLSL
 // =========================================================
-// Soap-film thin-film rainbow that rides OVER the lit material —
-// without retinting the body or the highlight. The material's own
-// colors (base, diffuse, specular, ambient) are preserved; this
-// effect adds a purely additive rainbow that's strongest at
-// grazing angles, matching how real thin-film interference behaves.
+// Soap-film rainbow that rides OVER the lit material without
+// retinting the body. Material colors stay; rainbow stripes bloom
+// around the cursor (driven by NdotL) and drift over time via
+// flow noise — matching the cursor-following iridescent feel of
+// the original Mercury implementation, now generic across materials.
 //
 // Two pieces in the host shader:
 //
@@ -25,7 +25,7 @@
 //     done — see each material's output.glsl.js)
 //   - in composite, add `ornament += iriOverlay;` at the end
 //   - reads available in apply scope: `iriT`, `flow`, `mask`,
-//     `NdotV`, `u_time`, `u_iriIntensity`, `u_iriPhase`
+//     `NdotL`, `u_time`, `u_iriIntensity`, `u_iriPhase`
 //
 export const uniforms = /* glsl */ `
   uniform vec3 u_iriPhase;
@@ -56,23 +56,29 @@ export const helpers = /* glsl */ `
 `;
 
 // Soap-film overlay. The math:
-//   - `iridescencePalette(iriT)` ∈ [0,1] per channel — the raw rainbow
-//   - weight by (1 - NdotV)^1.2 so the film is strongest at grazing
-//     angles, faint head-on — matches real soap-bubble behavior
+//   - `iridescencePalette(iriT)` ∈ [0,1] per channel — the raw rainbow.
+//     iriT already mixes NdotL (cursor proximity), flow noise (animated
+//     drift), time, texUV.y, and on Mercury the metaball — so the
+//     rainbow stripes naturally chase the cursor and drift on idle.
+//   - weight by NdotL so the rainbow blooms WHERE THE CURSOR IS (and
+//     falls off across the surface), matching the original Mercury
+//     "highlight that's rainbow" behavior. This is what makes the
+//     cursor's halo iridescent instead of just edges.
+//   - small ambient floor (0.15) so the interior never goes flat —
+//     the rainbow rides over the whole shape, just brighter near the
+//     cursor.
 //   - weight by `mask` so the overlay only appears on the ornament,
-//     not on the background
-//   - intensity scales the whole overlay
-//   - the *0.7 final factor keeps the default intensity=1.0 visible
-//     but not blown out; tonemap handles any peak that does push high
+//     not on the background.
+//   - intensity scales the whole overlay; *0.6 keeps default
+//     intensity=1.0 strong-but-not-blown-out.
 //
 // Purely additive — material colors are preserved, the soap film
-// brightens with rainbow stripes (driven by `iriT` which mixes NdotL,
-// flow noise, time, and texUV) but never darkens. When u_iriIntensity
-// is 0 the overlay stays at zero, since we guard the whole block.
+// brightens with rainbow stripes but never darkens. When
+// u_iriIntensity is 0 the overlay stays at zero.
 export const apply = /* glsl */ `
     if (u_iriIntensity > 0.001) {
       vec3 rainbow = iridescencePalette(iriT);
-      float grazing = pow(1.0 - NdotV, 1.2);
-      iriOverlay = rainbow * grazing * mask * u_iriIntensity * 0.7;
+      float cursorFalloff = NdotL * 0.85 + 0.15;
+      iriOverlay = rainbow * cursorFalloff * mask * u_iriIntensity * 0.6;
     }
 `;
