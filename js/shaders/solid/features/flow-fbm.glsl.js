@@ -31,15 +31,25 @@ export const flowBlock = /* glsl */ `
     float flow2 = fbm(flowUV * 2.0 + loopTime2D(-0.04, 0.03));
 
     // STATIC iridescence field — same shape as flow but with NO time
-    // drift. iriT changes only with cursor (via NdotL) and cursor blob.
+    // drift. iriT changes only with cursor (via a SMALL NdotL nudge,
+    // intentionally minor so the cursor adjusts which side of the
+    // palette this pixel sits on without globally cycling the hue)
+    // and cursor blob.
+    //
+    // Why NdotL is weighted so low (0.10): the auto-drift cursor sweeps
+    // 360° every few seconds. If NdotL drove iriT strongly, every pixel
+    // on the surface would land on the same palette index at the same
+    // time, and the whole body would cycle through colours — exactly
+    // the bug the user reported. Now spatial noise dominates (0.85+),
+    // and the cursor only nudges things locally.
     float staticNoise  = fbm(texUV * 2.4);
     float staticNoise2 = fbm(texUV * 4.8 + vec2(11.3, 17.7));
 
-    float iriT = NdotL * 0.55
-               + staticNoise  * 0.35
-               + staticNoise2 * 0.20
-               + blob * 0.60
-               + texUV.y * 0.12;
+    float iriT = staticNoise  * 0.55
+               + staticNoise2 * 0.30
+               + NdotL        * 0.10
+               + blob         * 0.40
+               + texUV.y      * 0.15;
 
     // Schlick Fresnel against coloured F0 — F0 hue is inherited at
     // facing angles, ramps toward white at grazing.

@@ -22,10 +22,10 @@ export const flowBlock = /* glsl */ `
     // No metaball on particles material.
     float blob = 0.0;
 
-    float iriT = NdotL * 0.55
-               + staticNoise  * 0.35
-               + staticNoise2 * 0.20
-               + particleCenter.y * 0.12;
+    float iriT = staticNoise  * 0.55
+               + staticNoise2 * 0.30
+               + NdotL        * 0.10
+               + particleCenter.y * 0.15;
 
     // Fresnel against F0 (white default for particles → no F0 tint).
     vec3 F = fresnelSchlickColored(NdotV, vec3(0.92));

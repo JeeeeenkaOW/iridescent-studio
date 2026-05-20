@@ -70,8 +70,8 @@ export const particlesBlock = /* glsl */ `
         if (u_particleMode < 0.5) {
           // DUST — fbm noise drift, slow and gentle.
           vec2 ph = baseCenter * 3.0 + h3 * 17.0;
-          vec2 d  = loopTime2D(0.12, 0.09);
-          drift = vec2(fbm(ph + d) - 0.5, fbm(ph + d + vec2(7.3, 3.1)) - 0.5) * 1.5;
+          vec2 driftPhase = loopTime2D(0.12, 0.09);
+          drift = vec2(fbm(ph + driftPhase) - 0.5, fbm(ph + driftPhase + vec2(7.3, 3.1)) - 0.5) * 1.5;
         } else if (u_particleMode < 1.5) {
           // SMOKE — directional upward drift, looped via sin so it
           // resets each cycle. h3 randomises per-cell phase so
