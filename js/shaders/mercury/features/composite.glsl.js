@@ -27,8 +27,13 @@ export const compositeBlock = /* glsl */ `
     // Diffuse tinted by light color.
     vec3 diffuse = ambient + base * u_diffuse * NdotL * u_lightColor;
 
-    // Blob iridescence — neutral white if the effect is off.
+    // Blob iridescence — neutral white if the effect is off. This is
+    // Mercury's signature look and runs independently of the new
+    // soap-film overlay below.
     diffuse += iridescence(iriT) * blob * 0.4;
 
     vec3 ornament = diffuse + specular;
+
+    // Iridescence soap-film overlay (zero when effect is off).
+    ornament += iriOverlay;
 `;

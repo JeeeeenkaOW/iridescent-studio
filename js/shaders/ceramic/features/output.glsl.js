@@ -1,13 +1,18 @@
 // =========================================================
 // OUTPUT — final compositing
 // =========================================================
-// Halo for ceramic is faint and warm-neutral. Iridescence effect
-// overwrites with palette colour when enabled.
+// haloBlock computes `haloMask` and initializes `halo` to zero.
+// The Bloom effect writes `halo` when enabled. `iriOverlay` is
+// initialized to zero; the Iridescence effect writes it and the
+// compositeBlock adds it onto `ornament`.
+//
+// Ceramic baseline halo (when Bloom is on): faint and warm-neutral —
+// see u_haloBaseColor / u_haloBaseIntensity in createUniforms.
 //
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
-    float haloIntensity = 0.20;
-    vec3 halo = vec3(1.0, 0.97, 0.93) * haloMask * haloIntensity;
+    vec3 halo = vec3(0.0);
+    vec3 iriOverlay = vec3(0.0);
 `;
 
 export const outputBlock = /* glsl */ `

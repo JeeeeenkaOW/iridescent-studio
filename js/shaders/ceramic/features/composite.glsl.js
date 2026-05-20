@@ -26,4 +26,7 @@ export const compositeBlock = /* glsl */ `
 
     // Specular (Fresnel-coloured, possibly iridescence-tinted).
     vec3 ornament = diffuse + specular;
+
+    // Iridescence soap-film overlay (zero when effect is off).
+    ornament += iriOverlay;
 `;

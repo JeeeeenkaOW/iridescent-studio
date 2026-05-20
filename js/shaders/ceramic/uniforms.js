@@ -34,6 +34,10 @@ export function createUniforms(shared) {
     // Ambient (hemisphere)
     u_skyColor:    { value: hexToVec3(defaults.ambient.sky) },
     u_groundColor: { value: hexToVec3(defaults.ambient.ground) },
+
+    // Halo baseline (warm-neutral; Bloom effect seeds from this)
+    u_haloBaseColor:     { value: hexToVec3('#fff7ed') },
+    u_haloBaseIntensity: { value: 0.20 },
   };
 
   listEffects().forEach(eff => {

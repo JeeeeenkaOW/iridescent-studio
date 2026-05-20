@@ -1,24 +1,30 @@
 // =========================================================
 // OUTPUT — final compositing
 // =========================================================
-// Baseline halo is a soft white ring around silhouette edges. The
-// Iridescence effect overwrites `halo` with palette colour when on.
+// haloBlock computes `haloMask` and initializes `halo` to zero.
+// The Bloom effect writes `halo` when enabled. The material exposes
+// its default halo color and intensity as uniforms (u_haloBaseColor,
+// u_haloBaseIntensity) so the Bloom effect can seed its color picker
+// from the material's preset.
+//
+// Also initializes `iriOverlay` to zero — the Iridescence effect
+// writes it; the compositeBlock adds it onto `ornament` at the end.
 //
 // Realism addition: ACES tonemap is applied AFTER vignette but BEFORE
 // grain. Without tonemapping, highlights blow out to white; with it,
 // they roll off cleanly and pushed-up Lighting effect sliders don't
 // destroy the image.
 //
-// Tuneables (hardcoded):
-//   - halo intensity:      0.32
+// Tuneables (material-level defaults):
+//   - halo color/intensity: now in u_haloBaseColor / u_haloBaseIntensity
 //   - halo mask falloff:   0.7
 //   - vignette range:      0.35 → 1.15
 //   - grain:               0.018
 //
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
-    float haloIntensity = 0.32;
-    vec3 halo = vec3(1.0) * haloMask * haloIntensity;
+    vec3 halo = vec3(0.0);
+    vec3 iriOverlay = vec3(0.0);
 `;
 
 export const outputBlock = /* glsl */ `

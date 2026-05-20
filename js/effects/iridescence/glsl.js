@@ -1,20 +1,31 @@
 // =========================================================
 // IRIDESCENCE EFFECT — GLSL
 // =========================================================
-// Two pieces, slotted into the host shader at different points:
+// Soap-film thin-film rainbow that rides OVER the lit material —
+// without retinting the body or the highlight. The material's own
+// colors (base, diffuse, specular, ambient) are preserved; this
+// effect adds a purely additive rainbow that's strongest at
+// grazing angles, matching how real thin-film interference behaves.
 //
-//   uniforms  — declared in the host shader's uniform prelude
-//   helpers   — `iridescence(t)` function + a flow FBM term, injected
-//               into the prelude after noise helpers
-//   apply     — runs in main() after the material has produced its
-//               baseline `specular` (vec3) and `iriT` (float) values.
-//               Tints specular with the cosine palette.
+// Two pieces in the host shader:
 //
-// The contract a host material must honour:
-//   - declare `vec3 specular` (the unmultiplied specular contribution)
-//   - declare `float iriT`   (the palette input, usually NdotL + flow)
-// After the apply block, `specular` carries iridescent colour and the
-// composite step can add it to diffuse as normal.
+//   helpers — `iridescence(t)` (white when off, rainbow when on —
+//             used by Mercury composite and by Bloom for tinting)
+//           — `iridescencePalette(t)` (always returns the raw
+//             rainbow regardless of intensity — used here for the
+//             soap-film overlay)
+//
+//   apply   — writes `iriOverlay` (vec3) — each material's
+//             composite block adds it to `ornament` at the end.
+//             Zero when the effect is off, so adding it is a no-op
+//             in that case.
+//
+// Host material contract:
+//   - declare `vec3 iriOverlay = vec3(0.0);` in haloBlock (already
+//     done — see each material's output.glsl.js)
+//   - in composite, add `ornament += iriOverlay;` at the end
+//   - reads available in apply scope: `iriT`, `flow`, `mask`,
+//     `NdotV`, `u_time`, `u_iriIntensity`, `u_iriPhase`
 //
 export const uniforms = /* glsl */ `
   uniform vec3 u_iriPhase;
@@ -22,9 +33,9 @@ export const uniforms = /* glsl */ `
 `;
 
 export const helpers = /* glsl */ `
-  // IQ cosine palette. u_iriIntensity blends toward neutral white,
-  // so an effect-level intensity of 0 means the helper returns
-  // (1,1,1) — no tint applied even if the apply block still runs.
+  // White-blended palette. At u_iriIntensity=0 returns vec3(1.0).
+  // Used by Mercury's composite blob iridescence and by Bloom for
+  // tinting the halo when iridescence is on.
   vec3 iridescence(float t){
     vec3 a = vec3(0.5);
     vec3 b = vec3(0.5);
@@ -32,17 +43,36 @@ export const helpers = /* glsl */ `
     vec3 rainbow = a + b * cos(6.28318 * (c * t + u_iriPhase));
     return mix(vec3(1.0), rainbow, u_iriIntensity);
   }
+
+  // Raw cosine palette — always returns the rainbow regardless of
+  // intensity. Used by the soap-film overlay so its strength can be
+  // controlled separately via u_iriIntensity as an *additive* weight.
+  vec3 iridescencePalette(float t){
+    vec3 a = vec3(0.5);
+    vec3 b = vec3(0.5);
+    vec3 c = vec3(1.0);
+    return a + b * cos(6.28318 * (c * t + u_iriPhase));
+  }
 `;
 
-// Injected into main() at the EFFECTS_APPLY slot. By this point the
-// material has defined `specular`, `iriT`, `bloom`, `mask`, `flow`,
-// `v_uv`, and `u_time`. We:
-//   - tint the existing specular by the palette
-//   - re-tint the halo around silhouette edges (bloom-driven) so
-//     the rim picks up colour too — matches the original Mercury feel.
-//     The host material sets `halo` (vec3) in its baseline; we modify it.
+// Soap-film overlay. The math:
+//   - `iridescencePalette(iriT)` ∈ [0,1] per channel — the raw rainbow
+//   - weight by (1 - NdotV)^1.2 so the film is strongest at grazing
+//     angles, faint head-on — matches real soap-bubble behavior
+//   - weight by `mask` so the overlay only appears on the ornament,
+//     not on the background
+//   - intensity scales the whole overlay
+//   - the *0.7 final factor keeps the default intensity=1.0 visible
+//     but not blown out; tonemap handles any peak that does push high
+//
+// Purely additive — material colors are preserved, the soap film
+// brightens with rainbow stripes (driven by `iriT` which mixes NdotL,
+// flow noise, time, and texUV) but never darkens. When u_iriIntensity
+// is 0 the overlay stays at zero, since we guard the whole block.
 export const apply = /* glsl */ `
-    vec3 iriCol = iridescence(iriT);
-    specular *= iriCol;
-    halo = iridescence(u_time * 0.06 + flow * 0.4 + 0.25) * haloMask * haloIntensity;
+    if (u_iriIntensity > 0.001) {
+      vec3 rainbow = iridescencePalette(iriT);
+      float grazing = pow(1.0 - NdotV, 1.2);
+      iriOverlay = rainbow * grazing * mask * u_iriIntensity * 0.7;
+    }
 `;

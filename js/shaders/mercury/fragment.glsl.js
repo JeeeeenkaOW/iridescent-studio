@@ -56,6 +56,10 @@ const materialUniforms = /* glsl */ `
   // Ambient (hemisphere)
   uniform vec3  u_skyColor;
   uniform vec3  u_groundColor;
+
+  // Halo baseline (material-tuned; Bloom effect reads these)
+  uniform vec3  u_haloBaseColor;
+  uniform float u_haloBaseIntensity;
 `;
 
 function buildFragmentShader() {

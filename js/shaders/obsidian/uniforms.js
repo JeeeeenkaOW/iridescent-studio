@@ -33,6 +33,10 @@ export function createUniforms(shared) {
 
     u_skyColor:    { value: hexToVec3(defaults.ambient.sky) },
     u_groundColor: { value: hexToVec3(defaults.ambient.ground) },
+
+    // Halo baseline (white; Bloom effect seeds from this)
+    u_haloBaseColor:     { value: hexToVec3('#ffffff') },
+    u_haloBaseIntensity: { value: 0.18 },
   };
 
   listEffects().forEach(eff => {

@@ -1,15 +1,17 @@
 // =========================================================
 // IRIDESCENCE EFFECT — defaults
 // =========================================================
-// Cosine-palette rainbow that tints the specular highlight of any
-// material. Off by default — enable it in the Effects panel.
+// Soap-film rainbow overlay. Material colors stay; a mean-zero
+// rainbow sheen rides over the surface, strongest at grazing
+// angles. Off by default — enable from the Effects panel.
 //
-// At enabled=true, intensity=1.0, hue=0 with the Pearl basis, this
-// matches the original Mercury iridescence output exactly.
+// At enabled=true, intensity=1.0, hue=0 with the Pearl basis, the
+// soap film is at full strength: a clearly visible iridescent
+// sheen oscillating with cursor position and time.
 //
 export const defaults = {
   enabled:   false,
-  intensity: 1.0,         // 0..1, blends rainbow toward neutral white
+  intensity: 1.0,         // 0..1, scales the soap-film overlay
   hue:       0,           // 0..360°, rotates the cosine palette
 };
 

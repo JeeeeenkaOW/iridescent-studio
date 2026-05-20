@@ -1,9 +1,12 @@
 // =========================================================
 // HALO + COMPOSITE + OUTPUT
 // =========================================================
-// Halo block declares `halo`, `haloMask`, `haloIntensity` so the
-// Iridescence effect (running between halo and composite) can
-// overwrite `halo` with palette colour.
+// haloBlock computes `haloMask` and initializes `halo` to zero.
+// The Bloom effect writes `halo` when enabled. The material exposes
+// its default halo color/intensity as u_haloBaseColor / u_haloBaseIntensity.
+//
+// `iriOverlay` is initialized to zero; the Iridescence effect writes
+// it and the compositeBlock adds it onto `ornament` at the end.
 //
 // Composite — realism additions:
 //   - Hemisphere ambient adds direction to the otherwise flat
@@ -17,8 +20,8 @@
 //
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
-    float haloIntensity = 0.25;
-    vec3 halo = vec3(0.7, 0.8, 0.9) * haloMask * haloIntensity;
+    vec3 halo = vec3(0.0);
+    vec3 iriOverlay = vec3(0.0);
 `;
 
 export const compositeBlock = /* glsl */ `
@@ -37,9 +40,11 @@ export const compositeBlock = /* glsl */ `
     vec3 reflectedBg = mix(through, vec3(1.0), F.x * 0.6);
     through = reflectedBg;
 
-    // specular was set up in flowBlock and may have been tinted
-    // by the iridescence effect by this point.
+    // specular was set up in flowBlock.
     vec3 ornament = through + specular;
+
+    // Iridescence soap-film overlay (zero when effect is off).
+    ornament += iriOverlay;
 `;
 
 export const outputBlock = /* glsl */ `

@@ -111,7 +111,8 @@ js/
   effects/                        ← effect registry
     index.js                      ← EFFECTS array — order = sidebar order = apply order
     lighting/                     ← override material lighting params when enabled
-    iridescence/                  ← cosine-palette tint on specular + halo
+    iridescence/                  ← soap-film rainbow overlay (grazing-angle, mean-zero)
+    bloom/                        ← silhouette halo; strength + color picker
     chromatic-aberration/         ← RGB-split fringe on silhouette edges
       index.js                    ← manifest (defaults, glsl, controls, serializer)
       defaults.js                 ← initial values incl. `enabled` flag
@@ -124,7 +125,8 @@ js/
 
 | If you want to tune…              | Open…                                              |
 |-----------------------------------|----------------------------------------------------|
-| Iridescence math                  | `effects/iridescence/glsl.js`                      |
+| Iridescence soap-film math        | `effects/iridescence/glsl.js`                      |
+| Bloom halo math                   | `effects/bloom/glsl.js`                            |
 | Chromatic aberration math         | `effects/chromatic-aberration/glsl.js`             |
 | Mercury cursor blob               | `shaders/mercury/features/metaball.glsl.js`        |
 | Mercury silver / preset lighting  | `shaders/mercury/defaults.js`                      |
@@ -133,7 +135,8 @@ js/
 | Obsidian fresnel rim              | `shaders/obsidian/features/fresnel.glsl.js`        |
 | Obsidian default values           | `shaders/obsidian/defaults.js`                     |
 | Glass refraction + frost          | `shaders/glass/features/refraction.glsl.js`        |
-| Halo / vignette / grain (per mat) | `shaders/<material>/features/output.glsl.js`       |
+| Halo default color/intensity      | each material's `uniforms.js` (u_haloBase*)        |
+| Vignette / grain (per material)   | `shaders/<material>/features/output.glsl.js`       |
 | SVG/PNG padding                   | `pipeline/rasterize.js` (PAD_RATIO)                |
 | Edge-style normals                | `pipeline/normals-sobel.js`                        |
 | Sculpted-style normals            | `pipeline/normals-sdf.js`                          |
@@ -154,11 +157,16 @@ js/
 5. In `fragment.glsl.js`, follow the assembly contract:
    - Declare the four lighting uniforms (`u_diffuse`, `u_specular`,
      `u_shininess`, `u_lightHeight`) — effects rely on them.
+   - Declare `u_haloBaseColor` (vec3) and `u_haloBaseIntensity` (float)
+     — the Bloom effect reads these to seed its color picker and
+     scale its strength.
    - In `main()`, set up `specular` (vec3), `iriT` (float), `flow` (float),
-     `blob` (float — use 0.0 if your material has no metaball), and `halo`
-     (vec3) **before** the `EFFECTS_APPLY` slot. Effects read or modify them.
-   - Do the final composite AFTER `EFFECTS_APPLY` so any tint to `specular`
-     survives into the ornament.
+     `blob` (float — use 0.0 if your material has no metaball), `halo`
+     (vec3, initialized to 0), `iriOverlay` (vec3, initialized to 0),
+     and `haloMask` (float) **before** the `EFFECTS_APPLY` slot.
+   - Do the final composite AFTER `EFFECTS_APPLY` and add
+     `ornament += iriOverlay;` at the end so the soap-film overlay
+     reaches the output.
 6. Edit `controls.js` to expose your material parameters (no lighting or
    iridescence controls — those belong in Effects).
 7. Update `serializeForExport` in `index.js` to bake your uniforms.
@@ -171,9 +179,11 @@ js/
    and `apply` (the inline block injected at `EFFECTS_APPLY`).
 3. Inside `apply`, you can read any of the intermediates every material
    exposes: `specular` (vec3), `iriT`, `flow`, `blob`, `texUV`, `sUV`,
-   `mask`, `bloom`, `N`, `NdotL`, `halo`, `haloMask`, `haloIntensity`.
-   You can modify `specular`, `halo`, and `mask` (the CA effect rewrites
-   `mask` to produce its fringe).
+   `mask`, `bloom`, `N`, `NdotL`, `NdotV`, `halo`, `haloMask`,
+   `iriOverlay`, plus the halo baseline uniforms `u_haloBaseColor`
+   and `u_haloBaseIntensity`. You can modify `specular`, `halo`,
+   `iriOverlay`, and `mask` (the CA effect rewrites `mask` to produce
+   its fringe; Bloom writes `halo`; Iridescence writes `iriOverlay`).
 4. Edit `defaults.js`, `uniforms.js`, `controls.js`, `index.js`.
 5. Register in `js/effects/index.js`. Order matters — it determines
    both sidebar order and apply order in `main()`.

@@ -22,16 +22,29 @@
 //
 import { lightingEffect }            from './lighting/index.js';
 import { iridescenceEffect }         from './iridescence/index.js';
+import { bloomEffect }               from './bloom/index.js';
 import { chromaticAberrationEffect } from './chromatic-aberration/index.js';
 
 // Ordered list — controls the order effects appear in the sidebar
-// AND the order their applyGlsl runs in main(). Lighting first so
-// its uniforms are set before specular/iri math runs (in practice
-// materials read uniforms once at the top of main, so order matters
-// less than for stacked image operations, but keep it predictable).
+// AND the order their applyGlsl runs in main().
+//
+//   Lighting       — no apply GLSL, just owns the lighting uniforms.
+//   Iridescence    — writes `iriOverlay` (soap-film, picked up in
+//                    each composite block).
+//   Bloom          — writes `halo`. Reads `iridescence(...)` so when
+//                    Iridescence is on, the halo picks up its tint.
+//                    MUST run after Iridescence's uniforms are set
+//                    (which they always are — uniforms are constants
+//                    for the duration of main()), but conceptually
+//                    Bloom is downstream of Iridescence.
+//   Chromatic ab.  — RGB fringe on edges; sample-space tweak that
+//                    rewrites `mask`, last so it doesn't affect the
+//                    above.
+//
 export const EFFECTS = [
   lightingEffect,
   iridescenceEffect,
+  bloomEffect,
   chromaticAberrationEffect,
 ];
 

@@ -1,20 +1,25 @@
 // =========================================================
 // IRIDESCENCE EFFECT — manifest
 // =========================================================
-// Iridescence is the cosine-palette rainbow that tints the specular
-// highlight of any material. Off by default — enable from Effects.
+// Soap-film thin-film rainbow that rides OVER any material without
+// retinting the body. Adds a mean-zero rainbow oscillation strongest
+// at grazing angles, faint head-on — matches how real soap films
+// and oil-on-water films behave. Off by default.
 //
-// Effect manifest shape (all effects export this):
-//   id, name              — registry/display
-//   defaults              — initial values (includes `enabled`)
-//   createUniforms()      — uniform entries to merge into the host
-//   uniformsGlsl, helpersGlsl, applyGlsl — GLSL chunks
-//   initControls()        — sidebar UI for this effect
-//   serializeForExport()  — bake into the exported HTML
+// Each material composes the GLSL chunks into its fragment shader
+// (see materials' fragment.glsl.js) and adds `ornament += iriOverlay`
+// in its composite block.
 //
-// The host material composes the GLSL chunks into its fragment shader
-// (see materials' fragment.glsl.js) and merges createUniforms() into
-// its uniform object.
+// The Bloom effect reads `iridescence(...)` from this effect's helpers
+// to tint the halo when iridescence is enabled — that's why this
+// effect's helpers also export the white-blended `iridescence()`
+// function alongside the soap-film palette.
+//
+// Mercury's composite has an additional hardcoded line
+// `diffuse += iridescence(iriT) * blob * 0.4` that pre-dates this
+// effect's rewrite — it's a signature look for Mercury and stays.
+// `iridescence()` returns vec3(1.0) when the effect is off, so that
+// line is a no-op for Mercury when iridescence is disabled.
 //
 import { defaults, PEARL_BASIS } from './defaults.js';
 import { createUniforms } from './uniforms.js';
