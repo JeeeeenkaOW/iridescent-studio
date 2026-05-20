@@ -13,15 +13,17 @@ import { listEffects } from '../../effects/index.js';
 export function createUniforms(shared) {
   const u = {
     // Shared
-    u_resolution: shared.u_resolution,
-    u_imgAspect:  shared.u_imgAspect,
-    u_mouse:      shared.u_mouse,
-    u_mouseVel:   shared.u_mouseVel,
-    u_time:       shared.u_time,
-    u_albedo:     shared.u_albedo,
-    u_normal:     shared.u_normal,
-    u_bloom:      shared.u_bloom,
-    u_bgTex:      shared.u_bgTex,
+    u_resolution:   shared.u_resolution,
+    u_imgAspect:    shared.u_imgAspect,
+    u_mouse:        shared.u_mouse,
+    u_mouseVel:     shared.u_mouseVel,
+    u_time:         shared.u_time,
+    u_loopMode:     shared.u_loopMode,
+    u_loopDuration: shared.u_loopDuration,
+    u_albedo:       shared.u_albedo,
+    u_normal:       shared.u_normal,
+    u_bloom:        shared.u_bloom,
+    u_bgTex:        shared.u_bgTex,
 
     // Material — base + reflection
     u_baseColor:    { value: hexToVec3(defaults.material.baseColor) },

@@ -37,7 +37,7 @@ export const apply = /* glsl */ `
       vec3 bloomBase = mix(u_haloBaseColor, u_bloomColor, u_bloomUserColor);
       // Animated iridescence tint — returns vec3(1.0) when iridescence
       // is disabled (u_iriIntensity == 0), so this is neutral by default.
-      vec3 bloomTint = iridescence(u_time * 0.06 + flow * 0.4 + 0.25);
+      vec3 bloomTint = iridescence(loopTime(0.06) + flow * 0.4 + 0.25);
       halo = bloomBase * bloomTint * haloMask * u_haloBaseIntensity * u_bloomStrength;
     }
 `;

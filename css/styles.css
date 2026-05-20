@@ -40,7 +40,7 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 /* Tab bar — only used in mobile mode. Hidden on desktop. */
 .tab-bar{display:none}
 
-.sidebar{background:var(--s1);border:1px solid var(--b4);border-radius:5px;padding:var(--sp-400);display:flex;flex-direction:column;gap:var(--sp-400);max-height:calc(100vh - 120px);overflow-y:auto;position:sticky;top:var(--sp-400)}
+.sidebar{background:var(--s1);border:1px solid var(--b4);border-radius:5px;padding:var(--sp-300);display:flex;flex-direction:column;gap:var(--sp-300);max-height:calc(100vh - 120px);overflow-y:auto;position:sticky;top:var(--sp-400)}
 .sidebar::-webkit-scrollbar{width:8px}
 .sidebar::-webkit-scrollbar-track{background:var(--s1)}
 .sidebar::-webkit-scrollbar-thumb{background:var(--s3);border-radius:0}
@@ -156,12 +156,14 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 /* ============ COLLAPSIBLE SECTIONS ============ */
 /* `.section.collapsible` turns a section into an accordion. The
    section-title becomes a clickable header with a chevron; the
-   .collapsible-body holds the controls and animates on toggle. */
-.section.collapsible > .section-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:0;padding:var(--sp-200) 0;transition:color .12s}
+   .collapsible-body holds the controls and animates on toggle.
+   v8 tightened: smaller chevron, less header padding, consistent
+   8px gap between body items so every section feels the same. */
+.section.collapsible > .section-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:0;padding:6px 0;transition:color .12s}
 .section.collapsible > .section-title:hover{color:var(--tp)}
-.section.collapsible > .section-title::after{content:'';width:8px;height:8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-2px,-2px);transition:transform .15s;flex-shrink:0;margin-left:8px}
-.section.collapsible.collapsed > .section-title::after{transform:rotate(-45deg) translate(0,2px)}
-.section.collapsible > .collapsible-body{display:flex;flex-direction:column;gap:var(--sp-200);overflow:hidden}
+.section.collapsible > .section-title::after{content:'';width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform .15s;flex-shrink:0;margin-left:8px}
+.section.collapsible.collapsed > .section-title::after{transform:rotate(-45deg) translate(1px,1px)}
+.section.collapsible > .collapsible-body{display:flex;flex-direction:column;gap:var(--sp-200);overflow:hidden;padding-top:var(--sp-100)}
 .section.collapsible.collapsed > .collapsible-body{display:none}
 
 /* ============ VIEWPORT ============ */
@@ -194,18 +196,22 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 .range-row{display:flex;flex-direction:column;gap:6px}
 .range-label{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 .range-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums}
-.range-row input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--s3);border-radius:0;outline:none}
-.range-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:var(--ow);cursor:pointer;border-radius:0}
-.range-row input[type="range"]::-moz-range-thumb{width:14px;height:14px;background:var(--ow);cursor:pointer;border-radius:0;border:none}
-.range-row input[type="range"]:hover::-webkit-slider-thumb{background:var(--ow-h)}
+.range-row input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--s3);border-radius:2px;outline:none}
+.range-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:var(--ow);cursor:pointer;border-radius:50%;border:2px solid var(--s1);box-shadow:0 0 0 1px var(--ow)}
+.range-row input[type="range"]::-moz-range-thumb{width:10px;height:10px;background:var(--ow);cursor:pointer;border-radius:50%;border:2px solid var(--s1);box-shadow:0 0 0 1px var(--ow)}
+.range-row input[type="range"]:hover::-webkit-slider-thumb{background:var(--ow-h);box-shadow:0 0 0 1px var(--ow-h)}
+.range-row input[type="range"]:disabled{opacity:.4;cursor:not-allowed}
+.range-row input[type="range"]:disabled::-webkit-slider-thumb{cursor:not-allowed}
 
 /* ============ TOGGLE ROW ============ */
-.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px}
 .toggle-row label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);cursor:pointer}
-.toggle{position:relative;width:32px;height:18px;background:var(--s3);border:1px solid var(--b4);cursor:pointer;transition:background .15s;flex-shrink:0}
-.toggle::after{content:'';position:absolute;top:1px;left:1px;width:14px;height:14px;background:var(--t3);transition:transform .15s,background .15s}
-.toggle.on{background:var(--ow)}
+.toggle{position:relative;width:32px;height:18px;background:var(--s3);border:1px solid var(--b4);border-radius:9px;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0}
+.toggle::after{content:'';position:absolute;top:1px;left:1px;width:14px;height:14px;background:var(--t3);border-radius:50%;transition:transform .15s,background .15s}
+.toggle.on{background:var(--ow);border-color:var(--ow)}
 .toggle.on::after{transform:translateX(14px);background:#FFF}
+.toggle:hover{border-color:var(--b2)}
+.toggle.on:hover{background:var(--ow-h);border-color:var(--ow-h)}
 
 /* ============ BUTTONS ============ */
 .btn-p{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-200);padding:var(--sp-300) var(--sp-400);background:var(--ow);border:none;border-radius:0;font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:#FFF;cursor:pointer;transition:background .15s;white-space:nowrap;width:100%}
@@ -240,16 +246,32 @@ input[type="color"]::-moz-color-swatch{border:none}
 /* ============ DIVIDER ============ */
 .div{height:1px;background:var(--b4);margin:var(--sp-100) 0}
 
+/* Export panel: visual separator between the loop slider and the
+   action buttons. Without this they sit too close — the slider's
+   thumb almost touches the PNG/WebM buttons. */
+.export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100) 0}
+
 /* ============ SHADER CONTROLS HOST ============ */
-#shader-controls{display:flex;flex-direction:column;gap:var(--sp-400)}
+#shader-controls{display:flex;flex-direction:column;gap:var(--sp-300)}
 
 /* ============ EFFECTS PANEL ============ */
+/* Each effect is a card with a header (name + toggle). When the
+   effect is OFF, the body is hidden — keeps the panel tight and
+   matches the user's mental model: "I'm not using this, don't show
+   me its controls." When the effect is ON, the body slides into
+   view with its sliders. The .effect-card.off class is toggled by
+   controls/effects.js when the user clicks the on/off toggle. */
 .effects-list{display:flex;flex-direction:column;gap:var(--sp-200)}
-.effect-card{background:var(--s2);border:1px solid var(--b4);display:flex;flex-direction:column}
-.effect-head{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-200) var(--sp-300);border-bottom:1px solid var(--b4)}
+.effect-card{background:var(--s2);border:1px solid var(--b4);display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s}
+.effect-card:not(.off){border-color:var(--b3)}
+.effect-head{display:flex;align-items:center;justify-content:space-between;padding:6px var(--sp-300);gap:var(--sp-200);transition:background .12s}
+.effect-card:not(.off) .effect-head{border-bottom:1px solid var(--b4)}
+.effect-card.off .effect-head:hover{background:var(--s3)}
 .effect-name{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
+.effect-card:not(.off) .effect-name{color:var(--tp)}
 .effect-body{padding:var(--sp-300);display:flex;flex-direction:column;gap:var(--sp-300)}
 .effect-body:empty{display:none}
+.effect-card.off .effect-body{display:none}
 .effect-body input[type="range"]:disabled{opacity:.35;cursor:not-allowed}
 
 /* ============ FOOTER ============ */

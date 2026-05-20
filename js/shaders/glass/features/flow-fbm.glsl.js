@@ -1,24 +1,23 @@
 // =========================================================
-// FLOW — minimal flow setup so effects can layer cleanly
+// FLOW — animated FBM + STATIC iridescence field
 // =========================================================
-// Glass has no metaball. Effects (Iridescence) read `flow` and `iriT`;
-// we set them up so the effect "just works" if enabled on Glass.
-//
-// Specular is computed here with Schlick Fresnel against u_f0
-// (dielectric, low F0) and tinted by u_lightColor. The result is a
-// faint highlight on flat surface, ramping bright at silhouette edges
-// — exactly the look real glass has.
+// Same structure as Solid. flow is time-drifting (Bloom uses it);
+// iriT is time-independent (Iridescence reads it for the specular
+// tint, so the hue stays anchored to surface position rather than
+// cycling over time).
 //
 export const flowBlock = /* glsl */ `
-    vec2 flowUV = texUV * 2.4 + vec2(u_time * 0.025, u_time * 0.018);
+    vec2 flowUV = texUV * 2.4 + loopTime2D(0.025, 0.018);
     float flow = fbm(flowUV);
-    float flow2 = fbm(flowUV * 2.0 + vec2(-u_time * 0.04, u_time * 0.03));
+    float flow2 = fbm(flowUV * 2.0 + loopTime2D(-0.04, 0.03));
     float blob = 0.0;
 
+    float staticNoise  = fbm(texUV * 2.4);
+    float staticNoise2 = fbm(texUV * 4.8 + vec2(11.3, 17.7));
+
     float iriT = NdotL * 0.55
-               + flow * 0.35
-               + flow2 * 0.2
-               // u_time drift removed — kept hues anchored to surface
+               + staticNoise  * 0.35
+               + staticNoise2 * 0.20
                + texUV.y * 0.12;
 
     vec3 F = fresnelSchlickColored(NdotV, u_f0);

@@ -229,14 +229,18 @@ optional features that each disappear at strength = 0. Tunable knobs:
 - *Base color* — diffuse albedo.
 - *Reflection* — F0 colour. High and warm = metallic silver (old
   Mercury). Low and cool = dielectric (old Obsidian, old Ceramic).
-- *Roughness* — 3-octave normal perturbation, 0 = smooth clearcoat,
-  high = stippled volcanic-glass.
-- *Bg refraction* + *Transparency* — together these let the body
-  read as semi-transparent dark glass (old Obsidian style). At
-  Transparency = 0, the body is fully opaque.
+- *Roughness* — 3-octave normal perturbation. v8 bumped frequencies
+  to 200/520/1300 and added Z-axis perturbation so the surface
+  reads as bumpy/3D rather than just rippling sideways.
+- *Transparency* — single knob: drives both bg leak AND the
+  refraction-offset magnitude. At 0 the body is fully opaque; at
+  100% the body reads as semi-transparent glass with lensing through
+  it.
 - *Inner glow* + *Glow strength* — fake subsurface (bloom-weighted
   tint added to diffuse), the porcelain look (old Ceramic).
-- *Fresnel rim* + *Fresnel power* — clearcoat-style edge highlight.
+- *Fresnel rim* — clearcoat-style edge highlight. (Sharpness is
+  locked to a sensible default; previous v7 had a Fresnel-power
+  slider that barely changed anything.)
 - *Cursor blob* (toggle) — Mercury-style cursor-following metaball
   that boosts specular at the cursor.
 
@@ -271,22 +275,24 @@ the material itself reads.
 
 ## Effects
 
-**Displacement** — Heat-haze UV warp. Animated 2-octave noise offsets
-the sample UV when reading the silhouette mask + bloom map, so the
-edges of the ornament ripple over time. The lit interior stays
-coherent (the highlight doesn't drift out of the body) because the
-warp only modifies post-lighting variables: `mask`, `bloom`, and the
-derived `haloMask`. Three sliders: Strength (0..100%), Scale (noise
-frequency), Speed (animation rate). Default scale=3.0 / speed=1.0 reads
-as classic heat-haze; cranking Strength to 100% gets dramatic wobble.
-
 **Iridescence** — Cosine-palette rainbow tint on the specular
 highlight and silhouette halo. Off by default. Intensity slider goes
-to 200% — past 100% the palette overdrives the highlight to HDR so
-ACES tonemapping turns it into saturated vivid colour (matches the
-ornate-frame reference image instead of a subtle sheen). At 200% the
-halo ring is ~6× the brightness it used to peak at. Works on either
-material.
+to 200%.
+
+In v8 the spec tinting was rewritten to be luminance-preserving:
+instead of multiplying the (already bright) spec by the palette and
+clipping to white through ACES, the new `tintSpecular()` helper
+takes the spec's Rec.709 luminance, multiplies the palette by that
+luminance × 1.6, and blends from original spec (intensity=0) to
+fully tinted (intensity=1). Above 100% an HDR overdrive multiplier
+boosts brightness so the saturated rainbow reads strongly without
+washing out.
+
+Hue on the body is anchored to surface position, NOT wall time —
+`iriT` is built from a static (non-drifting) noise field. The halo
+ring drifts because Bloom uses the time-drifting `flow` term. Move
+the cursor and the highlight moves; the rainbow shifts where the
+highlight points, not over time.
 
 **Bloom** — Silhouette halo glow. Strength slider + colour picker
 (picks up iridescence tint when both are on).
@@ -295,10 +301,41 @@ material.
 silhouette edge bloom so fringing appears on ornament edges. Works
 on either material.
 
+**Displacement** — Heat-haze UV warp on the silhouette. Only the
+silhouette edges ripple; the lit interior stays coherent because the
+warp modifies only post-lighting variables (`mask`, `bloom`,
+`haloMask`).
+
 Effect ordering inside `EFFECTS_APPLY` (set in `js/effects/index.js`):
 Displacement runs FIRST so subsequent effects see the warped masks.
 Without that ordering, Iridescence's halo would have the pre-warp
 shape while Bloom's would be warped — visible mismatch.
+
+## Loop-aware time (perfect-loop video export)
+
+The WebM export records exactly `loopDuration` seconds with the
+cursor tracing a perfect circle. For the resulting video to be a
+seamless loop, time-dependent shader noise (flow drift, displacement
+warp, halo palette phase) also has to be periodic with the same
+period.
+
+Two shared uniforms make this work:
+- `u_loopMode` — `0` in interactive mode, `1` during capture.
+- `u_loopDuration` — seconds per cycle (matches the user's slider).
+
+Two helpers in `_shared/helpers.glsl.js`:
+- `loopTime2D(sx, sy)` — returns `vec2(u_time * sx, u_time * sy)` in
+  interactive mode, a sin/cos offset of period `u_loopDuration` in
+  loop mode (with a per-caller hash so different noise fields don't
+  loop in lockstep).
+- `loopTime(speed)` — scalar version for palette-phase terms.
+  Rounds to an integer number of cycles per loop so the value
+  returns exactly at t=loopDuration.
+
+During capture, `main.js` also bypasses the cursor smoothing lerp
+and snaps `mouseSmooth` directly to the looping autoPath — without
+this, the lerp would still be settling at frame 0 and leave a
+visible first/last frame mismatch.
 
 ## Mobile layout
 

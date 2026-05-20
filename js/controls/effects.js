@@ -39,8 +39,8 @@ export function initEffects({ host, uniforms, history, initialSnapshot = null })
   host.innerHTML = `
     <div class="effects-list">
       ${effects.map(eff => `
-        <div class="effect-card" data-effect="${eff.id}">
-          <div class="effect-head">
+        <div class="effect-card ${enabled[eff.id] ? '' : 'off'}" data-effect="${eff.id}">
+          <div class="effect-head" data-effect-head="${eff.id}">
             <span class="effect-name">${eff.name}</span>
             <div class="toggle ${enabled[eff.id] ? 'on' : ''}" data-effect-toggle="${eff.id}"></div>
           </div>
@@ -77,13 +77,32 @@ export function initEffects({ host, uniforms, history, initialSnapshot = null })
     });
   }
 
-  // Wire toggles.
+  // Wire toggles. The card gets the .off class when disabled so CSS
+  // can hide the body (UI cleanup: don't show controls for effects
+  // the user isn't using). Clicking the head OUTSIDE the toggle also
+  // flips the toggle — bigger hit target, no extra UI.
+  function setEnabled(id, value) {
+    enabled[id] = value;
+    const card = host.querySelector(`[data-effect="${id}"]`);
+    const toggle = host.querySelector(`[data-effect-toggle="${id}"]`);
+    card?.classList.toggle('off', !value);
+    toggle?.classList.toggle('on', value);
+    effectControls[id]?.onEnabledChange?.();
+  }
+
   host.querySelectorAll('[data-effect-toggle]').forEach(el => {
     const id = el.dataset.effectToggle;
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setEnabled(id, !enabled[id]);
+      history?.push();
+    });
+  });
+
+  host.querySelectorAll('[data-effect-head]').forEach(el => {
+    const id = el.dataset.effectHead;
     el.addEventListener('click', () => {
-      enabled[id] = !enabled[id];
-      el.classList.toggle('on', enabled[id]);
-      effectControls[id]?.onEnabledChange?.();
+      setEnabled(id, !enabled[id]);
       history?.push();
     });
   });
@@ -101,29 +120,18 @@ export function initEffects({ host, uniforms, history, initialSnapshot = null })
     },
     restore(snap) {
       // For each effect:
-      //   1. Set enabled flag + toggle UI state
+      //   1. Set enabled flag (which also updates card .off + toggle UI)
       //   2. Call effect.restore(...) if it has one
-      //   3. Fire onEnabledChange so the effect can push/pull its
-      //      uniform values based on the new enabled state
+      //   3. Fire onEnabledChange (handled inside setEnabled)
       if (!snap) return;
       effects.forEach(eff => {
         const effSnap = snap[eff.id];
         if (!effSnap) return;
-
-        const wantEnabled = !!effSnap.enabled;
-        if (wantEnabled !== enabled[eff.id]) {
-          enabled[eff.id] = wantEnabled;
-          const toggleEl = host.querySelector(`[data-effect-toggle="${eff.id}"]`);
-          if (toggleEl) toggleEl.classList.toggle('on', wantEnabled);
-        }
-
         // Each effect's controls own their own restore — they know
         // their own DOM elements and what to copy back where.
         effectControls[eff.id]?.restore?.(effSnap);
-
-        // Sync the uniform writeback (a no-op for some effects but
-        // necessary for those whose uniform value depends on enabled).
-        effectControls[eff.id]?.onEnabledChange?.();
+        // Then sync enabled state (also fires onEnabledChange).
+        setEnabled(eff.id, !!effSnap.enabled);
       });
     },
   };

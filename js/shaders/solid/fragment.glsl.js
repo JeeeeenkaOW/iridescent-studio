@@ -50,6 +50,8 @@ const materialUniforms = /* glsl */ `
   uniform vec2 u_mouse;
   uniform vec2 u_mouseVel;
   uniform float u_time;
+  uniform float u_loopMode;       // 0 = linear time, 1 = periodic (for export looping)
+  uniform float u_loopDuration;   // seconds per loop cycle when u_loopMode = 1
   uniform sampler2D u_albedo;
   uniform sampler2D u_normal;
   uniform sampler2D u_bloom;

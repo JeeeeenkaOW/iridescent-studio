@@ -23,6 +23,8 @@ const materialUniforms = /* glsl */ `
   uniform vec2 u_mouse;
   uniform vec2 u_mouseVel;
   uniform float u_time;
+  uniform float u_loopMode;
+  uniform float u_loopDuration;
   uniform sampler2D u_albedo;
   uniform sampler2D u_normal;
   uniform sampler2D u_bloom;

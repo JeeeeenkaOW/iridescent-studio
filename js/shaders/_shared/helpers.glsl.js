@@ -52,4 +52,44 @@ export const sharedMaterialHelpers = /* glsl */ `
     const float e = 0.14;
     return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
   }
+
+  // ---- LOOP-AWARE TIME ----
+  // For perfect-loop video export, time-dependent noise needs to be
+  // periodic. Linear u_time * speed doesn't loop. Instead, when
+  // u_loopMode > 0.5, return a sin/cos circular offset whose period
+  // is exactly u_loopDuration — so noise sampled at t=0 equals noise
+  // at t=loopDuration, and the export loop closes seamlessly.
+  //
+  // Interactive mode (u_loopMode = 0): same linear drift as before.
+  // Loop mode (u_loopMode = 1): the noise UV traces a small circle in
+  // texture space, sampling a loop of noise instead of a drift.
+  //
+  // The amplitude sets how much noise variety the loop traverses.
+  // 8.0 matches roughly what linear drift covers in ~5 seconds at
+  // the old speeds.
+  vec2 loopTime2D(float speedX, float speedY) {
+    if (u_loopMode > 0.5) {
+      float phase = (u_time / max(u_loopDuration, 0.001)) * 6.28318;
+      // Use both speeds as a hash so different callers get decorrelated
+      // motion — otherwise every noise field would loop in lockstep.
+      float hashAng = speedX * 73.13 + speedY * 31.71;
+      return vec2(sin(phase + hashAng), cos(phase + hashAng)) * 8.0;
+    }
+    return vec2(u_time * speedX, u_time * speedY);
+  }
+
+  // Scalar version — for terms like u_time * 0.06 driving palette
+  // phase. The palette has period 1 in its input (cos(2pi * x)), so
+  // for the output to repeat at t=loopDuration we need the value to
+  // advance by an integer number of units over one loop. We round
+  // (speed * loopDuration) to the nearest integer ≥ 1 — that's the
+  // number of palette cycles per loop. At t=loopDuration the value
+  // is exactly that integer, so cos() returns the same as at t=0.
+  float loopTime(float speed) {
+    if (u_loopMode > 0.5) {
+      float cycles = max(floor(speed * u_loopDuration + 0.5), 1.0);
+      return (u_time / u_loopDuration) * cycles;
+    }
+    return u_time * speed;
+  }
 `;

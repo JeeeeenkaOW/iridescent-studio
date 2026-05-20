@@ -1,36 +1,29 @@
 // =========================================================
 // IRIDESCENCE EFFECT — GLSL
 // =========================================================
-// Pearl-cosine palette tints the specular highlight AND the silhouette
-// halo glow. The result is a multi-hue iridescent surface where:
-//   - the Fresnel-lit highlights pick up pink/cyan/violet
-//   - the bloom-driven glow around the ornament edges + bright interior
-//     details gets a flowing rainbow ring
+// Cosine-palette rainbow tint on the specular highlight and the
+// silhouette halo.
 //
-// What changed: previous version capped the highlight tint at the
-// palette's natural luminance and the halo coefficient at 0.32. That
-// produced a subtle sheen — nowhere near the vivid rainbow look the
-// reference image needed. Now:
-//   - `iriT` drives the palette as before, but the OUTPUT of
-//     `iridescence()` is overdriven by `(1 + intensity)` at intensity ≥ 1
-//     so the specular tint goes HDR and ACES tonemaps to saturated
-//     colour (instead of just shifted hue).
-//   - The halo coefficient is now `intensity` (was 0.32 hardcoded) so
-//     a maxed-out intensity slider produces a strong rainbow ring.
-//   - The slider range is extended to 0..200% (in controls.js), so
-//     `u_iriIntensity` can go to 2.0 for the truly vivid look from the
-//     reference. The body diffuse is left untouched (user choice).
-//
-// Time drift: deliberately omitted from `iriT` for the highlight tint
-// so hues stay anchored to surface position. The halo's iriT does
-// include time so the ring flows around the silhouette.
+// v8 redesign — what changed and why:
+//   - Previous (v7) MULTIPLIED specular by the palette: bright spec
+//     × rainbow → tonemap clipped to white because the spec was
+//     already bright. Net effect = whitish sheen, not vivid colour.
+//   - v8 REPLACES the specular's hue while preserving its luminance.
+//     The rainbow palette fully dominates the spec hue at intensity=1,
+//     and an HDR brightness boost kicks in at >100%. The lit surface
+//     keeps its specular SHAPE (Fresnel + cursor falloff) but now
+//     reads as pure rainbow where the highlight lives.
+//   - iriT is sampled from a STATIC noise field (computed in
+//     flow-fbm.glsl.js with no time drift), so the material's hue
+//     pattern is anchored to surface position. Only the halo's
+//     animated time-driven term keeps moving — that's appropriate
+//     for the soft glow ring, not for the on-body tint.
 //
 // Host material contract:
 //   - declare `vec3 specular` (Fresnel-coloured) before EFFECTS_APPLY
-//   - declare `vec3 halo = vec3(0.0)` in haloBlock
-//   - declare `float haloMask` in haloBlock
-//   - reads available: `iriT`, `flow`, `u_time`, `u_iriIntensity`,
-//     `u_iriPhase`
+//   - declare `vec3 halo = vec3(0.0)` and `float haloMask` in haloBlock
+//   - `iriT` is the static surface-position field (no time)
+//   - `flow` is the time-drifting field (used by the halo, not spec)
 //
 export const uniforms = /* glsl */ `
   uniform vec3 u_iriPhase;
@@ -38,9 +31,8 @@ export const uniforms = /* glsl */ `
 `;
 
 export const helpers = /* glsl */ `
-  // Pearl-cosine palette (IQ cosine palette + Pearl basis from defaults).
-  // Always returns the raw palette regardless of intensity — used by
-  // Bloom too. Range is roughly [0..1] per channel.
+  // Pearl-cosine palette (IQ cosine palette + Pearl basis).
+  // Range roughly [0..1] per channel.
   vec3 iridescencePalette(float t){
     vec3 a = vec3(0.5);
     vec3 b = vec3(0.5);
@@ -48,38 +40,50 @@ export const helpers = /* glsl */ `
     return a + b * cos(6.28318 * (c * t + u_iriPhase));
   }
 
-  // Tint function for: specular *= iridescence(iriT).
-  // At intensity = 0: returns vec3(1.0) (no-op, specular unchanged).
-  // At intensity = 1: returns palette (specular fully takes palette hue).
-  // At intensity > 1: returns palette boosted above 1.0 (HDR push so
-  //                   ACES tonemapping turns the highlight into a
-  //                   saturated bright rainbow instead of just hue-shifted).
+  // Multiplicative tint — used by Bloom for the halo (which is not
+  // a metallic specular, it's a soft glow on its own colour). Returns
+  // vec3(1.0) at intensity=0 so multiplying is a no-op.
   vec3 iridescence(float t){
-    vec3 rainbow = iridescencePalette(t);
     float k = clamp(u_iriIntensity, 0.0, 2.0);
-    // 0..1 — lerp from white to palette.
-    // 1..2 — keep palette but push amplitude (1 + (k-1)) = k.
-    vec3 base = mix(vec3(1.0), rainbow, min(k, 1.0));
+    vec3 palette = iridescencePalette(t);
+    return mix(vec3(1.0), palette, min(k, 1.0));
+  }
+
+  // Tint the specular: replace its hue with the palette while
+  // preserving its luminance. At intensity=0 the spec is unchanged;
+  // at intensity=1 the spec's colour IS the palette (same brightness);
+  // at intensity=2 the spec is the palette AND boosted brightness for
+  // HDR push through the ACES tonemap.
+  //
+  // lum is the original spec's luminance (Rec.709). We then output
+  // palette × lum × (1 + overdrive), keeping the spec's spatial
+  // shape but with much more vivid colour than the v7 multiply.
+  vec3 tintSpecular(vec3 spec, float t){
+    float k = clamp(u_iriIntensity, 0.0, 2.0);
+    if (k < 0.001) return spec;
+    vec3 palette = iridescencePalette(t);
+    // Preserve luminance: drop the original hue, multiply palette by
+    // the original brightness.
+    float lum = dot(spec, vec3(0.2126, 0.7152, 0.0722));
+    vec3 tinted = palette * lum * 1.6;  // 1.6 compensates: palette
+                                        // averages ~0.5 luma; scaling
+                                        // back up keeps the highlight
+                                        // bright at intensity=1.
+    // Blend from original spec (intensity=0) to fully-tinted (intensity=1),
+    // then push above 1.0 for HDR.
+    vec3 base = mix(spec, tinted, min(k, 1.0));
     float overdrive = max(k - 1.0, 0.0);
     return base * (1.0 + overdrive * 1.5);
   }
 `;
 
-// Apply: tint the highlight and write the halo ring.
-//   - `specular *= iridescence(iriT)` — multi-hue across the surface
-//     because iriT varies spatially. With the new overdrive, at
-//     intensity > 1 the specular runs HDR and the tonemap converts
-//     it to vivid saturated colour.
-//   - `halo = palette * haloMask * intensity` — the ring is now scaled
-//     directly by intensity (was a fixed 0.32). At intensity=2 the ring
-//     is roughly 6× brighter than the old maxed-out version.
+// Apply: tint the spec (preserving its shape + luminance) and write a
+// rainbow halo (uses time-drifting iriT input so the ring flows).
 //
 export const apply = /* glsl */ `
     if (u_iriIntensity > 0.001) {
-      specular *= iridescence(iriT);
-      vec3 haloRainbow = iridescencePalette(u_time * 0.06 + flow * 0.4 + 0.25);
-      // Halo coefficient scales with intensity so the slider is the
-      // single knob for "how vivid is the iridescence look".
+      specular = tintSpecular(specular, iriT);
+      vec3 haloRainbow = iridescencePalette(loopTime(0.06) + flow * 0.4 + 0.25);
       halo = haloRainbow * haloMask * u_iriIntensity;
     }
 `;

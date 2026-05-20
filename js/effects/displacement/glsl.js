@@ -39,8 +39,11 @@ export const apply = /* glsl */ `
     if (u_dispStrength > 0.0001) {
       // Two FBM octaves at different frequencies + drift speeds.
       // Independent per-axis time terms break left-right symmetry.
-      vec2 dUV1 = texUV * u_dispScale          + vec2(u_time * 0.13 * u_dispSpeed,  u_time * 0.09 * u_dispSpeed);
-      vec2 dUV2 = texUV * u_dispScale * 2.3    + vec2(u_time * -0.17 * u_dispSpeed, u_time * 0.21 * u_dispSpeed);
+      // loopTime2D yields linear drift normally, and a periodic
+      // sin/cos circle when u_loopMode=1 so the warp pattern is
+      // perfectly periodic for video export.
+      vec2 dUV1 = texUV * u_dispScale          + loopTime2D(0.13 * u_dispSpeed,  0.09 * u_dispSpeed);
+      vec2 dUV2 = texUV * u_dispScale * 2.3    + loopTime2D(-0.17 * u_dispSpeed, 0.21 * u_dispSpeed);
       // Center the noise around 0 so the offset can go in either
       // direction (otherwise the silhouette only drifts one way).
       float dx = (fbm(dUV1) - 0.5) + (fbm(dUV2 + vec2(7.1, 3.3)) - 0.5) * 0.5;

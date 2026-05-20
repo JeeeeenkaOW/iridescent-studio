@@ -70,15 +70,17 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 // SHARED UNIFORMS — passed to every shader preset
 // =========================================================
 const sharedUniforms = {
-  u_resolution: { value: new THREE.Vector2(1, 1) },
-  u_imgAspect:  { value: 1.0 },
-  u_mouse:      { value: new THREE.Vector2(0.5, 0.5) },
-  u_mouseVel:   { value: new THREE.Vector2(0, 0) },
-  u_time:       { value: 0 },
-  u_albedo:     { value: null },
-  u_normal:     { value: null },
-  u_bloom:      { value: null },
-  u_bgTex:      { value: null },
+  u_resolution:   { value: new THREE.Vector2(1, 1) },
+  u_imgAspect:    { value: 1.0 },
+  u_mouse:        { value: new THREE.Vector2(0.5, 0.5) },
+  u_mouseVel:     { value: new THREE.Vector2(0, 0) },
+  u_time:         { value: 0 },
+  u_loopMode:     { value: 0.0 },  // 1 during export recording
+  u_loopDuration: { value: 4.0 },  // matches default state.loopDuration
+  u_albedo:       { value: null },
+  u_normal:       { value: null },
+  u_bloom:        { value: null },
+  u_bgTex:        { value: null },
 };
 
 let activeMesh = null;
@@ -200,9 +202,23 @@ viewport.addEventListener('pointermove', (e) => {
 
 const IDLE_DELAY = 1.6;
 const BLEND_TIME = 1.4;
+
+// Interactive auto-drift: quasi-Lissajous, organic-feeling, but NOT
+// periodic — it never closes a loop at the user's chosen duration.
 function autoPath(t) {
   const x = 0.5 + Math.sin(t * 0.27) * 0.28 + Math.sin(t * 0.11) * 0.05;
   const y = 0.5 + Math.cos(t * 0.19) * 0.22 + Math.cos(t * 0.07) * 0.06;
+  return { x, y };
+}
+
+// Recording auto-drift: a perfect circle that closes exactly at
+// loopDuration. Used while capturing video so the export is a true
+// seamless loop. Radius is wider than interactive drift because the
+// recorded motion needs to be visually obvious.
+function autoPathLooping(t, loopDuration) {
+  const phase = (t / loopDuration) * Math.PI * 2;
+  const x = 0.5 + Math.sin(phase) * 0.30;
+  const y = 0.5 + Math.cos(phase) * 0.24;
   return { x, y };
 }
 
@@ -214,30 +230,49 @@ let captureStart = null;
 
 function loop() {
   const now = performance.now();
-  const t = captureStart !== null
+  const capturing = captureStart !== null;
+  const t = capturing
     ? (now - captureStart) / 1000
     : (now - startTime) / 1000;
 
-  const auto = autoPath(t);
-  const idleFor = t - lastUserMoveAt;
-  const driftEnabled = state.autoDrift;
-  const targetBlend = !driftEnabled ? 0.0 :
-    (idleFor < IDLE_DELAY ? 0.0 : Math.min(1.0, (idleFor - IDLE_DELAY) / BLEND_TIME));
-  autoBlend += (targetBlend - autoBlend) * 0.06;
-  const targetX = mouseRaw.x * (1 - autoBlend) + auto.x * autoBlend;
-  const targetY = mouseRaw.y * (1 - autoBlend) + auto.y * autoBlend;
-  const lerpAmt = 0.075;
-  mouseSmooth.x += (targetX - mouseSmooth.x) * lerpAmt;
-  mouseSmooth.y += (targetY - mouseSmooth.y) * lerpAmt;
+  if (capturing) {
+    // Recording mode: snap the cursor directly to a perfect circle.
+    // Bypass the smoothing lerp entirely — any residual lerp tail
+    // would leave the first frame ≠ last frame, breaking the loop.
+    const loopDur = state.loopDuration || 4.0;
+    const auto = autoPathLooping(t, loopDur);
+    const prevX = mouseSmooth.x;
+    const prevY = mouseSmooth.y;
+    mouseSmooth.x = auto.x;
+    mouseSmooth.y = auto.y;
+    // Velocity stays useful for the metaball; compute from the snapped
+    // positions so it reads as motion rather than a teleport jump.
+    sharedUniforms.u_mouseVel.value.set(mouseSmooth.x - prevX, -(mouseSmooth.y - prevY));
+    mousePrev.x = mouseSmooth.x;
+    mousePrev.y = mouseSmooth.y;
+  } else {
+    // Interactive mode: blend between cursor and quasi-Lissajous drift.
+    const auto = autoPath(t);
+    const idleFor = t - lastUserMoveAt;
+    const driftEnabled = state.autoDrift;
+    const targetBlend = !driftEnabled ? 0.0 :
+      (idleFor < IDLE_DELAY ? 0.0 : Math.min(1.0, (idleFor - IDLE_DELAY) / BLEND_TIME));
+    autoBlend += (targetBlend - autoBlend) * 0.06;
+    const targetX = mouseRaw.x * (1 - autoBlend) + auto.x * autoBlend;
+    const targetY = mouseRaw.y * (1 - autoBlend) + auto.y * autoBlend;
+    const lerpAmt = 0.075;
+    mouseSmooth.x += (targetX - mouseSmooth.x) * lerpAmt;
+    mouseSmooth.y += (targetY - mouseSmooth.y) * lerpAmt;
 
-  const vx = mouseSmooth.x - mousePrev.x;
-  const vy = mouseSmooth.y - mousePrev.y;
-  mousePrev.x = mouseSmooth.x;
-  mousePrev.y = mouseSmooth.y;
+    const vx = mouseSmooth.x - mousePrev.x;
+    const vy = mouseSmooth.y - mousePrev.y;
+    mousePrev.x = mouseSmooth.x;
+    mousePrev.y = mouseSmooth.y;
+    sharedUniforms.u_mouseVel.value.set(vx, -vy);
+  }
 
   sharedUniforms.u_time.value = t;
   sharedUniforms.u_mouse.value.set(mouseSmooth.x, 1 - mouseSmooth.y);
-  sharedUniforms.u_mouseVel.value.set(vx, -vy);
 
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
@@ -323,8 +358,17 @@ initExport({
   state, renderer, scene, camera,
   getRecordingCtx: () => ({
     resetIdle: () => { lastUserMoveAt = -Infinity; },
-    startCapture: () => { captureStart = performance.now(); },
-    endCapture:   () => { captureStart = null; },
+    startCapture: () => {
+      captureStart = performance.now();
+      // Switch the shader noise to periodic mode so flow/displacement/
+      // halo all loop seamlessly. Duration matches the user's slider.
+      sharedUniforms.u_loopMode.value     = 1.0;
+      sharedUniforms.u_loopDuration.value = state.loopDuration || 4.0;
+    },
+    endCapture: () => {
+      captureStart = null;
+      sharedUniforms.u_loopMode.value = 0.0;
+    },
   }),
 });
 

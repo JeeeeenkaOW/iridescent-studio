@@ -1,20 +1,21 @@
 // =========================================================
 // SOLID CONTROLS — sidebar UI for the unified material
 // =========================================================
-// All material parameters live here. Lighting / Iridescence / Bloom /
-// Chromatic aberration are in the Effects panel (unchanged).
+// v8 cleanup — removed two sliders that had little perceptual impact:
+//   - Bg refraction (only mattered when Transparency > 0, but at low
+//     transparency the offset is invisible anyway). Now Transparency
+//     ALONE drives both the bg leak and the refraction offset.
+//   - Fresnel power (rim sharpness — most users couldn't tell the
+//     difference between 2.0 and 6.0). Hardcoded to defaults.fresnelPower.
 //
-// Sliders (in order):
+// Sliders that remain:
 //   Base color      — diffuse albedo
 //   Reflection      — F0 colour (warm silver = metallic; cool/dark = dielectric)
 //   Roughness       — 0 = smooth, high = stippled
-//   Bg refraction   — UV offset magnitude for the through-body sample
-//   Transparency    — how much of the refracted bg leaks through the body
-//                     (0 = opaque silver/ceramic; 1 = full glass-like)
+//   Transparency    — 0 = opaque, high = glass-like bg leak + refraction
 //   Inner glow      — subsurface tint colour
 //   Glow strength   — 0 = no inner glow; high = porcelain look
 //   Fresnel rim     — 0 = no edge highlight; high = clearcoat-style outline
-//   Fresnel power   — rim sharpness
 //   Cursor blob     — toggle the Mercury-style cursor mercury blob
 //
 import { defaults } from './defaults.js';
@@ -46,11 +47,6 @@ export function initSolidControls({ host, uniforms, history }) {
       </div>
 
       <div class="range-row">
-        <div class="range-label"><span>Bg refraction</span><span class="range-value" data-sc-ref-val>${Math.round(d.material.refraction * 500)}%</span></div>
-        <input type="range" data-sc-ref min="0" max="100" step="1" value="${Math.round(d.material.refraction * 500)}">
-      </div>
-
-      <div class="range-row">
         <div class="range-label"><span>Transparency</span><span class="range-value" data-sc-mix-val>${Math.round(d.material.refractionMix * 100)}%</span></div>
         <input type="range" data-sc-mix min="0" max="100" step="1" value="${Math.round(d.material.refractionMix * 100)}">
       </div>
@@ -73,26 +69,18 @@ export function initSolidControls({ host, uniforms, history }) {
         <input type="range" data-sc-fres min="0" max="100" step="1" value="${Math.round(d.material.fresnel * 100)}">
       </div>
 
-      <div class="range-row">
-        <div class="range-label"><span>Fresnel power</span><span class="range-value" data-sc-fp-val>${d.material.fresnelPower.toFixed(1)}</span></div>
-        <input type="range" data-sc-fp min="10" max="80" step="1" value="${Math.round(d.material.fresnelPower * 10)}">
-      </div>
-
       <div class="toggle-row">
         <label>Cursor blob</label>
         <div class="toggle ${d.material.blobEnabled ? 'on' : ''}" data-sc-blob></div>
       </div>
   `;
 
-  // Refs
   const base    = host.querySelector('[data-sc-base]');
   const baseHex = host.querySelector('[data-sc-base-hex]');
   const f0      = host.querySelector('[data-sc-f0]');
   const f0Hex   = host.querySelector('[data-sc-f0-hex]');
   const rough   = host.querySelector('[data-sc-rough]');
   const roughV  = host.querySelector('[data-sc-rough-val]');
-  const ref     = host.querySelector('[data-sc-ref]');
-  const refV    = host.querySelector('[data-sc-ref-val]');
   const mix     = host.querySelector('[data-sc-mix]');
   const mixV    = host.querySelector('[data-sc-mix-val]');
   const sss     = host.querySelector('[data-sc-sss]');
@@ -101,11 +89,20 @@ export function initSolidControls({ host, uniforms, history }) {
   const ssV     = host.querySelector('[data-sc-ss-val]');
   const fres    = host.querySelector('[data-sc-fres]');
   const fresV   = host.querySelector('[data-sc-fres-val]');
-  const fp      = host.querySelector('[data-sc-fp]');
-  const fpV     = host.querySelector('[data-sc-fp-val]');
   const blob    = host.querySelector('[data-sc-blob]');
 
   let blobEnabled = !!d.material.blobEnabled;
+
+  // Transparency drives both uniforms — at 0 the body is opaque, at
+  // 100% the bg shows through with full refraction offset.
+  function setTransparency(pct) {
+    const mixVal = pct / 100;
+    uniforms.u_refractionMix.value = mixVal;
+    // Refraction offset peaks at 0.18 in shader UV space (a touch less
+    // than the standalone slider's 0.20 — 0.18 keeps edges from going
+    // off the bg texture).
+    uniforms.u_refraction.value = mixVal * 0.18;
+  }
 
   // ---- Color wiring ----
   base.addEventListener('input', (e) => {
@@ -134,19 +131,10 @@ export function initSolidControls({ host, uniforms, history }) {
   });
   rough.addEventListener('change', () => history?.push());
 
-  // Refraction slider 0..100% maps to u_refraction 0..0.20 (same scale
-  // as Glass — gives a usable distortion range without hitting wrap).
-  ref.addEventListener('input', (e) => {
-    const pct = parseInt(e.target.value, 10);
-    refV.textContent = pct + '%';
-    uniforms.u_refraction.value = (pct / 100) * 0.20;
-  });
-  ref.addEventListener('change', () => history?.push());
-
   mix.addEventListener('input', (e) => {
-    const v = parseInt(e.target.value, 10) / 100;
-    mixV.textContent = e.target.value + '%';
-    uniforms.u_refractionMix.value = v;
+    const pct = parseInt(e.target.value, 10);
+    mixV.textContent = pct + '%';
+    setTransparency(pct);
   });
   mix.addEventListener('change', () => history?.push());
 
@@ -164,13 +152,6 @@ export function initSolidControls({ host, uniforms, history }) {
   });
   fres.addEventListener('change', () => history?.push());
 
-  fp.addEventListener('input', (e) => {
-    const v = parseInt(e.target.value, 10) / 10;
-    fpV.textContent = v.toFixed(1);
-    uniforms.u_fresnelPower.value = v;
-  });
-  fp.addEventListener('change', () => history?.push());
-
   blob.addEventListener('click', () => {
     blobEnabled = !blobEnabled;
     blob.classList.toggle('on', blobEnabled);
@@ -180,20 +161,22 @@ export function initSolidControls({ host, uniforms, history }) {
 
   return {
     snapshot() {
+      const mixPct = parseInt(mix.value, 10);
       return {
         material: {
           baseColor:        base.value,
           f0Color:          f0.value,
           roughness:        parseInt(rough.value, 10) / 100,
-          // Store the slider pct alongside the scaled refraction so
-          // restore is exact (no rounding loss on the float divide).
-          refractionSlider: parseInt(ref.value, 10),
-          refraction:       (parseInt(ref.value, 10) / 100) * 0.20,
-          refractionMix:    parseInt(mix.value, 10) / 100,
+          // refraction is derived from the Transparency slider (single
+          // knob drives both u_refractionMix and u_refraction) so the
+          // exported HTML reproduces what the user is seeing.
+          refraction:       (mixPct / 100) * 0.18,
+          refractionMix:    mixPct / 100,
           sssColor:         sss.value,
           sssStrength:      parseInt(ss.value, 10) / 100,
           fresnel:          parseInt(fres.value, 10) / 100,
-          fresnelPower:     parseInt(fp.value, 10) / 10,
+          // fresnelPower is no longer a slider — locked to defaults.
+          fresnelPower:     defaults.material.fresnelPower,
           blobEnabled,
         },
       };
@@ -217,19 +200,11 @@ export function initSolidControls({ host, uniforms, history }) {
         roughV.textContent = pct + '%';
         uniforms.u_roughness.value = m.roughness;
       }
-      if (typeof m.refraction === 'number') {
-        const pct = typeof m.refractionSlider === 'number'
-          ? m.refractionSlider
-          : Math.round((m.refraction / 0.20) * 100);
-        ref.value = String(pct);
-        refV.textContent = pct + '%';
-        uniforms.u_refraction.value = m.refraction;
-      }
       if (typeof m.refractionMix === 'number') {
         const pct = Math.round(m.refractionMix * 100);
         mix.value = String(pct);
         mixV.textContent = pct + '%';
-        uniforms.u_refractionMix.value = m.refractionMix;
+        setTransparency(pct);
       }
       if (typeof m.sssColor === 'string') {
         sss.value = m.sssColor;
@@ -247,11 +222,6 @@ export function initSolidControls({ host, uniforms, history }) {
         fres.value = String(pct);
         fresV.textContent = pct + '%';
         uniforms.u_fresnel.value = m.fresnel;
-      }
-      if (typeof m.fresnelPower === 'number') {
-        fp.value = String(Math.round(m.fresnelPower * 10));
-        fpV.textContent = m.fresnelPower.toFixed(1);
-        uniforms.u_fresnelPower.value = m.fresnelPower;
       }
       if (typeof m.blobEnabled === 'boolean') {
         blobEnabled = m.blobEnabled;
