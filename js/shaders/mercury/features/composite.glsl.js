@@ -34,6 +34,6 @@ export const compositeBlock = /* glsl */ `
 
     vec3 ornament = diffuse + specular;
 
-    // Iridescence soap-film overlay (zero when effect is off).
-    ornament += iriOverlay;
+    // Iridescence tint (vec3(1.0) when effect is off — no-op multiply).
+    ornament *= iriTint;
 `;

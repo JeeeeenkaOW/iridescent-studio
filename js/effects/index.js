@@ -29,8 +29,8 @@ import { chromaticAberrationEffect } from './chromatic-aberration/index.js';
 // AND the order their applyGlsl runs in main().
 //
 //   Lighting       — no apply GLSL, just owns the lighting uniforms.
-//   Iridescence    — writes `iriOverlay` (soap-film, picked up in
-//                    each composite block).
+//   Iridescence    — writes `iriTint` (multiplicative tint, picked
+//                    up in each composite block).
 //   Bloom          — writes `halo`. Reads `iridescence(...)` so when
 //                    Iridescence is on, the halo picks up its tint.
 //                    MUST run after Iridescence's uniforms are set

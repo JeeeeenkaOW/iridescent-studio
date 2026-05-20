@@ -5,8 +5,8 @@
 // The Bloom effect writes `halo` when enabled. The material exposes
 // its default halo color/intensity as u_haloBaseColor / u_haloBaseIntensity.
 //
-// `iriOverlay` is initialized to zero; the Iridescence effect writes
-// it and the compositeBlock adds it onto `ornament` at the end.
+// `iriTint` is initialized to vec3(1.0); the Iridescence effect writes
+// it and the compositeBlock multiplies `ornament` by it at the end.
 //
 // Composite — realism additions:
 //   - Hemisphere ambient adds direction to the otherwise flat
@@ -21,7 +21,7 @@
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
     vec3 halo = vec3(0.0);
-    vec3 iriOverlay = vec3(0.0);
+    vec3 iriTint = vec3(1.0);
 `;
 
 export const compositeBlock = /* glsl */ `
@@ -43,8 +43,8 @@ export const compositeBlock = /* glsl */ `
     // specular was set up in flowBlock.
     vec3 ornament = through + specular;
 
-    // Iridescence soap-film overlay (zero when effect is off).
-    ornament += iriOverlay;
+    // Iridescence tint (vec3(1.0) when effect is off — no-op multiply).
+    ornament *= iriTint;
 `;
 
 export const outputBlock = /* glsl */ `

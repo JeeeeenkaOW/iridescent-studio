@@ -26,6 +26,6 @@ export const compositeBlock = /* glsl */ `
     // color too — a coloured light catching the edge.
     vec3 ornament = body + specular + fresnel * u_lightColor;
 
-    // Iridescence soap-film overlay (zero when effect is off).
-    ornament += iriOverlay;
+    // Iridescence tint (vec3(1.0) when effect is off — no-op multiply).
+    ornament *= iriTint;
 `;

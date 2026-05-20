@@ -3,9 +3,10 @@
 // =========================================================
 // Soap-film rainbow that rides OVER the lit material without
 // retinting the body. Material colors stay; rainbow stripes bloom
-// around the cursor (driven by NdotL) and drift over time via
-// flow noise — matching the cursor-following iridescent feel of
-// the original Mercury implementation, now generic across materials.
+// around the cursor (driven by NdotL² + spec hot spot) and drift
+// over time via flow noise — matching the cursor-following
+// iridescent feel of the original Mercury implementation, now
+// generic across materials.
 //
 // Two pieces in the host shader:
 //
@@ -13,19 +14,29 @@
 //             used by Mercury composite and by Bloom for tinting)
 //           — `iridescencePalette(t)` (always returns the raw
 //             rainbow regardless of intensity — used here for the
-//             soap-film overlay)
+//             soap-film tint)
 //
-//   apply   — writes `iriOverlay` (vec3) — each material's
-//             composite block adds it to `ornament` at the end.
-//             Zero when the effect is off, so adding it is a no-op
-//             in that case.
+//   apply   — writes `iriTint` (vec3) — each material's composite
+//             multiplies its `ornament` by `iriTint` at the end.
+//             When the effect is off `iriTint` stays at vec3(1.0)
+//             (initialized in haloBlock) so the multiplication is
+//             a no-op.
+//
+// Why multiplicative and not additive? On bright base materials
+// (ceramic's near-white body) an additive rainbow gets clipped to
+// white by the ACES tonemap — you see no hue, just brightness.
+// Multiplicative preserves channel ratios: a magenta tint on a
+// white surface stays magenta. The tint is mixed in by cursor
+// weight, so areas away from the cursor stay at their original
+// (untinted) color — the model doesn't get a global hue drift.
 //
 // Host material contract:
-//   - declare `vec3 iriOverlay = vec3(0.0);` in haloBlock (already
-//     done — see each material's output.glsl.js)
-//   - in composite, add `ornament += iriOverlay;` at the end
-//   - reads available in apply scope: `iriT`, `flow`, `mask`,
-//     `NdotL`, `u_time`, `u_iriIntensity`, `u_iriPhase`
+//   - declare `vec3 iriTint = vec3(1.0);` in haloBlock
+//   - in composite, multiply `ornament *= iriTint;` at the end
+//   - reads available in apply scope: `flow`, `texUV`, `mask`,
+//     `NdotL`, `spec`, `u_specular`, `u_time`, `u_iriIntensity`,
+//     `u_iriPhase`
+//
 //
 export const uniforms = /* glsl */ `
   uniform vec3 u_iriPhase;
@@ -55,30 +66,42 @@ export const helpers = /* glsl */ `
   }
 `;
 
-// Soap-film overlay. The math:
-//   - `iridescencePalette(iriT)` ∈ [0,1] per channel — the raw rainbow.
-//     iriT already mixes NdotL (cursor proximity), flow noise (animated
-//     drift), time, texUV.y, and on Mercury the metaball — so the
-//     rainbow stripes naturally chase the cursor and drift on idle.
-//   - weight by NdotL so the rainbow blooms WHERE THE CURSOR IS (and
-//     falls off across the surface), matching the original Mercury
-//     "highlight that's rainbow" behavior. This is what makes the
-//     cursor's halo iridescent instead of just edges.
-//   - small ambient floor (0.15) so the interior never goes flat —
-//     the rainbow rides over the whole shape, just brighter near the
-//     cursor.
-//   - weight by `mask` so the overlay only appears on the ornament,
-//     not on the background.
-//   - intensity scales the whole overlay; *0.6 keeps default
-//     intensity=1.0 strong-but-not-blown-out.
+// Multiplicative cursor tint.
 //
-// Purely additive — material colors are preserved, the soap film
-// brightens with rainbow stripes but never darkens. When
-// u_iriIntensity is 0 the overlay stays at zero.
+// 1) Cursor weight — concentrates the rainbow where the cursor is,
+//    so the rainbow stays a localized "highlight on a soap bubble"
+//    rather than a model-wide hue. NdotL² is sharper than NdotL
+//    (the iridescence reads as a defined area, not a wash). spec
+//    × u_specular adds a bright spike right at the Blinn-Phong hot
+//    spot — Mercury's high specular + metaball boost makes this
+//    a vivid colored highlight there; dielectrics get a softer
+//    version, falling back to NdotL².
+//
+// 2) iriT_overlay — our own version of iriT with heavier spatial
+//    variation (texUV + flow) and a slow time drift. This makes
+//    the rainbow appear as STRIPES across the cursor area rather
+//    than a single hue, which is what reads as "soap film" instead
+//    of "tinted highlight."
+//
+// 3) Rainbow lifted to mean 1.0 (so multiplicative tint doesn't
+//    darken the surface on average — channels swing above and below
+//    1.0 equally as the cosine cycles).
+//
+// 4) iriTint — mix from white (no tint) toward the rainbow tint
+//    by `weight * u_iriIntensity`. Composite does `ornament *= iriTint`
+//    so the multiplication is a no-op away from the cursor and a
+//    full rainbow tint at the highlight.
 export const apply = /* glsl */ `
     if (u_iriIntensity > 0.001) {
-      vec3 rainbow = iridescencePalette(iriT);
-      float cursorFalloff = NdotL * 0.85 + 0.15;
-      iriOverlay = rainbow * cursorFalloff * mask * u_iriIntensity * 0.6;
+      float specPeak  = spec * u_specular;
+      float cursor    = NdotL * NdotL + specPeak * 3.5;
+      cursor          = clamp(cursor, 0.0, 1.0);
+
+      float iriT_over = flow * 1.1 + texUV.x * 0.55 + texUV.y * 0.45 + u_time * 0.05;
+      vec3 rainbow    = iridescencePalette(iriT_over);
+      vec3 tint       = rainbow + vec3(0.5);    // lift mean from 0.5 → 1.0
+
+      float weight    = cursor * u_iriIntensity * mask;
+      iriTint         = mix(vec3(1.0), tint, weight);
     }
 `;

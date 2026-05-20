@@ -1,19 +1,19 @@
 // =========================================================
 // IRIDESCENCE EFFECT — manifest
 // =========================================================
-// Soap-film thin-film rainbow that rides OVER any material without
-// retinting the body. Adds a mean-zero rainbow oscillation strongest
-// at grazing angles, faint head-on — matches how real soap films
-// and oil-on-water films behave. Off by default.
+// Soap-film rainbow concentrated around the cursor highlight on any
+// material. Multiplicative tint: material colors stay, the cursor
+// area gets rainbow stripes. Away from the cursor the tint fades
+// to white (no-op). Off by default.
 //
 // Each material composes the GLSL chunks into its fragment shader
-// (see materials' fragment.glsl.js) and adds `ornament += iriOverlay`
+// (see materials' fragment.glsl.js) and multiplies `ornament *= iriTint`
 // in its composite block.
 //
 // The Bloom effect reads `iridescence(...)` from this effect's helpers
 // to tint the halo when iridescence is enabled — that's why this
 // effect's helpers also export the white-blended `iridescence()`
-// function alongside the soap-film palette.
+// function alongside the raw palette.
 //
 // Mercury's composite has an additional hardcoded line
 // `diffuse += iridescence(iriT) * blob * 0.4` that pre-dates this
