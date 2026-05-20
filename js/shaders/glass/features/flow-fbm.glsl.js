@@ -15,10 +15,10 @@ export const flowBlock = /* glsl */ `
     float staticNoise  = fbm(texUV * 2.4);
     float staticNoise2 = fbm(texUV * 4.8 + vec2(11.3, 17.7));
 
-    float iriT = staticNoise  * 0.55
-               + staticNoise2 * 0.30
-               + NdotL        * 0.10
-               + texUV.y      * 0.15;
+    float iriT = NdotL * 0.55
+               + staticNoise  * 0.35
+               + staticNoise2 * 0.20
+               + texUV.y * 0.12;
 
     vec3 F = fresnelSchlickColored(NdotV, u_f0);
     vec3 specular = vec3(spec * u_specular) * F * u_lightColor;

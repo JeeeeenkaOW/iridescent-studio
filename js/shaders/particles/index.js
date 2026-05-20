@@ -1,11 +1,10 @@
 // =========================================================
 // PARTICLES MATERIAL — manifest
 // =========================================================
-// Renders the source SVG as a field of discrete dots (DUST/SMOKE/
-// STARS/FRAGMENTS modes). Same lighting + effects integration as
-// Solid/Glass — Iridescence on Particles makes the dots iridescent;
-// Bloom adds glow around them; CA fringes the dots; Displacement
-// warps the cloud.
+// Renders the source SVG as a field of discrete dots. Four
+// independent motion modes (Drift / Rise / Twinkle / Scatter) can
+// be combined. Four shapes (Circle / Square / Diamond / Ring).
+// Same lighting + effects integration as Solid/Glass.
 //
 import { vertexShader }       from './vertex.glsl.js';
 import { fragmentShader }     from './fragment.glsl.js';
@@ -23,9 +22,12 @@ const BASE_COLOR_HEX     = ${JSON.stringify(mat.baseColor ?? defaults.material.b
 const PARTICLE_DENSITY   = ${mat.density   ?? defaults.material.density};
 const PARTICLE_SIZE      = ${mat.size      ?? defaults.material.size};
 const PARTICLE_JITTER    = ${mat.jitter    ?? defaults.material.jitter};
-const PARTICLE_DRIFT     = ${mat.drift     ?? defaults.material.drift};
-const PARTICLE_MODE      = ${mat.mode      ?? defaults.material.mode};
 const PARTICLE_SOFTNESS  = ${mat.softness  ?? defaults.material.softness};
+const PARTICLE_SHAPE     = ${mat.shape     ?? defaults.material.shape};
+const MOTION_DRIFT       = ${mat.motionDrift   ?? defaults.material.motionDrift};
+const MOTION_RISE        = ${mat.motionRise    ?? defaults.material.motionRise};
+const MOTION_TWINKLE     = ${mat.motionTwinkle ?? defaults.material.motionTwinkle};
+const MOTION_SCATTER     = ${mat.motionScatter ?? defaults.material.motionScatter};
 
 const DIFFUSE_PRESET     = ${lit.diffuse};
 const SPECULAR_PRESET    = ${lit.specular};
@@ -44,9 +46,12 @@ const HALO_BASE_INT      = 0.32;
     u_particleDensity:   { value: PARTICLE_DENSITY },
     u_particleSize:      { value: PARTICLE_SIZE },
     u_particleJitter:    { value: PARTICLE_JITTER },
-    u_particleDrift:     { value: PARTICLE_DRIFT },
-    u_particleMode:      { value: PARTICLE_MODE },
     u_particleSoftness:  { value: PARTICLE_SOFTNESS },
+    u_particleShape:    { value: PARTICLE_SHAPE },
+    u_motionDrift:       { value: MOTION_DRIFT },
+    u_motionRise:        { value: MOTION_RISE },
+    u_motionTwinkle:     { value: MOTION_TWINKLE },
+    u_motionScatter:     { value: MOTION_SCATTER },
     u_diffuse:           { value: DIFFUSE_PRESET },
     u_specular:          { value: SPECULAR_PRESET },
     u_shininess:         { value: SHININESS_PRESET },

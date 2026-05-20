@@ -23,6 +23,25 @@ export const compositeBlock = /* glsl */ `
     // lets the user globally tint the particles.
     vec3 base = u_baseColor * particleAlbedo;
 
+    // Per-particle iridescent body tint. Each dot's iriT lands on the
+    // shared palette; we mix that hue INTO base so different dots
+    // become different colors (rather than just having different
+    // specular hues, which is what the iridescence effect does alone).
+    //
+    // Gated by BOTH u_particleHueShift (this material's slider) AND
+    // u_iriIntensity (the iridescence effect's on/off). Turning the
+    // effect off cleanly restores the original look regardless of the
+    // hueShift slider position. Uses iridescencePalette() from the
+    // iridescence effect's helpers (soft coupling — see fragment header).
+    float hueAmt = u_particleHueShift * clamp(u_iriIntensity, 0.0, 1.0);
+    if (hueAmt > 0.001) {
+      vec3 dotHue = iridescencePalette(iriT);
+      // Preserve albedo luminance so light/dark regions of the SVG
+      // still read correctly through the tint.
+      float lum = max(dot(particleAlbedo, vec3(0.2126, 0.7152, 0.0722)), 0.05);
+      base = mix(base, dotHue * lum * 1.4, hueAmt);
+    }
+
     // Ambient — hemisphere term scaled by u_ambientStrength.
     vec3 ambient = base * hemiAmbient(particleN, u_skyColor, u_groundColor) * u_ambientStrength;
 

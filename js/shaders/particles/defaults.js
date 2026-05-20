@@ -2,44 +2,39 @@
 // PARTICLES DEFAULTS — material params + lighting + ambient
 // =========================================================
 // The Particles material renders the source SVG as a field of
-// discrete dots. Each "particle" is a grid cell; cells that fall
-// inside the silhouette become visible, with size and brightness
-// modulated by the underlying albedo + animation noise.
+// discrete dots. Each grid cell becomes a particle; cells inside
+// the silhouette become visible.
 //
-// Modes (controlled by u_particleMode):
-//   0 = DUST   — particles gently drift in a noise field; static.
-//   1 = SMOKE  — particles drift upward with fading + scale change.
-//   2 = STARS  — particles twinkle (brightness oscillates), no drift.
-//   3 = FRAGMENTS — particles scatter outward from centroid.
+// MOTIONS (all independent, can be combined):
+//   - drift   — particles wobble in an fbm noise field
+//   - rise    — particles drift upward with cycle fade
+//   - twinkle — per-cell brightness oscillation
+//   - scatter — particles push radially outward from centre
 //
-// Default mode = DUST. The reference look is "the ornament rendered
-// as constellation dots".
+// SHAPES (single-select):
+//   0 = circle, 1 = square, 2 = diamond, 3 = ring
 //
 export const defaults = {
   material: {
-    // Density: cells per image width. 60 = clearly granular but
-    // recognisable; 120 = fine detail; 30 = very sparse.
     density:     80,
-    // Particle size: radius as fraction of one cell. 0.35 = small
-    // dots with gaps; 0.6 = nearly filled cells; 0.8 = almost solid.
     size:        0.40,
-    // How much the per-cell jitter scatters particles off their grid
-    // positions. 0 = perfect grid; 1 = each cell's particle can land
-    // anywhere within its neighbourhood (smoother visual at the cost
-    // of grid pattern).
     jitter:      0.5,
-    // Drift animation strength. 0 = static, 1 = particles dance.
-    drift:       0.4,
-    // Mode index (0..3 per comment above).
-    mode:        0,
-    // Base color — tints the particle dots.
-    baseColor:  '#FFFFFF',
-    // Edge softness for the dot's circular falloff. 0.05 = razor
-    // sharp dots; 0.3 = soft glowing blobs.
     softness:    0.15,
+    shape:       0,
+    // Default motion: mild drift only. User can combine any of these.
+    motionDrift:   0.4,
+    motionRise:    0.0,
+    motionTwinkle: 0.0,
+    motionScatter: 0.0,
+    baseColor:  '#FFFFFF',
+    // Per-particle hue shift. Each dot gets a stable identity from its
+    // grid-cell hash, mapped into the Iridescence effect's palette.
+    // 0 = today's look (base color × albedo). 1 = each dot is pure
+    // palette color. Gated by Iridescence intensity, so turning the
+    // Iridescence effect off restores the original look regardless
+    // of this slider.
+    hueShift:   0.0,
   },
-  // Lighting preset — particles still pick up lighting from the
-  // underlying surface normal where they live, so this matters.
   lighting: {
     diffuse:        0.45,
     specular:       1.40,

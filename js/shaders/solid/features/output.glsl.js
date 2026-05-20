@@ -2,23 +2,19 @@
 // OUTPUT — final compositing
 // =========================================================
 // haloBlock computes `haloMask` and initializes `halo` to zero.
-// The Iridescence effect writes `halo` with a rainbow palette when
-// enabled. The Bloom effect (off by default) writes `halo` when
-// enabled, taking precedence (its apply runs after iridescence's).
-// When neither effect is on, `halo` stays at zero — no glow.
+// Only Bloom writes `halo` (it's the only effect that draws a glow
+// ring). When Bloom is off, halo stays at zero.
 //
-// The material's tuned baseline halo color/intensity live in
-// `u_haloBaseColor` and `u_haloBaseIntensity` — only Bloom reads
-// those; iridescence uses its own palette + a hardcoded 0.32
-// coefficient (matching this material's original halo intensity).
+// Bloom multiplies its halo color by `iridescence(t)` which returns
+// vec3(1.0) when iridescence is off (neutral halo) and the palette
+// when on (rainbow halo). So enabling iridescence alone produces
+// only a tinted highlight; enabling Bloom + iridescence gives the
+// rainbow halo from v8.
 //
-// Realism addition: ACES tonemap is applied AFTER vignette but BEFORE
-// grain. Without tonemapping, highlights blow out to white; with it,
-// they roll off cleanly and pushed-up Lighting sliders don't
-// destroy the image.
+// Realism: ACES tonemap is applied after vignette but before grain.
 //
 // Tuneables (material-level defaults):
-//   - halo color/intensity: now in u_haloBaseColor / u_haloBaseIntensity
+//   - halo color/intensity: u_haloBaseColor / u_haloBaseIntensity
 //   - halo mask falloff:   0.7
 //   - vignette range:      0.35 → 1.15
 //   - grain:               0.018

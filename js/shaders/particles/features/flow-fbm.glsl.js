@@ -22,10 +22,16 @@ export const flowBlock = /* glsl */ `
     // No metaball on particles material.
     float blob = 0.0;
 
-    float iriT = staticNoise  * 0.55
-               + staticNoise2 * 0.30
-               + NdotL        * 0.10
-               + particleCenter.y * 0.15;
+    // iriT controls the palette index this dot lands on. NdotL gives
+    // cursor-driven shift; staticNoise gives spatial variation;
+    // particleHue gives each dot a CRISP per-cell offset so adjacent
+    // dots can land on very different hues. Without particleHue, dots
+    // sit on the smooth fbm gradient and neighbours look near-identical.
+    float iriT = NdotL * 0.45
+               + staticNoise  * 0.25
+               + staticNoise2 * 0.15
+               + particleCenter.y * 0.10
+               + particleHue * 0.85;
 
     // Fresnel against F0 (white default for particles → no F0 tint).
     vec3 F = fresnelSchlickColored(NdotV, vec3(0.92));

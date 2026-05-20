@@ -26,9 +26,14 @@ export function createUniforms(shared) {
     u_particleDensity:  { value: defaults.material.density },
     u_particleSize:     { value: defaults.material.size },
     u_particleJitter:   { value: defaults.material.jitter },
-    u_particleDrift:    { value: defaults.material.drift },
-    u_particleMode:     { value: defaults.material.mode },
     u_particleSoftness: { value: defaults.material.softness },
+    u_particleShape:    { value: defaults.material.shape },
+    // Motion modes (independent strengths)
+    u_motionDrift:      { value: defaults.material.motionDrift },
+    u_motionRise:       { value: defaults.material.motionRise },
+    u_motionTwinkle:    { value: defaults.material.motionTwinkle },
+    u_motionScatter:    { value: defaults.material.motionScatter },
+    u_particleHueShift: { value: defaults.material.hueShift },
 
     // Lighting preset (the top-level Lighting controls override these)
     u_diffuse:     { value: defaults.lighting.diffuse },

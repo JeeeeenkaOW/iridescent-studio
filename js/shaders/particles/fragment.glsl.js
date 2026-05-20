@@ -48,9 +48,14 @@ const materialUniforms = /* glsl */ `
   uniform float u_particleDensity;
   uniform float u_particleSize;
   uniform float u_particleJitter;
-  uniform float u_particleDrift;
-  uniform float u_particleMode;
   uniform float u_particleSoftness;
+  uniform float u_particleShape;
+  // Four independent motion modes — can be combined.
+  uniform float u_motionDrift;
+  uniform float u_motionRise;
+  uniform float u_motionTwinkle;
+  uniform float u_motionScatter;
+  uniform float u_particleHueShift;
 
   // Lighting (preset; the top-level Lighting controls override these)
   uniform float u_diffuse;
