@@ -163,7 +163,7 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 .section.collapsible > .section-title:hover{color:var(--tp)}
 .section.collapsible > .section-title::after{content:'';width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform .15s;flex-shrink:0;margin-left:8px}
 .section.collapsible.collapsed > .section-title::after{transform:rotate(-45deg) translate(1px,1px)}
-.section.collapsible > .collapsible-body{display:flex;flex-direction:column;gap:var(--sp-200);overflow:hidden;padding-top:var(--sp-100)}
+.section.collapsible > .collapsible-body{display:flex;flex-direction:column;gap:10px;overflow:hidden;padding-top:var(--sp-200)}
 .section.collapsible.collapsed > .collapsible-body{display:none}
 
 /* ============ VIEWPORT ============ */
@@ -187,27 +187,35 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 .segmented{display:grid;gap:1px;background:var(--b4);border:1px solid var(--b4);border-radius:0}
 .segmented.cols-2{grid-template-columns:repeat(2,1fr)}
 .segmented.cols-3{grid-template-columns:repeat(3,1fr)}
-.segmented.cols-4{grid-template-columns:repeat(2,1fr)}
+.segmented.cols-4{grid-template-columns:repeat(4,1fr)}
 .seg-btn{background:var(--s2);border:none;padding:8px 4px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);cursor:pointer;transition:background .12s,color .12s}
 .seg-btn:hover{background:var(--s3);color:var(--tp)}
 .seg-btn.active{background:var(--ow);color:#FFF}
 
 /* ============ RANGE ROW ============ */
-.range-row{display:flex;flex-direction:column;gap:6px}
+/* Compact stacked label+slider. Each range-row has its own internal
+   gap (label → track). Between range-rows the parent container
+   provides the outer gap. Thumb is small + simple (no border or ring)
+   so it doesn't visually bleed into adjacent rows; the track is the
+   same 4px height as before but with rounded ends. */
+.range-row{display:flex;flex-direction:column;gap:6px;padding:2px 0}
 .range-label{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 .range-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums}
-.range-row input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--s3);border-radius:2px;outline:none}
-.range-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:var(--ow);cursor:pointer;border-radius:50%;border:2px solid var(--s1);box-shadow:0 0 0 1px var(--ow)}
-.range-row input[type="range"]::-moz-range-thumb{width:10px;height:10px;background:var(--ow);cursor:pointer;border-radius:50%;border:2px solid var(--s1);box-shadow:0 0 0 1px var(--ow)}
-.range-row input[type="range"]:hover::-webkit-slider-thumb{background:var(--ow-h);box-shadow:0 0 0 1px var(--ow-h)}
+.range-row input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:14px;background:transparent;outline:none;display:block;margin:0;padding:0;cursor:pointer}
+.range-row input[type="range"]::-webkit-slider-runnable-track{height:4px;background:var(--s3);border-radius:2px}
+.range-row input[type="range"]::-moz-range-track{height:4px;background:var(--s3);border-radius:2px;border:none}
+.range-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;background:var(--ow);cursor:pointer;border-radius:50%;border:none;margin-top:-4px}
+.range-row input[type="range"]::-moz-range-thumb{width:12px;height:12px;background:var(--ow);cursor:pointer;border-radius:50%;border:none}
+.range-row input[type="range"]:hover::-webkit-slider-thumb{background:var(--ow-h)}
+.range-row input[type="range"]:hover::-moz-range-thumb{background:var(--ow-h)}
 .range-row input[type="range"]:disabled{opacity:.4;cursor:not-allowed}
 .range-row input[type="range"]:disabled::-webkit-slider-thumb{cursor:not-allowed}
 
 /* ============ TOGGLE ROW ============ */
-.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;padding:2px 0}
 .toggle-row label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);cursor:pointer}
-.toggle{position:relative;width:32px;height:18px;background:var(--s3);border:1px solid var(--b4);border-radius:9px;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0}
-.toggle::after{content:'';position:absolute;top:1px;left:1px;width:14px;height:14px;background:var(--t3);border-radius:50%;transition:transform .15s,background .15s}
+.toggle{position:relative;width:30px;height:16px;background:var(--s3);border:1px solid var(--b4);border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0}
+.toggle::after{content:'';position:absolute;top:1px;left:1px;width:12px;height:12px;background:var(--t3);border-radius:50%;transition:transform .15s,background .15s}
 .toggle.on{background:var(--ow);border-color:var(--ow)}
 .toggle.on::after{transform:translateX(14px);background:#FFF}
 .toggle:hover{border-color:var(--b2)}
@@ -228,7 +236,7 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 @keyframes rec-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* ============ COLOR ROW (for color pickers in sections) ============ */
-.color-row{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-200);padding:var(--sp-200) var(--sp-300);background:var(--s2);border:1px solid var(--b4)}
+.color-row{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-200);padding:6px var(--sp-300);background:var(--s2);border:1px solid var(--b4);min-height:32px}
 .color-row-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 .color-row-control{display:flex;align-items:center;gap:var(--sp-200)}
 .color-row-hex{font-family:var(--font-brand);font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;letter-spacing:.5px}
@@ -252,7 +260,7 @@ input[type="color"]::-moz-color-swatch{border:none}
 .export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100) 0}
 
 /* ============ SHADER CONTROLS HOST ============ */
-#shader-controls{display:flex;flex-direction:column;gap:var(--sp-300)}
+#shader-controls{display:flex;flex-direction:column;gap:10px}
 
 /* ============ EFFECTS PANEL ============ */
 /* Each effect is a card with a header (name + toggle). When the

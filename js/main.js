@@ -231,25 +231,46 @@ let captureStart = null;
 function loop() {
   const now = performance.now();
   const capturing = captureStart !== null;
-  const t = capturing
+
+  // In capture mode, wrap t modulo loopDuration. This is THE key to
+  // a seamless loop: by construction, state at t=loopDuration is
+  // identical to state at t=0 (every shader noise field driven by
+  // loopTime/loopTime2D, the auto-path, and u_time itself all wrap
+  // exactly at that period). Whichever frame the recorder captures
+  // last (it's always slightly less than loopDuration due to frame
+  // pacing), that frame's state is one Δ-step before t=0, so the
+  // last→first frame transition on replay is just one normal step.
+  const loopDur = state.loopDuration || 4.0;
+  const tRaw = capturing
     ? (now - captureStart) / 1000
     : (now - startTime) / 1000;
+  const t = capturing ? (tRaw % loopDur) : tRaw;
 
   if (capturing) {
-    // Recording mode: snap the cursor directly to a perfect circle.
-    // Bypass the smoothing lerp entirely — any residual lerp tail
-    // would leave the first frame ≠ last frame, breaking the loop.
-    const loopDur = state.loopDuration || 4.0;
+    // Recording mode: snap the cursor directly to a perfect circle
+    // and compute velocity analytically (the circle's tangent at
+    // this phase). Computing velocity from position deltas would
+    // give garbage on frame 0 (no prior position) and create a
+    // first-frame jump that breaks the loop visually for any effect
+    // that uses u_mouseVel (the metaball tail).
     const auto = autoPathLooping(t, loopDur);
-    const prevX = mouseSmooth.x;
-    const prevY = mouseSmooth.y;
     mouseSmooth.x = auto.x;
     mouseSmooth.y = auto.y;
-    // Velocity stays useful for the metaball; compute from the snapped
-    // positions so it reads as motion rather than a teleport jump.
-    sharedUniforms.u_mouseVel.value.set(mouseSmooth.x - prevX, -(mouseSmooth.y - prevY));
-    mousePrev.x = mouseSmooth.x;
-    mousePrev.y = mouseSmooth.y;
+    mousePrev.x = auto.x;
+    mousePrev.y = auto.y;
+    // Analytical tangent of the circle at phase = (t/loopDur)*2π:
+    //   x = 0.5 + 0.30 * sin(phase)  → dx/dt = 0.30 * cos(phase) * 2π/loopDur
+    //   y = 0.5 + 0.24 * cos(phase)  → dy/dt = -0.24 * sin(phase) * 2π/loopDur
+    // Scale by a small frame-time factor so the velocity magnitude
+    // is in the same ballpark as the interactive mode (where vel is
+    // measured in "UV units per frame").
+    const phase = (t / loopDur) * Math.PI * 2;
+    const angularRate = (Math.PI * 2) / loopDur;
+    const dxdt =  0.30 * Math.cos(phase) * angularRate;
+    const dydt = -0.24 * Math.sin(phase) * angularRate;
+    // Per-frame velocity at 60fps:
+    const perFrame = 1 / 60;
+    sharedUniforms.u_mouseVel.value.set(dxdt * perFrame, -dydt * perFrame);
   } else {
     // Interactive mode: blend between cursor and quasi-Lissajous drift.
     const auto = autoPath(t);

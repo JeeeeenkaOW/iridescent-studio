@@ -27,8 +27,13 @@ export function initControls({ host, uniforms, isEnabled, history }) {
 
   let strength = d.strength;
 
+  // Slider 0..100% → uniform 0..0.10 in shader UV-offset space.
+  // Bumped from 0.04 to 0.10 because at the previous scale the wobble
+  // was too subtle to notice — especially with iridescence on, which
+  // visually dominates and masked the small UV ripple. 0.10 gives a
+  // clearly visible heat-haze at default 40%, dramatic warp at 100%.
   function pushStrength() {
-    uniforms.u_dispStrength.value = isEnabled() ? strength * 0.04 : 0.0;
+    uniforms.u_dispStrength.value = isEnabled() ? strength * 0.10 : 0.0;
   }
 
   function onEnabledChange() {

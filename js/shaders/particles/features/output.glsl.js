@@ -1,0 +1,51 @@
+// =========================================================
+// PARTICLES OUTPUT — halo, composite, final
+// =========================================================
+// Halo: scaled by particleMask so the halo glows around dot edges
+// rather than around the whole silhouette. Bloom is a soft outer
+// glow scaled by particleBloom.
+//
+// Composite: base color tinted by the underlying albedo at the
+// particle centre, modulated by lighting. Plus specular highlight.
+// Plus halo.
+//
+// Final mix uses particleMask to gate the foreground into the bg.
+//
+export const haloBlock = /* glsl */ `
+    // Halo intensity peaks at the dot edges (where particleMask
+    // softly falls off). 0.7 falloff matches solid's behaviour.
+    float haloMask = bloom * (1.0 - particleMask * 0.7);
+    vec3 halo = vec3(0.0);
+`;
+
+export const compositeBlock = /* glsl */ `
+    // Base tint × albedo at the particle's centre. u_baseColor
+    // lets the user globally tint the particles.
+    vec3 base = u_baseColor * particleAlbedo;
+
+    // Ambient — hemisphere term scaled by u_ambientStrength.
+    vec3 ambient = base * hemiAmbient(particleN, u_skyColor, u_groundColor) * u_ambientStrength;
+
+    // Diffuse lighting.
+    vec3 diffuse = ambient + base * u_diffuse * NdotL * u_lightColor;
+
+    // Composite particle = diffuse body + specular highlight.
+    vec3 ornament = diffuse + specular;
+`;
+
+export const outputBlock = /* glsl */ `
+    vec3 bg = texture2D(u_bgTex, v_uv).rgb;
+
+    // particleMask gates the dots into the bg. halo adds glow
+    // around dot edges (independent of particleMask).
+    vec3 fg = ornament * particleMask + halo;
+    vec3 col = mix(bg, bg * (1.0 - particleMask) + fg, inside);
+
+    float vig = 1.0 - smoothstep(0.35, 1.15, length(v_uv - 0.5));
+    col *= vig;
+
+    col = acesTonemap(col);
+
+    col += (hash(v_uv * u_resolution + u_time) - 0.5) * 0.012;
+    gl_FragColor = vec4(col, 1.0);
+`;

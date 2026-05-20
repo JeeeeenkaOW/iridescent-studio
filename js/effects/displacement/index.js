@@ -24,7 +24,7 @@ const DISP_SPEED    = ${defaults.speed};
     return { constants, uniformEntries };
   }
   const constants = `
-const DISP_STRENGTH = ${(snap?.strength ?? defaults.strength) * 0.04};
+const DISP_STRENGTH = ${(snap?.strength ?? defaults.strength) * 0.10};
 const DISP_SCALE    = ${snap?.scale ?? defaults.scale};
 const DISP_SPEED    = ${snap?.speed ?? defaults.speed};
 `.trim();
