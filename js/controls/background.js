@@ -16,7 +16,7 @@ import * as THREE from 'three';
 const BG_RES = 1024;  // logical resolution of the bg canvas — plenty for a
                       // background that gets sampled at viewport resolution.
 
-export function initBackground({ state, uniforms, viewport }) {
+export function initBackground({ state, uniforms, viewport, history }) {
   // ---------- offscreen canvas + texture ----------
   const canvas = document.createElement('canvas');
   canvas.width = BG_RES;
@@ -117,6 +117,7 @@ export function initBackground({ state, uniforms, viewport }) {
       state.bg.mode = btn.dataset.bg;
       showPanel(state.bg.mode);
       redraw();
+      history?.push();
     });
   });
   showPanel(state.bg.mode);
@@ -130,6 +131,7 @@ export function initBackground({ state, uniforms, viewport }) {
     state.bg.solid = e.target.value;
     solidHex.textContent = e.target.value.toUpperCase();
     if (state.bg.mode === 'solid') redraw();
+    history?.push();
   });
 
   // Gradient
@@ -149,16 +151,19 @@ export function initBackground({ state, uniforms, viewport }) {
     state.bg.gradient.from = e.target.value;
     gFromHex.textContent = e.target.value.toUpperCase();
     if (state.bg.mode === 'gradient') redraw();
+    history?.push();
   });
   gTo.addEventListener('input', (e) => {
     state.bg.gradient.to = e.target.value;
     gToHex.textContent = e.target.value.toUpperCase();
     if (state.bg.mode === 'gradient') redraw();
+    history?.push();
   });
   gAngle.addEventListener('input', (e) => {
     state.bg.gradient.angle = parseInt(e.target.value, 10);
     gAngleVal.textContent = state.bg.gradient.angle + '°';
     if (state.bg.mode === 'gradient') redraw();
+    history?.push();
   });
 
   // Image upload
@@ -227,5 +232,56 @@ export function initBackground({ state, uniforms, viewport }) {
   // Initial paint.
   redraw();
 
-  return { applyBg, redraw };
+  // History helpers — image upload state is intentionally excluded
+  // (per design: history clears on main-ornament upload; bg image
+  // upload is treated similarly — it persists across undo/redo but
+  // isn't itself an undoable action).
+  function snapshot() {
+    return {
+      mode: state.bg.mode,
+      solid: state.bg.solid,
+      gradient: { ...state.bg.gradient },
+    };
+  }
+  function restore(snap) {
+    if (!snap) return;
+    let needsRedraw = false;
+
+    if (snap.mode && snap.mode !== state.bg.mode) {
+      state.bg.mode = snap.mode;
+      tabs.forEach(b => b.classList.toggle('active', b.dataset.bg === state.bg.mode));
+      showPanel(state.bg.mode);
+      needsRedraw = true;
+    }
+    if (snap.solid && snap.solid !== state.bg.solid) {
+      state.bg.solid = snap.solid;
+      solidColor.value = snap.solid;
+      solidHex.textContent = snap.solid.toUpperCase();
+      needsRedraw = true;
+    }
+    if (snap.gradient) {
+      const g = snap.gradient;
+      if (g.from && g.from !== state.bg.gradient.from) {
+        state.bg.gradient.from = g.from;
+        gFrom.value = g.from;
+        gFromHex.textContent = g.from.toUpperCase();
+        needsRedraw = true;
+      }
+      if (g.to && g.to !== state.bg.gradient.to) {
+        state.bg.gradient.to = g.to;
+        gTo.value = g.to;
+        gToHex.textContent = g.to.toUpperCase();
+        needsRedraw = true;
+      }
+      if (typeof g.angle === 'number' && g.angle !== state.bg.gradient.angle) {
+        state.bg.gradient.angle = g.angle;
+        gAngle.value = String(g.angle);
+        gAngleVal.textContent = g.angle + '°';
+        needsRedraw = true;
+      }
+    }
+    if (needsRedraw) redraw();
+  }
+
+  return { applyBg, redraw, snapshot, restore };
 }

@@ -27,6 +27,7 @@ import { initExport } from './controls/export.js';
 import { initShader } from './controls/shader.js';
 import { initEffects } from './controls/effects.js';
 import { initShaderExport } from './controls/shader-export.js';
+import { initHistory } from './controls/history.js';
 
 // =========================================================
 // STATE
@@ -244,14 +245,72 @@ function loop() {
 // =========================================================
 const statusEl = document.getElementById('viewport-status');
 
-initUpload({ state, statusEl, rebuildAndResize });
+// History needs references to all the controls so capture/apply can
+// read and write across them. Controls also need a reference to
+// history so they can push() on every input. We resolve the
+// chicken-and-egg by:
+//   1. Creating `history` first with capture/apply closures that
+//      reference the late-bound control handles via outer scope.
+//   2. Initializing all controls, passing `history` to each.
+//   3. Calling history.clear() at the very end, which finally invokes
+//      capture() now that all controls exist — seeding the initial
+//      "current state" so the first undo has a valid target.
+//
+// `restoring` inside history.js guards against the input/change events
+// fired by restore() from re-pushing during an undo/redo.
+let bgCtl       = null;
+let normalsCtl  = null;
+let motionCtl   = null;
+let shaderCtl   = null;
+let effectsCtl  = null;
+
+function captureState() {
+  return {
+    shaderId: shaderCtl?.getActiveShaderId?.() ?? null,
+    material: shaderCtl?.snapshot?.() ?? null,
+    effects:  effectsCtl?.snapshot?.() ?? null,
+    bg:       bgCtl?.snapshot?.() ?? null,
+    normals:  normalsCtl?.snapshot?.() ?? null,
+    motion:   motionCtl?.snapshot?.() ?? null,
+  };
+}
+
+async function applyState(snap) {
+  if (!snap) return;
+  // 1) Material switch first — this remounts material controls AND
+  //    the Effects panel. Effects panel mount happens in shaderCtl's
+  //    onMount callback, which sets effectsCtl. After this call,
+  //    effectsCtl points to the freshly-mounted effects host bound to
+  //    the new material's uniforms.
+  if (snap.shaderId) {
+    shaderCtl.restoreShaderId(snap.shaderId);
+  }
+  // 2) Restore material's own controls against the (possibly new)
+  //    material's snapshot.
+  shaderCtl.getActiveControls()?.restore?.(snap.material);
+  // 3) Restore effects state.
+  effectsCtl?.restore?.(snap.effects);
+  // 4) Background.
+  bgCtl?.restore?.(snap.bg);
+  // 5) Normals — may trigger a texture rebuild if mode/strength changed.
+  await normalsCtl?.restore?.(snap.normals);
+  // 6) Motion toggle.
+  motionCtl?.restore?.(snap.motion);
+}
+
+const history = initHistory({
+  capture: captureState,
+  apply:   applyState,
+});
+
+initUpload({ state, statusEl, rebuildAndResize, history });
 
 // Background wants a uniforms-like target so it can write u_bgTex.
 // We give it the shared uniforms object directly — bgTex lives there.
-const bgCtl = initBackground({ state, uniforms: sharedUniforms, viewport });
+bgCtl = initBackground({ state, uniforms: sharedUniforms, viewport, history });
 
-initNormals({ state, rebuild });
-initMotion({ state });
+normalsCtl = initNormals({ state, rebuild, history });
+motionCtl  = initMotion({ state, history });
 initExport({
   state, renderer, scene, camera,
   getRecordingCtx: () => ({
@@ -266,9 +325,8 @@ initExport({
 // wire themselves to it. The Effects host re-mounts every shader
 // change because each material's uniforms object is fresh.
 const effectsHost = document.getElementById('effects-host');
-let effectsCtl = null;
 
-const shaderCtl = initShader({
+shaderCtl = initShader({
   onShaderChange: (shader) => setActiveShader(shader),
   onMount: (uniforms /* , shader */) => {
     // (Re-)mount the Effects panel against the new uniform object.
@@ -276,8 +334,9 @@ const shaderCtl = initShader({
     // controls re-read the new uniforms' preset values (relevant for
     // the Lighting effect, which seeds its sliders from u_diffuse etc).
     effectsHost.innerHTML = '';
-    effectsCtl = initEffects({ host: effectsHost, uniforms });
+    effectsCtl = initEffects({ host: effectsHost, uniforms, history });
   },
+  history,
 });
 
 // Shader HTML export — reads from whatever shader is active.
@@ -287,6 +346,9 @@ initShaderExport({
   getSnapshot:     () => shaderCtl.snapshot(),
   getEffectsSnapshot: () => effectsCtl?.snapshot?.() ?? {},
 });
+
+// Seed history's initial state now that every control exists.
+history.clear();
 
 // =========================================================
 // BOOT

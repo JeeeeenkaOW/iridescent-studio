@@ -11,7 +11,7 @@
 import { defaults } from './defaults.js';
 import { hexToVec3 } from '../../util/color.js';
 
-export function initCeramicControls({ host, uniforms }) {
+export function initCeramicControls({ host, uniforms, history }) {
   const d = defaults;
 
   host.innerHTML = `
@@ -51,17 +51,20 @@ export function initCeramicControls({ host, uniforms }) {
   base.addEventListener('input', (e) => {
     baseHex.textContent = e.target.value.toUpperCase();
     uniforms.u_baseColor.value.copy(hexToVec3(e.target.value));
+    history?.push();
   });
 
   sss.addEventListener('input', (e) => {
     sssHex.textContent = e.target.value.toUpperCase();
     uniforms.u_sssColor.value.copy(hexToVec3(e.target.value));
+    history?.push();
   });
 
   ssIn.addEventListener('input', (e) => {
     const v = parseInt(e.target.value, 10) / 100;
     ssVal.textContent = e.target.value + '%';
     uniforms.u_sssStrength.value = v;
+    history?.push();
   });
 
   return {
@@ -73,6 +76,25 @@ export function initCeramicControls({ host, uniforms }) {
           sssStrength:  parseInt(ssIn.value, 10) / 100,
         },
       };
+    },
+    restore(snap) {
+      if (!snap?.material) return;
+      const m = snap.material;
+      if (typeof m.baseColor === 'string') {
+        base.value = m.baseColor;
+        baseHex.textContent = m.baseColor.toUpperCase();
+        uniforms.u_baseColor.value.copy(hexToVec3(m.baseColor));
+      }
+      if (typeof m.sssColor === 'string') {
+        sss.value = m.sssColor;
+        sssHex.textContent = m.sssColor.toUpperCase();
+        uniforms.u_sssColor.value.copy(hexToVec3(m.sssColor));
+      }
+      if (typeof m.sssStrength === 'number') {
+        ssIn.value = String(Math.round(m.sssStrength * 100));
+        ssVal.textContent = Math.round(m.sssStrength * 100) + '%';
+        uniforms.u_sssStrength.value = m.sssStrength;
+      }
     },
   };
 }

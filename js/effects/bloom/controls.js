@@ -26,7 +26,7 @@ function vec3ToHex(v) {
   return '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('');
 }
 
-export function initControls({ host, uniforms, isEnabled }) {
+export function initControls({ host, uniforms, isEnabled, history }) {
   const d = defaults;
 
   // Seed the color picker from the material's baseline halo tint.
@@ -88,12 +88,14 @@ export function initControls({ host, uniforms, isEnabled }) {
     strength = parseInt(e.target.value, 10) / 100;
     strVal.textContent = e.target.value + '%';
     pushStrength();
+    history?.push();
   });
 
   colIn.addEventListener('input', (e) => {
     userColored = true;
     colHex.textContent = e.target.value.toUpperCase();
     pushColor();
+    history?.push();
   });
 
   // Seed the uniform with the baseline color at mount, in case the
@@ -112,6 +114,23 @@ export function initControls({ host, uniforms, isEnabled }) {
         color:       colIn.value,
         userColored,
       };
+    },
+    restore(snap) {
+      if (!snap) return;
+      if (typeof snap.strength === 'number') {
+        strength = snap.strength;
+        strIn.value = String(Math.round(snap.strength * 100));
+        strVal.textContent = Math.round(snap.strength * 100) + '%';
+      }
+      if (typeof snap.color === 'string') {
+        colIn.value = snap.color;
+        colHex.textContent = snap.color.toUpperCase();
+      }
+      if (typeof snap.userColored === 'boolean') {
+        userColored = snap.userColored;
+      }
+      pushStrength();
+      pushColor();
     },
   };
 }

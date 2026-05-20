@@ -9,7 +9,7 @@
 //
 import { defaults } from './defaults.js';
 
-export function initGlassControls({ host, uniforms }) {
+export function initGlassControls({ host, uniforms, history }) {
   const d = defaults;
 
   host.innerHTML = `
@@ -44,6 +44,7 @@ export function initGlassControls({ host, uniforms }) {
     const v = parseInt(e.target.value, 10) / 100;
     transVal.textContent = e.target.value + '%';
     uniforms.u_transparency.value = v;
+    history?.push();
   });
 
   // Slider is 0..100% but max refraction (full distortion) is 0.20 in
@@ -52,12 +53,14 @@ export function initGlassControls({ host, uniforms }) {
     const pct = parseInt(e.target.value, 10);
     refVal.textContent = pct + '%';
     uniforms.u_refraction.value = (pct / 100) * 0.20;
+    history?.push();
   });
 
   frostIn.addEventListener('input', (e) => {
     const v = parseInt(e.target.value, 10) / 100;
     frostVal.textContent = e.target.value + '%';
     uniforms.u_frost.value = v;
+    history?.push();
   });
 
   return {
@@ -65,10 +68,39 @@ export function initGlassControls({ host, uniforms }) {
       return {
         material: {
           transparency: parseInt(transIn.value, 10) / 100,
+          // store the slider pct so restore is exact (avoids the
+          // scale-and-rescale-with-floating-point roundtrip)
+          refractionSlider: parseInt(refIn.value, 10),
           refraction:   (parseInt(refIn.value, 10) / 100) * 0.20,
           frost:        parseInt(frostIn.value, 10) / 100,
         },
       };
+    },
+    restore(snap) {
+      if (!snap?.material) return;
+      const m = snap.material;
+      if (typeof m.transparency === 'number') {
+        const pct = Math.round(m.transparency * 100);
+        transIn.value = String(pct);
+        transVal.textContent = pct + '%';
+        uniforms.u_transparency.value = m.transparency;
+      }
+      if (typeof m.refraction === 'number') {
+        // Prefer the stored slider pct if present (no rounding loss);
+        // otherwise derive it from refraction.
+        const pct = typeof m.refractionSlider === 'number'
+          ? m.refractionSlider
+          : Math.round((m.refraction / 0.20) * 100);
+        refIn.value = String(pct);
+        refVal.textContent = pct + '%';
+        uniforms.u_refraction.value = m.refraction;
+      }
+      if (typeof m.frost === 'number') {
+        const pct = Math.round(m.frost * 100);
+        frostIn.value = String(pct);
+        frostVal.textContent = pct + '%';
+        uniforms.u_frost.value = m.frost;
+      }
     },
   };
 }

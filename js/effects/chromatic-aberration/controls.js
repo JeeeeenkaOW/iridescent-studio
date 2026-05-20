@@ -3,7 +3,7 @@
 // =========================================================
 import { defaults } from './defaults.js';
 
-export function initControls({ host, uniforms, isEnabled }) {
+export function initControls({ host, uniforms, isEnabled, history }) {
   const d = defaults;
 
   host.innerHTML = `
@@ -31,6 +31,7 @@ export function initControls({ host, uniforms, isEnabled }) {
     strength = parseInt(e.target.value, 10) / 100;
     strVal.textContent = e.target.value + '%';
     push();
+    history?.push();
   });
 
   onEnabledChange();
@@ -39,6 +40,15 @@ export function initControls({ host, uniforms, isEnabled }) {
     onEnabledChange,
     snapshot() {
       return { strength };
+    },
+    restore(snap) {
+      if (!snap) return;
+      if (typeof snap.strength === 'number') {
+        strength = snap.strength;
+        strIn.value = String(Math.round(snap.strength * 100));
+        strVal.textContent = Math.round(snap.strength * 100) + '%';
+      }
+      push();
     },
   };
 }

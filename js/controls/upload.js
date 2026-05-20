@@ -5,7 +5,7 @@
 //
 import { DEFAULT_SVG } from '../default-svg.js';
 
-export function initUpload({ state, statusEl, rebuildAndResize }) {
+export function initUpload({ state, statusEl, rebuildAndResize, history }) {
   const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('file-input');
   const dropCurrent = document.getElementById('drop-current');
@@ -42,6 +42,10 @@ export function initUpload({ state, statusEl, rebuildAndResize }) {
     }
     setStatus(file.name);
     await rebuildAndResize();
+    // Per design: uploading is a session boundary — history clears.
+    // Reupload should NOT be undoable, but the new session's actions
+    // remain undoable from this fresh starting point.
+    history?.clear();
   }
 
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -59,6 +63,7 @@ export function initUpload({ state, statusEl, rebuildAndResize }) {
     setStatus('Default ornament');
     fileInput.value = '';
     await rebuildAndResize();
+    history?.clear();
   });
 
   return { setStatus };

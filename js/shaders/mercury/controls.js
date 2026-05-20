@@ -13,7 +13,7 @@
 import { defaults } from './defaults.js';
 import { hexToVec3 } from '../../util/color.js';
 
-export function initMercuryControls({ host, uniforms }) {
+export function initMercuryControls({ host, uniforms, history }) {
   const d = defaults;
 
   host.innerHTML = `
@@ -46,11 +46,13 @@ export function initMercuryControls({ host, uniforms }) {
   matBase.addEventListener('input', (e) => {
     matBaseHex.textContent = e.target.value.toUpperCase();
     uniforms.u_baseColor.value.copy(hexToVec3(e.target.value));
+    history?.push();
   });
 
   matF0.addEventListener('input', (e) => {
     matF0Hex.textContent = e.target.value.toUpperCase();
     uniforms.u_f0.value.copy(hexToVec3(e.target.value));
+    history?.push();
   });
 
   return {
@@ -61,6 +63,20 @@ export function initMercuryControls({ host, uniforms }) {
           f0Color:   matF0.value,
         },
       };
+    },
+    restore(snap) {
+      if (!snap?.material) return;
+      const m = snap.material;
+      if (typeof m.baseColor === 'string') {
+        matBase.value = m.baseColor;
+        matBaseHex.textContent = m.baseColor.toUpperCase();
+        uniforms.u_baseColor.value.copy(hexToVec3(m.baseColor));
+      }
+      if (typeof m.f0Color === 'string') {
+        matF0.value = m.f0Color;
+        matF0Hex.textContent = m.f0Color.toUpperCase();
+        uniforms.u_f0.value.copy(hexToVec3(m.f0Color));
+      }
     },
   };
 }

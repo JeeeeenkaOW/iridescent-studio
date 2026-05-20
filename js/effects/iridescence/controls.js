@@ -8,7 +8,7 @@
 import { defaults } from './defaults.js';
 import { phaseFromHue } from './uniforms.js';
 
-export function initControls({ host, uniforms, isEnabled }) {
+export function initControls({ host, uniforms, isEnabled, history }) {
   const d = defaults;
 
   host.innerHTML = `
@@ -47,12 +47,14 @@ export function initControls({ host, uniforms, isEnabled }) {
     const hue = parseInt(e.target.value, 10);
     hueVal.textContent = hue + '°';
     uniforms.u_iriPhase.value.copy(phaseFromHue(hue));
+    history?.push();
   });
 
   intIn.addEventListener('input', (e) => {
     intensity = parseInt(e.target.value, 10) / 100;
     intVal.textContent = e.target.value + '%';
     pushIntensity();
+    history?.push();
   });
 
   // Initial state — disable inputs if effect starts off.
@@ -66,6 +68,20 @@ export function initControls({ host, uniforms, isEnabled }) {
         hue:   parseInt(hueIn.value, 10),
         phase: uniforms.u_iriPhase.value.toArray(),
       };
+    },
+    restore(snap) {
+      if (!snap) return;
+      if (typeof snap.intensity === 'number') {
+        intensity = snap.intensity;
+        intIn.value = String(Math.round(snap.intensity * 100));
+        intVal.textContent = Math.round(snap.intensity * 100) + '%';
+      }
+      if (typeof snap.hue === 'number') {
+        hueIn.value = String(snap.hue);
+        hueVal.textContent = snap.hue + '°';
+        uniforms.u_iriPhase.value.copy(phaseFromHue(snap.hue));
+      }
+      pushIntensity();
     },
   };
 }

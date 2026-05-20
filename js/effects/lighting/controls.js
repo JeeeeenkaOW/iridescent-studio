@@ -27,7 +27,7 @@ function vec3ToHex(v) {
   return '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('');
 }
 
-export function initControls({ host, uniforms, isEnabled }) {
+export function initControls({ host, uniforms, isEnabled, history }) {
   // Seed slider positions from current uniform values. These are
   // whatever the active material set as its preset.
   const seed = {
@@ -108,22 +108,27 @@ export function initControls({ host, uniforms, isEnabled }) {
   difIn.addEventListener('input', (e) => {
     difVal.textContent = e.target.value + '%';
     write();
+    history?.push();
   });
   spcIn.addEventListener('input', (e) => {
     spcVal.textContent = (parseInt(e.target.value, 10) / 100).toFixed(2);
     write();
+    history?.push();
   });
   shnIn.addEventListener('input', (e) => {
     shnVal.textContent = e.target.value;
     write();
+    history?.push();
   });
   hgtIn.addEventListener('input', (e) => {
     hgtVal.textContent = sliderToHeight(parseInt(e.target.value, 10)).toFixed(2);
     write();
+    history?.push();
   });
   colIn.addEventListener('input', (e) => {
     colHex.textContent = e.target.value.toUpperCase();
     write();
+    history?.push();
   });
 
   onEnabledChange();
@@ -138,6 +143,32 @@ export function initControls({ host, uniforms, isEnabled }) {
         height:    sliderToHeight(parseInt(hgtIn.value, 10)),
         color:     colIn.value,
       };
+    },
+    restore(snap) {
+      if (!snap) return;
+      if (typeof snap.diffuse === 'number') {
+        difIn.value = String(Math.round(snap.diffuse * 100));
+        difVal.textContent = Math.round(snap.diffuse * 100) + '%';
+      }
+      if (typeof snap.specular === 'number') {
+        spcIn.value = String(Math.round(snap.specular * 100));
+        spcVal.textContent = snap.specular.toFixed(2);
+      }
+      if (typeof snap.shininess === 'number') {
+        shnIn.value = String(Math.round(snap.shininess));
+        shnVal.textContent = String(Math.round(snap.shininess));
+      }
+      if (typeof snap.height === 'number') {
+        hgtIn.value = String(heightToSlider(snap.height));
+        hgtVal.textContent = snap.height.toFixed(2);
+      }
+      if (typeof snap.color === 'string') {
+        colIn.value = snap.color;
+        colHex.textContent = snap.color.toUpperCase();
+      }
+      // If enabled, push the restored values into the uniforms.
+      // If disabled, the material's preset values remain in effect.
+      if (isEnabled()) write();
     },
   };
 }

@@ -13,7 +13,7 @@
 //
 import { listShaders, getShader, DEFAULT_SHADER } from '../shaders/index.js';
 
-export function initShader({ onShaderChange, onMount }) {
+export function initShader({ onShaderChange, onMount, history }) {
   const picker = document.getElementById('shader-picker');
   const host = document.getElementById('shader-controls');
 
@@ -31,24 +31,32 @@ export function initShader({ onShaderChange, onMount }) {
     activeShaderId = shaderId;
     const shader = getShader(shaderId);
 
+    // Update the segmented picker UI to reflect the active material —
+    // restore() bypasses the click handler so we need to sync here too.
+    picker.querySelectorAll('.seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.id === shaderId);
+    });
+
     // Swap the ShaderMaterial in main.js. The returned uniforms object
     // is the new authoritative target for all UI writes.
     const newUniforms = onShaderChange(shader);
 
-    // Mount the material's own controls.
+    // Mount the material's own controls. Pass history through so the
+    // material's per-slider/per-color handlers can push() on input.
     host.innerHTML = '';
-    activeControls = shader.initControls({ host, uniforms: newUniforms });
+    activeControls = shader.initControls({ host, uniforms: newUniforms, history });
 
     // Let main.js wire up the Effects panel against the new uniforms.
     if (onMount) onMount(newUniforms, shader);
+
+    return { uniforms: newUniforms, controls: activeControls };
   }
 
   picker.querySelectorAll('.seg-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.dataset.id === activeShaderId) return;
-      picker.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
       mount(btn.dataset.id);
+      history?.push();
     });
   });
 
@@ -57,6 +65,16 @@ export function initShader({ onShaderChange, onMount }) {
 
   return {
     getActiveShader: () => getShader(activeShaderId),
+    getActiveControls: () => activeControls,
+    getActiveShaderId: () => activeShaderId,
     snapshot: () => activeControls?.snapshot?.() ?? null,
+    // Switch to `targetId` if different, then return the (possibly new)
+    // controls so the caller can call .restore() with the snap data.
+    restoreShaderId(targetId) {
+      if (targetId && targetId !== activeShaderId && getShader(targetId)) {
+        mount(targetId);
+      }
+      return activeControls;
+    },
   };
 }
