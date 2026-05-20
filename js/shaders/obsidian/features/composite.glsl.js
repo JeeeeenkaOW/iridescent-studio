@@ -22,10 +22,8 @@ export const compositeBlock = /* glsl */ `
 
     vec3 body = diffuse + internal;
 
-    // Add specular and fresnel rim. Fresnel rim is tinted by light
-    // color too — a coloured light catching the edge.
+    // Add specular (possibly iridescence-tinted by the effect's apply)
+    // and fresnel rim. Fresnel rim is tinted by light color too — a
+    // coloured light catching the edge.
     vec3 ornament = body + specular + fresnel * u_lightColor;
-
-    // Iridescence tint (vec3(1.0) when effect is off — no-op multiply).
-    ornament *= iriTint;
 `;

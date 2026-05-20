@@ -15,7 +15,7 @@ export const flowBlock = /* glsl */ `
     float iriT = NdotL * 0.55
                + flow * 0.35
                + flow2 * 0.2
-               + u_time * 0.04
+               // u_time drift removed — kept hues anchored to surface
                + texUV.y * 0.12;
 
     vec3 F = fresnelSchlickColored(NdotV, u_f0);

@@ -2,13 +2,15 @@
 // OUTPUT — final compositing
 // =========================================================
 // haloBlock computes `haloMask` and initializes `halo` to zero.
-// The Bloom effect writes `halo` when enabled. The material exposes
-// its default halo color and intensity as uniforms (u_haloBaseColor,
-// u_haloBaseIntensity) so the Bloom effect can seed its color picker
-// from the material's preset.
+// The Iridescence effect writes `halo` with a rainbow palette when
+// enabled. The Bloom effect (off by default) writes `halo` when
+// enabled, taking precedence (its apply runs after iridescence's).
+// When neither effect is on, `halo` stays at zero — no glow.
 //
-// Also initializes `iriTint` to zero — the Iridescence effect
-// writes it; the compositeBlock multiplies `ornament` by it at the end.
+// The material's tuned baseline halo color/intensity live in
+// `u_haloBaseColor` and `u_haloBaseIntensity` — only Bloom reads
+// those; iridescence uses its own palette + a hardcoded 0.32
+// coefficient (matching this material's original halo intensity).
 //
 // Realism addition: ACES tonemap is applied AFTER vignette but BEFORE
 // grain. Without tonemapping, highlights blow out to white; with it,
@@ -24,7 +26,6 @@
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
     vec3 halo = vec3(0.0);
-    vec3 iriTint = vec3(1.0);
 `;
 
 export const outputBlock = /* glsl */ `

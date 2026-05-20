@@ -2,14 +2,13 @@
 // OUTPUT — final compositing
 // =========================================================
 // haloBlock computes `haloMask` and initializes `halo` to zero.
-// The Bloom effect writes `halo` when enabled.
-// `iriTint` is initialized to vec3(1.0); Iridescence writes it,
-// compositeBlock multiplies `ornament` by it.
+// The Iridescence effect writes `halo` with a rainbow palette when
+// enabled. The Bloom effect writes `halo` when enabled (takes
+// precedence — runs after iridescence's apply).
 //
 export const haloBlock = /* glsl */ `
     float haloMask = bloom * (1.0 - mask * 0.7);
     vec3 halo = vec3(0.0);
-    vec3 iriTint = vec3(1.0);
 `;
 
 export const outputBlock = /* glsl */ `

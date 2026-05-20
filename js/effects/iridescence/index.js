@@ -1,14 +1,16 @@
 // =========================================================
 // IRIDESCENCE EFFECT — manifest
 // =========================================================
-// Soap-film rainbow concentrated around the cursor highlight on any
-// material. Multiplicative tint: material colors stay, the cursor
-// area gets rainbow stripes. Away from the cursor the tint fades
-// to white (no-op). Off by default.
+// Pearl-cosine palette tints the specular highlight and writes a
+// rainbow halo ring around the silhouette + bloom-bright interior
+// details. Matches the OG Mercury+iridescence look (multi-hue pearl
+// distribution across the ornament), minus the global hue drift over
+// time (the time term was removed from each material's iriT).
 //
 // Each material composes the GLSL chunks into its fragment shader
-// (see materials' fragment.glsl.js) and multiplies `ornament *= iriTint`
-// in its composite block.
+// (see materials' fragment.glsl.js). The effect's apply directly
+// modifies `specular` and `halo` — no new material-side variables
+// needed beyond what the materials already declare.
 //
 // The Bloom effect reads `iridescence(...)` from this effect's helpers
 // to tint the halo when iridescence is enabled — that's why this
@@ -16,10 +18,8 @@
 // function alongside the raw palette.
 //
 // Mercury's composite has an additional hardcoded line
-// `diffuse += iridescence(iriT) * blob * 0.4` that pre-dates this
-// effect's rewrite — it's a signature look for Mercury and stays.
-// `iridescence()` returns vec3(1.0) when the effect is off, so that
-// line is a no-op for Mercury when iridescence is disabled.
+// `diffuse += iridescence(iriT) * blob * 0.4` — Mercury's signature
+// metaball iridescence stays unchanged.
 //
 import { defaults, PEARL_BASIS } from './defaults.js';
 import { createUniforms } from './uniforms.js';

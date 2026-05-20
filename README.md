@@ -162,11 +162,12 @@ js/
      scale its strength.
    - In `main()`, set up `specular` (vec3), `iriT` (float), `flow` (float),
      `blob` (float — use 0.0 if your material has no metaball), `halo`
-     (vec3, initialized to 0), `iriTint` (vec3, initialized to vec3(1.0)),
-     and `haloMask` (float) **before** the `EFFECTS_APPLY` slot.
-   - Do the final composite AFTER `EFFECTS_APPLY` and multiply
-     `ornament *= iriTint;` at the end so the iridescence tint
-     reaches the output.
+     (vec3, initialized to 0), and `haloMask` (float) **before** the
+     `EFFECTS_APPLY` slot. The Iridescence effect multiplies `specular`
+     by its palette and overwrites `halo` with a rainbow when enabled;
+     the Bloom effect overwrites `halo` after that.
+   - Do the final composite AFTER `EFFECTS_APPLY` so any tint applied
+     to `specular` by effects reaches the output.
 6. Edit `controls.js` to expose your material parameters (no lighting or
    iridescence controls — those belong in Effects).
 7. Update `serializeForExport` in `index.js` to bake your uniforms.
@@ -180,10 +181,10 @@ js/
 3. Inside `apply`, you can read any of the intermediates every material
    exposes: `specular` (vec3), `iriT`, `flow`, `blob`, `texUV`, `sUV`,
    `mask`, `bloom`, `N`, `NdotL`, `NdotV`, `spec`, `halo`, `haloMask`,
-   `iriTint`, plus the halo baseline uniforms `u_haloBaseColor`
-   and `u_haloBaseIntensity`. You can modify `specular`, `halo`,
-   `iriTint`, and `mask` (the CA effect rewrites `mask` to produce
-   its fringe; Bloom writes `halo`; Iridescence writes `iriTint`).
+   plus the halo baseline uniforms `u_haloBaseColor` and
+   `u_haloBaseIntensity`. You can modify `specular`, `halo`, and `mask`
+   (the CA effect rewrites `mask` to produce its fringe; Bloom writes
+   `halo`; Iridescence multiplies `specular` and writes `halo`).
 4. Edit `defaults.js`, `uniforms.js`, `controls.js`, `index.js`.
 5. Register in `js/effects/index.js`. Order matters — it determines
    both sidebar order and apply order in `main()`.

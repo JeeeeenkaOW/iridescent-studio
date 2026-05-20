@@ -24,9 +24,6 @@ export const compositeBlock = /* glsl */ `
     // warmth where the silhouette is thickest.
     diffuse += sssTint;
 
-    // Specular (Fresnel-coloured, possibly iridescence-tinted).
+    // Specular (Fresnel-coloured, possibly iridescence-tinted by the effect's apply).
     vec3 ornament = diffuse + specular;
-
-    // Iridescence tint (vec3(1.0) when effect is off — no-op multiply).
-    ornament *= iriTint;
 `;

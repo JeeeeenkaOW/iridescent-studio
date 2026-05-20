@@ -33,7 +33,4 @@ export const compositeBlock = /* glsl */ `
     diffuse += iridescence(iriT) * blob * 0.4;
 
     vec3 ornament = diffuse + specular;
-
-    // Iridescence tint (vec3(1.0) when effect is off — no-op multiply).
-    ornament *= iriTint;
 `;
