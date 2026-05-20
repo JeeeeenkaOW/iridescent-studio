@@ -1,26 +1,27 @@
 // =========================================================
 // MATERIAL REGISTRY — single source of truth for available materials
 // =========================================================
-// Each material is a distinct fragment shader with its own uniforms
-// and material controls. Effects (iridescence, lighting overrides,
-// chromatic aberration) are separate — see /js/effects/.
+// Two materials:
 //
-// To add a new material: create a folder under /shaders/, build the
-// manifest, and import + add here.
+//   Solid  — unified solid shader. Reaches the old Mercury, Obsidian,
+//            and Ceramic looks via sliders (base/F0 color, roughness,
+//            bg refraction + transparency, inner glow, fresnel rim,
+//            cursor blob toggle).
+//   Glass  — refractive transparent shader. Stays separate — different
+//            math (full bg pass-through, frost as screen-space blur).
 //
-import { mercuryShader }  from './mercury/index.js';
-import { glassShader }    from './glass/index.js';
-import { obsidianShader } from './obsidian/index.js';
-import { ceramicShader }  from './ceramic/index.js';
+// Effects (Iridescence, Lighting overrides, Bloom, Chromatic ab.) are
+// applied on top of either material — see /js/effects/.
+//
+import { solidShader } from './solid/index.js';
+import { glassShader } from './glass/index.js';
 
 export const SHADERS = {
-  mercury:  mercuryShader,
-  glass:    glassShader,
-  obsidian: obsidianShader,
-  ceramic:  ceramicShader,
+  solid: solidShader,
+  glass: glassShader,
 };
 
-export const DEFAULT_SHADER = 'mercury';
+export const DEFAULT_SHADER = 'solid';
 
 export function getShader(id) {
   return SHADERS[id] || SHADERS[DEFAULT_SHADER];

@@ -31,8 +31,8 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     strength = parseInt(e.target.value, 10) / 100;
     strVal.textContent = e.target.value + '%';
     push();
-    history?.push();
   });
+  strIn.addEventListener('change', () => { history?.push(); });
 
   onEnabledChange();
 

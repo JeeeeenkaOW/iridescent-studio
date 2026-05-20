@@ -26,8 +26,11 @@ import { initMotion } from './controls/motion.js';
 import { initExport } from './controls/export.js';
 import { initShader } from './controls/shader.js';
 import { initEffects } from './controls/effects.js';
+import { initLighting } from './controls/lighting.js';
 import { initShaderExport } from './controls/shader-export.js';
 import { initHistory } from './controls/history.js';
+import { initCollapsibles } from './controls/collapsibles.js';
+import { initTabs } from './controls/tabs.js';
 
 // =========================================================
 // STATE
@@ -263,11 +266,13 @@ let normalsCtl  = null;
 let motionCtl   = null;
 let shaderCtl   = null;
 let effectsCtl  = null;
+let lightingCtl = null;
 
 function captureState() {
   return {
     shaderId: shaderCtl?.getActiveShaderId?.() ?? null,
     material: shaderCtl?.snapshot?.() ?? null,
+    lighting: lightingCtl?.snapshot?.() ?? null,
     effects:  effectsCtl?.snapshot?.() ?? null,
     bg:       bgCtl?.snapshot?.() ?? null,
     normals:  normalsCtl?.snapshot?.() ?? null,
@@ -278,23 +283,26 @@ function captureState() {
 async function applyState(snap) {
   if (!snap) return;
   // 1) Material switch first — this remounts material controls AND
-  //    the Effects panel. Effects panel mount happens in shaderCtl's
-  //    onMount callback, which sets effectsCtl. After this call,
-  //    effectsCtl points to the freshly-mounted effects host bound to
-  //    the new material's uniforms.
+  //    the Lighting and Effects panels. The new panels are bound to
+  //    the freshly-mounted material's uniforms via shaderCtl's onMount
+  //    callback (which sets lightingCtl + effectsCtl).
   if (snap.shaderId) {
     shaderCtl.restoreShaderId(snap.shaderId);
   }
   // 2) Restore material's own controls against the (possibly new)
   //    material's snapshot.
   shaderCtl.getActiveControls()?.restore?.(snap.material);
-  // 3) Restore effects state.
+  // 3) Restore Lighting (its enabled state + slider values; if the
+  //    override toggle was on, the sliders write into the new
+  //    material's uniforms).
+  lightingCtl?.restore?.(snap.lighting);
+  // 4) Restore effects state.
   effectsCtl?.restore?.(snap.effects);
-  // 4) Background.
+  // 5) Background.
   bgCtl?.restore?.(snap.bg);
-  // 5) Normals — may trigger a texture rebuild if mode/strength changed.
+  // 6) Normals — may trigger a texture rebuild if mode/strength changed.
   await normalsCtl?.restore?.(snap.normals);
-  // 6) Motion toggle.
+  // 7) Motion toggle.
   motionCtl?.restore?.(snap.motion);
 }
 
@@ -322,19 +330,47 @@ initExport({
 
 // Shader picker — calls back with the chosen shader. We swap meshes
 // and return the new uniforms object so the shader's controls can
-// wire themselves to it. The Effects host re-mounts every shader
-// change because each material's uniforms object is fresh.
-const effectsHost = document.getElementById('effects-host');
+// wire themselves to it. The Lighting + Effects panels re-mount on
+// every shader change because each material's uniforms object is
+// fresh and ships its own preset lighting values.
+const effectsHost  = document.getElementById('effects-host');
+const lightingHost = document.getElementById('lighting-host');
 
 shaderCtl = initShader({
   onShaderChange: (shader) => setActiveShader(shader),
   onMount: (uniforms /* , shader */) => {
+    // Preserve both the Lighting enable state AND the user's tuning
+    // across material switches. Without this, switching materials
+    // would silently snap lighting back to the new material's preset
+    // and lose any custom values the user had dialed in.
+    const prevLightingEnabled  = lightingCtl?.isEnabled?.() ?? false;
+    const prevLightingSnapshot = lightingCtl?.snapshot?.()  ?? null;
+
+    // (Re-)mount the Lighting panel against the new uniform object.
+    // We deliberately re-create rather than rebind so it re-reads the
+    // new material's preset values as the restore-target — but we
+    // pass the previous snapshot as initialSnapshot so the slider
+    // positions carry over.
+    lightingHost.innerHTML = '';
+    lightingCtl = initLighting({
+      host: lightingHost,
+      uniforms,
+      history,
+      initialEnabled:  prevLightingEnabled,
+      initialSnapshot: prevLightingSnapshot,
+    });
+
     // (Re-)mount the Effects panel against the new uniform object.
-    // We deliberately re-create rather than rebind so each effect's
-    // controls re-read the new uniforms' preset values (relevant for
-    // the Lighting effect, which seeds its sliders from u_diffuse etc).
+    // Capture the previous snapshot (slider values + on/off states)
+    // so the user's effect tuning persists across material switches.
+    const prevEffectsSnapshot = effectsCtl?.snapshot?.() ?? null;
     effectsHost.innerHTML = '';
-    effectsCtl = initEffects({ host: effectsHost, uniforms, history });
+    effectsCtl = initEffects({
+      host: effectsHost,
+      uniforms,
+      history,
+      initialSnapshot: prevEffectsSnapshot,
+    });
   },
   history,
 });
@@ -344,11 +380,19 @@ initShaderExport({
   getActiveShader: () => activeShader,
   getUniforms:     () => activeUniforms,
   getSnapshot:     () => shaderCtl.snapshot(),
-  getEffectsSnapshot: () => effectsCtl?.snapshot?.() ?? {},
+  getEffectsSnapshot:  () => effectsCtl?.snapshot?.()  ?? {},
+  getLightingSnapshot: () => lightingCtl?.snapshot?.() ?? null,
 });
 
 // Seed history's initial state now that every control exists.
 history.clear();
+
+// Click-to-toggle for sidebar collapsibles. Uses event delegation so
+// it works regardless of mount order. Safe to call last.
+initCollapsibles();
+
+// Mobile tab bar. No-op on desktop (the bar is hidden via media query).
+initTabs();
 
 // =========================================================
 // BOOT

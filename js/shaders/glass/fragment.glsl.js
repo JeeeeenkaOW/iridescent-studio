@@ -34,7 +34,7 @@ const materialUniforms = /* glsl */ `
   uniform float u_frost;
   uniform vec3  u_f0;
 
-  // Lighting (preset; Lighting effect overrides)
+  // Lighting (preset; the top-level Lighting controls override these)
   uniform float u_diffuse;
   uniform float u_specular;
   uniform float u_shininess;
@@ -44,6 +44,7 @@ const materialUniforms = /* glsl */ `
   // Ambient (hemisphere)
   uniform vec3  u_skyColor;
   uniform vec3  u_groundColor;
+  uniform float u_ambientStrength;
 
   // Halo baseline (material-tuned; Bloom effect reads these)
   uniform vec3  u_haloBaseColor;

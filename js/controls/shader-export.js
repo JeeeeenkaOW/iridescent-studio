@@ -33,7 +33,7 @@ function canvasToDataURL(tex) {
   return tmp.toDataURL('image/png');
 }
 
-function buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, imgAspect }) {
+function buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, lightingSnapshot, imgAspect }) {
   const albedoURL = canvasToDataURL(uniforms.u_albedo.value);
   const normalURL = canvasToDataURL(uniforms.u_normal.value);
   const bloomURL  = canvasToDataURL(uniforms.u_bloom.value);
@@ -44,44 +44,47 @@ function buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, imgAsp
   // Material serializer — covers material uniforms + lighting preset.
   const matSer = shader.serializeForExport(snapshot);
 
-  // Effect serializers — one per registered effect. Each returns
-  // { constants, uniformEntries }. The Lighting effect, when enabled,
-  // overrides the four lighting uniforms the material already baked
-  // by re-declaring them in its uniformEntries; we apply effects'
-  // entries AFTER the material's so they take precedence.
+  // Lighting override — separate from effects now that Lighting is a
+  // top-level sidebar section. When the override toggle is enabled,
+  // bake its slider values as overrides; the entries are applied AFTER
+  // material entries so they win on duplicate keys (object-literal
+  // later-wins behaviour at parse). When disabled, the material's
+  // baked preset lighting values stand.
+  let lightingSer = { constants: '', uniformEntries: '' };
+  if (lightingSnapshot?.enabled) {
+    lightingSer = {
+      constants: `
+const LT_DIFFUSE   = ${lightingSnapshot.diffuse};
+const LT_SPECULAR  = ${lightingSnapshot.specular};
+const LT_SHININESS = ${lightingSnapshot.shininess};
+const LT_HEIGHT    = ${lightingSnapshot.height};
+const LT_COLOR_HEX = ${JSON.stringify(lightingSnapshot.color)};
+const LT_AMBIENT   = ${lightingSnapshot.ambient ?? 1.0};
+`.trim(),
+      uniformEntries: `
+    u_diffuse:         { value: LT_DIFFUSE },
+    u_specular:        { value: LT_SPECULAR },
+    u_shininess:       { value: LT_SHININESS },
+    u_lightHeight:     { value: LT_HEIGHT },
+    u_lightColor:      { value: hexToVec3(LT_COLOR_HEX) },
+    u_ambientStrength: { value: LT_AMBIENT },
+`.trim(),
+    };
+  }
+
+  // Effect serializers — one per registered effect.
   const effectSerialized = listEffects().map(eff => {
     const snap = effectsSnapshot?.[eff.id];
     const enabled = !!snap?.enabled;
     if (typeof eff.serializeForExport !== 'function') return { constants: '', uniformEntries: '' };
-
-    // Special-case Lighting: when enabled, override the material's
-    // baked lighting uniforms with the user's slider values.
-    if (eff.id === 'lighting' && enabled) {
-      const c = `
-const LT_DIFFUSE   = ${snap.diffuse};
-const LT_SPECULAR  = ${snap.specular};
-const LT_SHININESS = ${snap.shininess};
-const LT_HEIGHT    = ${snap.height};
-const LT_COLOR_HEX = ${JSON.stringify(snap.color)};
-`.trim();
-      const u = `
-    u_diffuse:     { value: LT_DIFFUSE },
-    u_specular:    { value: LT_SPECULAR },
-    u_shininess:   { value: LT_SHININESS },
-    u_lightHeight: { value: LT_HEIGHT },
-    u_lightColor:  { value: hexToVec3(LT_COLOR_HEX) },
-`.trim();
-      return { constants: c, uniformEntries: u };
-    }
-
     return eff.serializeForExport(snap, enabled);
   });
 
-  const allConstants = [matSer.constants, ...effectSerialized.map(e => e.constants)]
+  const allConstants = [matSer.constants, lightingSer.constants, ...effectSerialized.map(e => e.constants)]
     .filter(Boolean).join('\n');
-  // Material entries first, then effect entries — effect entries win
-  // on duplicate keys (object-literal later-wins behaviour at parse).
-  const allUniformEntries = [matSer.uniformEntries, ...effectSerialized.map(e => e.uniformEntries)]
+  // Material entries first, then lighting override (if any), then
+  // effect entries — later entries win on duplicate keys.
+  const allUniformEntries = [matSer.uniformEntries, lightingSer.uniformEntries, ...effectSerialized.map(e => e.uniformEntries)]
     .filter(Boolean).join('\n');
 
   const exportedJS = `
@@ -247,7 +250,7 @@ ${exportedJS}
 </html>`;
 }
 
-export function initShaderExport({ getActiveShader, getUniforms, getSnapshot, getEffectsSnapshot }) {
+export function initShaderExport({ getActiveShader, getUniforms, getSnapshot, getEffectsSnapshot, getLightingSnapshot }) {
   const btn = document.getElementById('btn-shader-html');
   if (!btn) return;
 
@@ -255,10 +258,11 @@ export function initShaderExport({ getActiveShader, getUniforms, getSnapshot, ge
     const shader = getActiveShader();
     const uniforms = getUniforms();
     const snapshot = getSnapshot();
-    const effectsSnapshot = getEffectsSnapshot ? getEffectsSnapshot() : {};
+    const effectsSnapshot  = getEffectsSnapshot  ? getEffectsSnapshot()  : {};
+    const lightingSnapshot = getLightingSnapshot ? getLightingSnapshot() : null;
     const imgAspect = uniforms.u_imgAspect?.value ?? 1.0;
 
-    const html = buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, imgAspect });
+    const html = buildExportedHTML({ shader, uniforms, snapshot, effectsSnapshot, lightingSnapshot, imgAspect });
 
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);

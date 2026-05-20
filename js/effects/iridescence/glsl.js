@@ -5,44 +5,31 @@
 // halo glow. The result is a multi-hue iridescent surface where:
 //   - the Fresnel-lit highlights pick up pink/cyan/violet
 //   - the bloom-driven glow around the ornament edges + bright interior
-//     details (like fine engraving) gets a flowing rainbow ring
-// Together these produce the soft "pearl/oil-slick" look that varies
-// across the ornament — different parts hold different hues at once
-// because `iriT` varies spatially with NdotL, flow noise, and texUV.
+//     details gets a flowing rainbow ring
 //
-// Distinction from the previous (rejected) approach: that one tried a
-// localized multiplicative tint via `iriTint`. The OG approach (which
-// this restores) modifies `specular` and `halo` directly. It's the
-// look the user wanted back.
+// What changed: previous version capped the highlight tint at the
+// palette's natural luminance and the halo coefficient at 0.32. That
+// produced a subtle sheen — nowhere near the vivid rainbow look the
+// reference image needed. Now:
+//   - `iriT` drives the palette as before, but the OUTPUT of
+//     `iridescence()` is overdriven by `(1 + intensity)` at intensity ≥ 1
+//     so the specular tint goes HDR and ACES tonemaps to saturated
+//     colour (instead of just shifted hue).
+//   - The halo coefficient is now `intensity` (was 0.32 hardcoded) so
+//     a maxed-out intensity slider produces a strong rainbow ring.
+//   - The slider range is extended to 0..200% (in controls.js), so
+//     `u_iriIntensity` can go to 2.0 for the truly vivid look from the
+//     reference. The body diffuse is left untouched (user choice).
 //
-// Time drift: deliberately omitted from `iriT` (see each material's
-// flow-fbm.glsl.js). The OG had `+ u_time * 0.04` which cycled the
-// dominant hue through the rainbow every ~25s — that "constant hue
-// change of the entire model" is the part we DON'T want. Without it,
-// hues are anchored to surface position and only shift when the
-// cursor moves (NdotL changes) or via slow flow-noise drift.
-//
-// Two pieces in the host shader:
-//
-//   helpers — `iridescence(t)` (white when off, rainbow when on)
-//             `iridescencePalette(t)` (always raw rainbow — kept for
-//             Bloom's halo tint when both effects are on)
-//
-//   apply   — modifies `specular` (multiply by palette) and writes
-//             `halo` (rainbow ring/glow). Both vars are declared by
-//             the host material before EFFECTS_APPLY.
-//
-// Bloom interaction: Bloom's apply runs AFTER iridescence and
-// unconditionally writes `halo` when its strength > 0. If both are on,
-// Bloom replaces iridescence's halo with its own (still rainbow-tinted
-// since Bloom multiplies by `iridescence(...)` internally). If only
-// iridescence is on, the iridescent halo here is what shows.
+// Time drift: deliberately omitted from `iriT` for the highlight tint
+// so hues stay anchored to surface position. The halo's iriT does
+// include time so the ring flows around the silhouette.
 //
 // Host material contract:
-//   - declare `vec3 specular` (Fresnel-coloured spec — already done)
-//   - declare `vec3 halo = vec3(0.0)` in haloBlock (already done)
-//   - declare `float haloMask` in haloBlock (already done)
-//   - reads available: `iriT`, `flow`, `mask`, `u_time`, `u_iriIntensity`,
+//   - declare `vec3 specular` (Fresnel-coloured) before EFFECTS_APPLY
+//   - declare `vec3 halo = vec3(0.0)` in haloBlock
+//   - declare `float haloMask` in haloBlock
+//   - reads available: `iriT`, `flow`, `u_time`, `u_iriIntensity`,
 //     `u_iriPhase`
 //
 export const uniforms = /* glsl */ `
@@ -52,46 +39,47 @@ export const uniforms = /* glsl */ `
 
 export const helpers = /* glsl */ `
   // Pearl-cosine palette (IQ cosine palette + Pearl basis from defaults).
-  // At u_iriIntensity=0 returns vec3(1.0) — neutral white, so multiplying
-  // specular by this is a no-op when the effect is disabled.
-  vec3 iridescence(float t){
-    vec3 a = vec3(0.5);
-    vec3 b = vec3(0.5);
-    vec3 c = vec3(1.0);
-    vec3 rainbow = a + b * cos(6.28318 * (c * t + u_iriPhase));
-    return mix(vec3(1.0), rainbow, u_iriIntensity);
-  }
-
-  // Raw palette — always returns the rainbow regardless of intensity.
-  // Used by Bloom's halo tint so it picks up rainbow even when
-  // iridescence intensity is low.
+  // Always returns the raw palette regardless of intensity — used by
+  // Bloom too. Range is roughly [0..1] per channel.
   vec3 iridescencePalette(float t){
     vec3 a = vec3(0.5);
     vec3 b = vec3(0.5);
     vec3 c = vec3(1.0);
     return a + b * cos(6.28318 * (c * t + u_iriPhase));
   }
+
+  // Tint function for: specular *= iridescence(iriT).
+  // At intensity = 0: returns vec3(1.0) (no-op, specular unchanged).
+  // At intensity = 1: returns palette (specular fully takes palette hue).
+  // At intensity > 1: returns palette boosted above 1.0 (HDR push so
+  //                   ACES tonemapping turns the highlight into a
+  //                   saturated bright rainbow instead of just hue-shifted).
+  vec3 iridescence(float t){
+    vec3 rainbow = iridescencePalette(t);
+    float k = clamp(u_iriIntensity, 0.0, 2.0);
+    // 0..1 — lerp from white to palette.
+    // 1..2 — keep palette but push amplitude (1 + (k-1)) = k.
+    vec3 base = mix(vec3(1.0), rainbow, min(k, 1.0));
+    float overdrive = max(k - 1.0, 0.0);
+    return base * (1.0 + overdrive * 1.5);
+  }
 `;
 
-// Apply: same shape as the OG iridescence effect.
-//   - `specular *= iridescence(iriT)` tints the existing highlight.
-//     Since `iriT` varies spatially across the surface, different
-//     pixels of the highlight see different palette colors → multi-hue
-//     distribution on Mercury's wide silver spec.
-//   - `halo = iridescence(...) * haloMask * 0.32` — recreates the OG
-//     halo intensity (was hardcoded to 0.32 in Mercury's haloBlock).
-//     The halo's iriT uses time and flow but not NdotL, so it's a
-//     flowing rainbow ring around the silhouette + a soft rainbow
-//     glow on bloom-bright interior details (e.g. engraving lines).
+// Apply: tint the highlight and write the halo ring.
+//   - `specular *= iridescence(iriT)` — multi-hue across the surface
+//     because iriT varies spatially. With the new overdrive, at
+//     intensity > 1 the specular runs HDR and the tonemap converts
+//     it to vivid saturated colour.
+//   - `halo = palette * haloMask * intensity` — the ring is now scaled
+//     directly by intensity (was a fixed 0.32). At intensity=2 the ring
+//     is roughly 6× brighter than the old maxed-out version.
 //
-// The 0.32 halo coefficient matches the OG Mercury intensity. Other
-// materials' baseline halos were dimmer (ceramic 0.20, glass 0.25,
-// obsidian 0.18) but for the iridescent ring we use Mercury's value
-// universally — the iridescence effect IS the dramatic look the
-// user wants on all materials.
 export const apply = /* glsl */ `
     if (u_iriIntensity > 0.001) {
       specular *= iridescence(iriT);
-      halo = iridescence(u_time * 0.06 + flow * 0.4 + 0.25) * haloMask * 0.32;
+      vec3 haloRainbow = iridescencePalette(u_time * 0.06 + flow * 0.4 + 0.25);
+      // Halo coefficient scales with intensity so the slider is the
+      // single knob for "how vivid is the iridescence look".
+      halo = haloRainbow * haloMask * u_iriIntensity;
     }
 `;

@@ -17,20 +17,26 @@
 //
 import { listEffects } from '../effects/index.js';
 
-export function initEffects({ host, uniforms, history }) {
-  // State per effect — kept across material swaps.
-  // (The Effects host itself isn't kept across swaps — main.js
-  // re-creates it — but we capture defaults at construction.)
+export function initEffects({ host, uniforms, history, initialSnapshot = null }) {
+  // State per effect. The Effects host gets re-created on every
+  // material swap (main.js drops the old host's DOM and calls
+  // initEffects again with the new material's uniforms). We accept
+  // an `initialSnapshot` from main.js so the user's effect tuning
+  // and on/off states persist across material switches — otherwise
+  // toggling material would silently reset Iridescence, Bloom, CA.
   const effects = listEffects();
   const enabled = {};
   const effectControls = {};
 
   effects.forEach(eff => {
-    enabled[eff.id] = !!eff.defaults.enabled;
+    // Seed from snapshot if provided, else from each effect's default.
+    const snap = initialSnapshot?.[eff.id];
+    enabled[eff.id] = snap
+      ? !!snap.enabled
+      : !!eff.defaults.enabled;
   });
 
   host.innerHTML = `
-    <div class="section-title">Effects</div>
     <div class="effects-list">
       ${effects.map(eff => `
         <div class="effect-card" data-effect="${eff.id}">
@@ -55,6 +61,21 @@ export function initEffects({ host, uniforms, history }) {
       history,
     });
   });
+
+  // If we got an initial snapshot, restore each effect's slider values
+  // and uniform writeback. The toggle states were already set above.
+  // We do this AFTER the mount loop so each effect's controls have
+  // their DOM in place. onEnabledChange fires so the per-effect
+  // uniform gates (e.g. iridescence pushing intensity → 0 if disabled)
+  // get applied.
+  if (initialSnapshot) {
+    effects.forEach(eff => {
+      const snap = initialSnapshot[eff.id];
+      if (!snap) return;
+      effectControls[eff.id]?.restore?.(snap);
+      effectControls[eff.id]?.onEnabledChange?.();
+    });
+  }
 
   // Wire toggles.
   host.querySelectorAll('[data-effect-toggle]').forEach(el => {

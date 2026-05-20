@@ -22,6 +22,7 @@ const SPECULAR_PRESET  = ${lit.specular};
 const SHININESS_PRESET = ${lit.shininess};
 const HEIGHT_PRESET    = ${lit.height};
 const LIGHT_COLOR_HEX  = ${JSON.stringify(lit.color)};
+const AMBIENT_STRENGTH = ${lit.ambientStrength ?? 1.0};
 const SKY_HEX          = ${JSON.stringify(amb.sky)};
 const GROUND_HEX       = ${JSON.stringify(amb.ground)};
 const HALO_BASE_HEX    = "#b2cce6";
@@ -38,6 +39,7 @@ const HALO_BASE_INT    = 0.25;
     u_shininess:         { value: SHININESS_PRESET },
     u_lightHeight:       { value: HEIGHT_PRESET },
     u_lightColor:        { value: hexToVec3(LIGHT_COLOR_HEX) },
+    u_ambientStrength:   { value: AMBIENT_STRENGTH },
     u_skyColor:          { value: hexToVec3(SKY_HEX) },
     u_groundColor:       { value: hexToVec3(GROUND_HEX) },
     u_haloBaseColor:     { value: hexToVec3(HALO_BASE_HEX) },

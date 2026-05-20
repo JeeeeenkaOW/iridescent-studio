@@ -1,23 +1,33 @@
 // =========================================================
-// LIGHTING EFFECT — controls
+// LIGHTING — top-level sidebar control
 // =========================================================
-// Six controls. When the effect is enabled, sliders override the
-// material's preset values; when disabled, the material's presets
-// are restored.
+// Promoted out of the Effects panel because Lighting is conceptually
+// different from Iridescence / Bloom / CA. Those are layers added on
+// top of the composite; Lighting OVERRIDES the material's preset
+// Blinn-Phong params. It deserves its own section.
 //
-// What changed: added Ambient strength (drives u_ambientStrength —
-// scales the hemisphere ambient term in the material composite), and
-// extended Shininess range from 1..128 → 1..256. Both make the effect
-// more impactful — ambient changes lift the body away from "lit only
-// where the cursor is", and the wider shininess range lets the user
-// dial in tighter highlights without bottoming out.
+// Internals are the same as the old Effects-card version: there's an
+// enable toggle; when on, sliders write to u_diffuse / u_specular /
+// u_shininess / u_lightHeight / u_lightColor / u_ambientStrength. When
+// off, the material's preset values are restored.
 //
-// Material switch: each new material's createUniforms() pre-fills the
-// lighting uniforms (including u_ambientStrength) with its own preset,
-// so the slider seed values come from whichever material is active.
+// Material switch: this module is re-mounted by main.js whenever the
+// active material changes (different materials ship different preset
+// lighting values, and the sliders need to seed from those). The
+// `enabled` state is preserved across re-mounts.
 //
-import { defaults } from './defaults.js';
-import { hexToVec3 } from '../../util/color.js';
+import { hexToVec3 } from '../util/color.js';
+
+// Default fallbacks — used only if the material's uniforms don't
+// pre-populate a value (shouldn't happen in practice).
+const DEFAULTS = {
+  diffuse:   0.45,
+  specular:  1.6,
+  shininess: 28.0,
+  height:    0.16,
+  color:     '#FFFFFF',
+  ambient:   1.0,
+};
 
 // Map [0..100] slider ↔ light-height [0.02..0.8] for finer control
 // at low values where the highlight changes most.
@@ -26,7 +36,6 @@ const HEIGHT_MAX = 0.8;
 const sliderToHeight = (v) => HEIGHT_MIN + (HEIGHT_MAX - HEIGHT_MIN) * (v / 100);
 const heightToSlider = (h) => Math.round(((h - HEIGHT_MIN) / (HEIGHT_MAX - HEIGHT_MIN)) * 100);
 
-// vec3 ↔ hex helpers (for the color picker, which speaks hex)
 function vec3ToHex(v) {
   const r = Math.round(Math.max(0, Math.min(1, v.x)) * 255);
   const g = Math.round(Math.max(0, Math.min(1, v.y)) * 255);
@@ -34,19 +43,40 @@ function vec3ToHex(v) {
   return '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('');
 }
 
-export function initControls({ host, uniforms, isEnabled, history }) {
-  // Seed slider positions from current uniform values. These are
-  // whatever the active material set as its preset.
-  const seed = {
-    diffuse:    uniforms.u_diffuse?.value         ?? defaults.diffuse,
-    specular:   uniforms.u_specular?.value        ?? defaults.specular,
-    shininess:  uniforms.u_shininess?.value       ?? defaults.shininess,
-    height:     uniforms.u_lightHeight?.value     ?? defaults.height,
-    color:      uniforms.u_lightColor?.value ? vec3ToHex(uniforms.u_lightColor.value) : defaults.color,
-    ambient:    uniforms.u_ambientStrength?.value ?? defaults.ambient,
+export function initLighting({ host, uniforms, history, initialEnabled = false, initialSnapshot = null }) {
+  // The PRESET is always whatever the freshly-mounted material seeded
+  // into the uniforms — this is what we restore to when the override
+  // toggle flips off.
+  const preset = {
+    diffuse:    uniforms.u_diffuse?.value         ?? DEFAULTS.diffuse,
+    specular:   uniforms.u_specular?.value        ?? DEFAULTS.specular,
+    shininess:  uniforms.u_shininess?.value       ?? DEFAULTS.shininess,
+    height:     uniforms.u_lightHeight?.value     ?? DEFAULTS.height,
+    color:      uniforms.u_lightColor?.value ? vec3ToHex(uniforms.u_lightColor.value) : DEFAULTS.color,
+    ambient:    uniforms.u_ambientStrength?.value ?? DEFAULTS.ambient,
   };
 
+  // The INITIAL slider state defaults to the preset, but if the caller
+  // provided an `initialSnapshot` (from the previous mount before a
+  // material switch), use those values instead — that way the user's
+  // tuning persists across material swaps. The toggle state comes from
+  // either the snapshot or the explicit `initialEnabled` flag.
+  const seed = initialSnapshot ? {
+    diffuse:   initialSnapshot.diffuse   ?? preset.diffuse,
+    specular:  initialSnapshot.specular  ?? preset.specular,
+    shininess: initialSnapshot.shininess ?? preset.shininess,
+    height:    initialSnapshot.height    ?? preset.height,
+    color:     initialSnapshot.color     ?? preset.color,
+    ambient:   initialSnapshot.ambient   ?? preset.ambient,
+  } : preset;
+
+  let enabled = !!initialEnabled;
+
   host.innerHTML = `
+    <div class="toggle-row" data-lt-enable-row>
+      <label>Override material lighting</label>
+      <div class="toggle ${enabled ? 'on' : ''}" data-lt-enable></div>
+    </div>
     <div class="range-row">
       <div class="range-label"><span>Diffuse</span><span class="range-value" data-lt-dif-val>${Math.round(seed.diffuse * 100)}%</span></div>
       <input type="range" data-lt-dif min="0" max="100" step="1" value="${Math.round(seed.diffuse * 100)}">
@@ -76,6 +106,7 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     </div>
   `;
 
+  const enableTog = host.querySelector('[data-lt-enable]');
   const difIn  = host.querySelector('[data-lt-dif]');
   const difVal = host.querySelector('[data-lt-dif-val]');
   const spcIn  = host.querySelector('[data-lt-spc]');
@@ -89,12 +120,14 @@ export function initControls({ host, uniforms, isEnabled, history }) {
   const colIn  = host.querySelector('[data-lt-col]');
   const colHex = host.querySelector('[data-lt-col-hex]');
 
-  // Snapshot the material's preset values at mount time so we can
-  // restore them when the effect is toggled off.
-  const preset = { ...seed };
+  // `preset` was captured above from the freshly-mounted material's
+  // uniforms; that's the value set we restore to when the override is
+  // toggled off. We don't snapshot from `seed` here because seed may
+  // contain the user's prior tuning (which we DO NOT want to restore
+  // to — that would be circular).
 
   function write() {
-    if (!isEnabled()) return;
+    if (!enabled) return;
     uniforms.u_diffuse.value     = parseInt(difIn.value, 10) / 100;
     uniforms.u_specular.value    = parseInt(spcIn.value, 10) / 100;
     uniforms.u_shininess.value   = parseInt(shnIn.value, 10);
@@ -116,55 +149,48 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     if (uniforms.u_ambientStrength) uniforms.u_ambientStrength.value = preset.ambient;
   }
 
-  function onEnabledChange() {
-    const on = isEnabled();
-    [difIn, spcIn, shnIn, hgtIn, ambIn, colIn].forEach(el => el.disabled = !on);
-    if (on) write();
+  function applyEnabledState() {
+    [difIn, spcIn, shnIn, hgtIn, ambIn, colIn].forEach(el => el.disabled = !enabled);
+    if (enabled) write();
     else restorePreset();
   }
 
-  difIn.addEventListener('input', (e) => {
-    difVal.textContent = e.target.value + '%';
-    write();
+  // Wire the enable toggle.
+  enableTog.addEventListener('click', () => {
+    enabled = !enabled;
+    enableTog.classList.toggle('on', enabled);
+    applyEnabledState();
+    history?.push();
   });
-  difIn.addEventListener('change', () => { history?.push(); });
 
-  spcIn.addEventListener('input', (e) => {
-    spcVal.textContent = (parseInt(e.target.value, 10) / 100).toFixed(2);
-    write();
-  });
-  spcIn.addEventListener('change', () => { history?.push(); });
+  // Wire sliders.
+  difIn.addEventListener('input', (e) => { difVal.textContent = e.target.value + '%'; write(); });
+  difIn.addEventListener('change', () => history?.push());
 
-  shnIn.addEventListener('input', (e) => {
-    shnVal.textContent = e.target.value;
-    write();
-  });
-  shnIn.addEventListener('change', () => { history?.push(); });
+  spcIn.addEventListener('input', (e) => { spcVal.textContent = (parseInt(e.target.value, 10) / 100).toFixed(2); write(); });
+  spcIn.addEventListener('change', () => history?.push());
 
-  hgtIn.addEventListener('input', (e) => {
-    hgtVal.textContent = sliderToHeight(parseInt(e.target.value, 10)).toFixed(2);
-    write();
-  });
-  hgtIn.addEventListener('change', () => { history?.push(); });
+  shnIn.addEventListener('input', (e) => { shnVal.textContent = e.target.value; write(); });
+  shnIn.addEventListener('change', () => history?.push());
 
-  ambIn.addEventListener('input', (e) => {
-    ambVal.textContent = e.target.value + '%';
-    write();
-  });
-  ambIn.addEventListener('change', () => { history?.push(); });
+  hgtIn.addEventListener('input', (e) => { hgtVal.textContent = sliderToHeight(parseInt(e.target.value, 10)).toFixed(2); write(); });
+  hgtIn.addEventListener('change', () => history?.push());
 
-  colIn.addEventListener('input', (e) => {
-    colHex.textContent = e.target.value.toUpperCase();
-    write();
-  });
-  colIn.addEventListener('change', () => { history?.push(); });
+  ambIn.addEventListener('input', (e) => { ambVal.textContent = e.target.value + '%'; write(); });
+  ambIn.addEventListener('change', () => history?.push());
 
-  onEnabledChange();
+  colIn.addEventListener('input', (e) => { colHex.textContent = e.target.value.toUpperCase(); write(); });
+  colIn.addEventListener('change', () => history?.push());
+
+  // Initial state push — disables inputs if starting off, or writes
+  // current slider values into uniforms if starting on.
+  applyEnabledState();
 
   return {
-    onEnabledChange,
+    isEnabled: () => enabled,
     snapshot() {
       return {
+        enabled,
         diffuse:   parseInt(difIn.value, 10) / 100,
         specular:  parseInt(spcIn.value, 10) / 100,
         shininess: parseInt(shnIn.value, 10),
@@ -175,6 +201,10 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     },
     restore(snap) {
       if (!snap) return;
+      if (typeof snap.enabled === 'boolean') {
+        enabled = snap.enabled;
+        enableTog.classList.toggle('on', enabled);
+      }
       if (typeof snap.diffuse === 'number') {
         difIn.value = String(Math.round(snap.diffuse * 100));
         difVal.textContent = Math.round(snap.diffuse * 100) + '%';
@@ -199,9 +229,7 @@ export function initControls({ host, uniforms, isEnabled, history }) {
         ambIn.value = String(Math.round(snap.ambient * 100));
         ambVal.textContent = Math.round(snap.ambient * 100) + '%';
       }
-      // If enabled, push the restored values into the uniforms.
-      // If disabled, the material's preset values remain in effect.
-      if (isEnabled()) write();
+      applyEnabledState();
     },
   };
 }

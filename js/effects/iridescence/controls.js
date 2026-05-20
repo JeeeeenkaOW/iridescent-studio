@@ -18,7 +18,7 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     </div>
     <div class="range-row">
       <div class="range-label"><span>Intensity</span><span class="range-value" data-iri-int-val>${Math.round(d.intensity * 100)}%</span></div>
-      <input type="range" data-iri-int min="0" max="100" step="1" value="${Math.round(d.intensity * 100)}">
+      <input type="range" data-iri-int min="0" max="200" step="1" value="${Math.round(d.intensity * 100)}">
     </div>
   `;
 
@@ -47,15 +47,15 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     const hue = parseInt(e.target.value, 10);
     hueVal.textContent = hue + '°';
     uniforms.u_iriPhase.value.copy(phaseFromHue(hue));
-    history?.push();
   });
+  hueIn.addEventListener('change', () => { history?.push(); });
 
   intIn.addEventListener('input', (e) => {
     intensity = parseInt(e.target.value, 10) / 100;
     intVal.textContent = e.target.value + '%';
     pushIntensity();
-    history?.push();
   });
+  intIn.addEventListener('change', () => { history?.push(); });
 
   // Initial state — disable inputs if effect starts off.
   onEnabledChange();

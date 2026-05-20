@@ -27,10 +27,10 @@ export function initNormals({ state, rebuild, history }) {
   strengthInput.addEventListener('input', (e) => {
     state.strength = parseFloat(e.target.value);
     strengthVal.textContent = state.strength.toFixed(1);
-    history?.push();
   });
   strengthInput.addEventListener('change', async () => {
     await rebuild();
+    history?.push();
   });
 
   return {

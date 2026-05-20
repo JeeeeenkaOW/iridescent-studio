@@ -14,6 +14,11 @@
 //     reflection brightness) mixes `through` toward a reflective
 //     bright value at silhouette edges. This is what makes real
 //     glass look like glass instead of a transparent hole.
+//   - Frost: at high u_frost, pulls `through` toward the bright
+//     `solid` term (frost = light scattering = brighter body). This
+//     is the part the user wanted — frost was inert before because
+//     the bg-blur was the only contribution and that's invisible on
+//     a black bg.
 //
 // Output adds ACES tonemap.
 //
@@ -25,10 +30,16 @@ export const haloBlock = /* glsl */ `
 export const compositeBlock = /* glsl */ `
     // The "solid" appearance of glass when transparency is 0 —
     // a very light frosted white tinted by hemisphere ambient.
-    vec3 solid = vec3(0.92, 0.94, 0.96) * hemiAmbient(N, u_skyColor, u_groundColor) * 2.0;
+    vec3 solid = vec3(0.92, 0.94, 0.96) * hemiAmbient(N, u_skyColor, u_groundColor) * 2.0 * u_ambientStrength;
 
     // What you see through the ornament.
     vec3 through = mix(solid, glassBg, u_transparency);
+
+    // Frost scatters light forward, so the body brightens toward
+    // the 'solid' term as u_frost rises. Independent of transparency:
+    // even at full transparency, high frost still lifts the body.
+    // 0.85 cap so we don't fully obliterate the bg read.
+    through = mix(through, solid, clamp(u_frost, 0.0, 0.85));
 
     // Grazing reflectance: F.x (the Fresnel scalar, equal across
     // channels for our near-neutral F0) ramps from 0 at centre to

@@ -22,11 +22,12 @@ export const defaults = {
   },
 
   lighting: {
-    diffuse:   0.0,
-    specular:  0.9,
-    shininess: 48.0,
-    height:    0.16,
-    color:     '#FFFFFF',
+    diffuse:         0.0,
+    specular:        0.9,
+    shininess:       48.0,
+    height:          0.16,
+    color:           '#FFFFFF',
+    ambientStrength: 1.0,
   },
 
   ambient: {

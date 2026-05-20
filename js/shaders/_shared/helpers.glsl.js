@@ -20,7 +20,7 @@
 //
 // ACES_TONEMAP — Narkowicz's compact ACES filmic approximation.
 //   Maps unbounded linear HDR into [0,1] with a film-like S-curve.
-//   Important: WITHOUT this, mercury's highlights + lighting effect
+//   Important: WITHOUT this, mercury's highlights + lighting override
 //   sliders pushed up blow out to pure white. WITH it, highlights
 //   roll off cleanly and colour is preserved into the bright range.
 //

@@ -13,9 +13,6 @@ export function initGlassControls({ host, uniforms, history }) {
   const d = defaults;
 
   host.innerHTML = `
-    <div class="section">
-      <div class="section-title">Glass</div>
-
       <div class="range-row">
         <div class="range-label"><span>Transparency</span><span class="range-value" id="gc-trans-val">${Math.round(d.material.transparency * 100)}%</span></div>
         <input type="range" id="gc-trans" min="0" max="100" step="1" value="${Math.round(d.material.transparency * 100)}">
@@ -30,7 +27,6 @@ export function initGlassControls({ host, uniforms, history }) {
         <div class="range-label"><span>Frost</span><span class="range-value" id="gc-frost-val">${Math.round(d.material.frost * 100)}%</span></div>
         <input type="range" id="gc-frost" min="0" max="100" step="1" value="${Math.round(d.material.frost * 100)}">
       </div>
-    </div>
   `;
 
   const transIn  = host.querySelector('#gc-trans');
@@ -44,8 +40,8 @@ export function initGlassControls({ host, uniforms, history }) {
     const v = parseInt(e.target.value, 10) / 100;
     transVal.textContent = e.target.value + '%';
     uniforms.u_transparency.value = v;
-    history?.push();
   });
+  transIn.addEventListener('change', () => { history?.push(); });
 
   // Slider is 0..100% but max refraction (full distortion) is 0.20 in
   // shader space. Scale by 0.20 / 100.
@@ -53,15 +49,15 @@ export function initGlassControls({ host, uniforms, history }) {
     const pct = parseInt(e.target.value, 10);
     refVal.textContent = pct + '%';
     uniforms.u_refraction.value = (pct / 100) * 0.20;
-    history?.push();
   });
+  refIn.addEventListener('change', () => { history?.push(); });
 
   frostIn.addEventListener('input', (e) => {
     const v = parseInt(e.target.value, 10) / 100;
     frostVal.textContent = e.target.value + '%';
     uniforms.u_frost.value = v;
-    history?.push();
   });
+  frostIn.addEventListener('change', () => { history?.push(); });
 
   return {
     snapshot() {

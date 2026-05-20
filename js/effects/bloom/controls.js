@@ -88,15 +88,15 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     strength = parseInt(e.target.value, 10) / 100;
     strVal.textContent = e.target.value + '%';
     pushStrength();
-    history?.push();
   });
+  strIn.addEventListener('change', () => { history?.push(); });
 
   colIn.addEventListener('input', (e) => {
     userColored = true;
     colHex.textContent = e.target.value.toUpperCase();
     pushColor();
-    history?.push();
   });
+  colIn.addEventListener('change', () => { history?.push(); });
 
   // Seed the uniform with the baseline color at mount, in case the
   // effect is exported while disabled — the exporter needs to know

@@ -15,7 +15,7 @@
 }
 </script>
 </head>
-<body>
+<body data-active-tab="material">
 
 <nav class="nav">
   <a class="nav-logo" href="#">
@@ -43,6 +43,15 @@
       <div class="recording" id="recording">Recording</div>
     </section>
 
+    <!-- TAB BAR — mobile only. On desktop it's hidden via CSS. -->
+    <nav class="tab-bar" id="tab-bar">
+      <button class="tab-btn active" data-tab-btn="material">Material</button>
+      <button class="tab-btn" data-tab-btn="lighting">Lighting</button>
+      <button class="tab-btn" data-tab-btn="effects">Effects</button>
+      <button class="tab-btn" data-tab-btn="setup">Setup</button>
+      <button class="tab-btn" data-tab-btn="export">Export</button>
+    </nav>
+
     <aside class="sidebar">
 
       <div class="sidebar-header">
@@ -51,148 +60,191 @@
         <p class="sidebar-desc">Drop an SVG or PNG. Albedo, normal, and bloom maps generate from the image; a fragment shader fakes a range of materials, ready for preview, image and video render.</p>
       </div>
 
-      <!-- UPLOAD -->
-      <div class="section">
-        <div class="section-title">Source vector</div>
-        <div class="drop-zone" id="drop-zone">
-          <input type="file" id="file-input" accept=".svg,image/svg+xml,.png,image/png">
-          <div class="drop-icon">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <p class="drop-title">Drop SVG or PNG</p>
-          <p class="drop-sub">or <span class="drop-link">browse files</span></p>
-        </div>
-        <div class="drop-current" id="drop-current" style="display:none">
-          <span class="drop-current-name" id="drop-current-name"></span>
-          <button class="drop-current-clear" id="drop-current-clear" title="Reset to default">×</button>
-        </div>
-      </div>
+      <!-- =============== MATERIAL TAB =============== -->
 
-      <div class="div"></div>
-
-      <!-- SHADER -->
-      <div class="section">
+      <!-- SHADER picker — tiny segmented control, no need to collapse -->
+      <div class="section" data-tab="material">
         <div class="section-title">Shader</div>
         <div class="segmented" id="shader-picker"></div>
       </div>
 
-      <div class="div"></div>
+      <div class="div" data-tab="material"></div>
 
-      <!-- SHADER-SPECIFIC CONTROLS (mounted by controls/shader.js) -->
-      <div id="shader-controls"></div>
+      <!-- MATERIAL (mounted by controls/shader.js) -->
+      <div class="section collapsible" data-tab="material">
+        <div class="section-title" data-collapsible>Material</div>
+        <div class="collapsible-body">
+          <div id="shader-controls"></div>
+        </div>
+      </div>
 
-      <div class="div"></div>
+      <div class="div" data-tab="material"></div>
+
+      <!-- =============== LIGHTING TAB =============== -->
+
+      <!-- LIGHTING (mounted by controls/lighting.js) — own top-level
+           section, not part of Effects anymore. The "Override material
+           lighting" toggle and all sliders are rendered by initLighting
+           into #lighting-host. -->
+      <div class="section collapsible" data-tab="lighting">
+        <div class="section-title" data-collapsible>Lighting</div>
+        <div class="collapsible-body">
+          <div id="lighting-host"></div>
+        </div>
+      </div>
+
+      <div class="div" data-tab="lighting"></div>
+
+      <!-- =============== EFFECTS TAB =============== -->
 
       <!-- EFFECTS (mounted by controls/effects.js) -->
-      <div class="section" id="effects-host"></div>
-
-      <div class="div"></div>
-
-      <!-- BACKGROUND -->
-      <div class="section">
-        <div class="section-title">Background</div>
-        <div class="segmented cols-3" id="seg-bg">
-          <button class="seg-btn active" data-bg="solid">Solid</button>
-          <button class="seg-btn" data-bg="gradient">Gradient</button>
-          <button class="seg-btn" data-bg="image">Image</button>
+      <div class="section collapsible" id="effects-section" data-tab="effects">
+        <div class="section-title" data-collapsible>Effects</div>
+        <div class="collapsible-body">
+          <div id="effects-host"></div>
         </div>
+      </div>
 
-        <!-- Solid panel -->
-        <div class="bg-panel" id="bg-panel-solid">
-          <div class="color-row">
-            <span class="color-row-label">Color</span>
-            <div class="color-row-control">
-              <input type="color" id="bg-solid-color" value="#000000">
-              <span class="color-row-hex" id="bg-solid-hex">#000000</span>
-            </div>
-          </div>
-        </div>
+      <div class="div" data-tab="effects"></div>
 
-        <!-- Gradient panel -->
-        <div class="bg-panel" id="bg-panel-gradient" style="display:none">
-          <div class="color-row">
-            <span class="color-row-label">From</span>
-            <div class="color-row-control">
-              <input type="color" id="bg-grad-from" value="#000000">
-              <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
-            </div>
-          </div>
-          <div class="color-row">
-            <span class="color-row-label">To</span>
-            <div class="color-row-control">
-              <input type="color" id="bg-grad-to" value="#202020">
-              <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
-            </div>
-          </div>
-          <div class="range-row">
-            <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
-            <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
-          </div>
-        </div>
+      <!-- =============== SETUP TAB =============== -->
 
-        <!-- Image panel -->
-        <div class="bg-panel" id="bg-panel-image" style="display:none">
-          <div class="drop-zone drop-zone-sm" id="bg-img-drop">
-            <input type="file" id="bg-img-input" accept="image/png,image/jpeg,image/webp,image/gif">
+      <!-- UPLOAD -->
+      <div class="section collapsible" data-tab="setup">
+        <div class="section-title" data-collapsible>Source vector</div>
+        <div class="collapsible-body">
+          <div class="drop-zone" id="drop-zone">
+            <input type="file" id="file-input" accept=".svg,image/svg+xml,.png,image/png">
             <div class="drop-icon">
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
             </div>
-            <p class="drop-title">Drop image</p>
+            <p class="drop-title">Drop SVG or PNG</p>
             <p class="drop-sub">or <span class="drop-link">browse files</span></p>
           </div>
-          <div class="drop-current" id="bg-img-current" style="display:none">
-            <span class="drop-current-name" id="bg-img-current-name"></span>
-            <button class="drop-current-clear" id="bg-img-clear" title="Remove">×</button>
+          <div class="drop-current" id="drop-current" style="display:none">
+            <span class="drop-current-name" id="drop-current-name"></span>
+            <button class="drop-current-clear" id="drop-current-clear" title="Reset to default">×</button>
           </div>
         </div>
       </div>
 
-      <div class="div"></div>
+      <div class="div" data-tab="setup"></div>
+
+      <!-- BACKGROUND -->
+      <div class="section collapsible collapsed" data-tab="setup">
+        <div class="section-title" data-collapsible>Background</div>
+        <div class="collapsible-body">
+          <div class="segmented cols-3" id="seg-bg">
+            <button class="seg-btn active" data-bg="solid">Solid</button>
+            <button class="seg-btn" data-bg="gradient">Gradient</button>
+            <button class="seg-btn" data-bg="image">Image</button>
+          </div>
+
+          <!-- Solid panel -->
+          <div class="bg-panel" id="bg-panel-solid">
+            <div class="color-row">
+              <span class="color-row-label">Color</span>
+              <div class="color-row-control">
+                <input type="color" id="bg-solid-color" value="#000000">
+                <span class="color-row-hex" id="bg-solid-hex">#000000</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gradient panel -->
+          <div class="bg-panel" id="bg-panel-gradient" style="display:none">
+            <div class="color-row">
+              <span class="color-row-label">From</span>
+              <div class="color-row-control">
+                <input type="color" id="bg-grad-from" value="#000000">
+                <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
+              </div>
+            </div>
+            <div class="color-row">
+              <span class="color-row-label">To</span>
+              <div class="color-row-control">
+                <input type="color" id="bg-grad-to" value="#202020">
+                <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
+              </div>
+            </div>
+            <div class="range-row">
+              <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
+              <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
+            </div>
+          </div>
+
+          <!-- Image panel -->
+          <div class="bg-panel" id="bg-panel-image" style="display:none">
+            <div class="drop-zone drop-zone-sm" id="bg-img-drop">
+              <input type="file" id="bg-img-input" accept="image/png,image/jpeg,image/webp,image/gif">
+              <div class="drop-icon">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <p class="drop-title">Drop image</p>
+              <p class="drop-sub">or <span class="drop-link">browse files</span></p>
+            </div>
+            <div class="drop-current" id="bg-img-current" style="display:none">
+              <span class="drop-current-name" id="bg-img-current-name"></span>
+              <button class="drop-current-clear" id="bg-img-clear" title="Remove">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="div" data-tab="setup"></div>
 
       <!-- NORMALS -->
-      <div class="section">
-        <div class="section-title">Normals</div>
-        <div class="segmented cols-2" id="seg-normals">
-          <button class="seg-btn active" data-nm="edge">Edge (Sobel)</button>
-          <button class="seg-btn" data-nm="sculpted">Sculpted (SDF)</button>
-        </div>
-        <div class="range-row">
-          <div class="range-label"><span>Strength</span><span class="range-value" id="val-strength">4.0</span></div>
-          <input type="range" id="ctl-strength" min="1" max="8" step="0.1" value="4">
+      <div class="section collapsible collapsed" data-tab="setup">
+        <div class="section-title" data-collapsible>Normals</div>
+        <div class="collapsible-body">
+          <div class="segmented cols-2" id="seg-normals">
+            <button class="seg-btn active" data-nm="edge">Edge (Sobel)</button>
+            <button class="seg-btn" data-nm="sculpted">Sculpted (SDF)</button>
+          </div>
+          <div class="range-row">
+            <div class="range-label"><span>Strength</span><span class="range-value" id="val-strength">4.0</span></div>
+            <input type="range" id="ctl-strength" min="1" max="8" step="0.1" value="4">
+          </div>
         </div>
       </div>
 
-      <div class="div"></div>
+      <div class="div" data-tab="setup"></div>
 
       <!-- MOTION -->
-      <div class="section">
-        <div class="section-title">Motion</div>
-        <div class="toggle-row">
-          <label for="ctl-auto-drift">Auto-drift when idle</label>
-          <div class="toggle on" id="ctl-auto-drift"></div>
+      <div class="section collapsible collapsed" data-tab="setup">
+        <div class="section-title" data-collapsible>Motion</div>
+        <div class="collapsible-body">
+          <div class="toggle-row">
+            <label for="ctl-auto-drift">Auto-drift when idle</label>
+            <div class="toggle on" id="ctl-auto-drift"></div>
+          </div>
         </div>
       </div>
 
-      <div class="div"></div>
+      <div class="div" data-tab="setup"></div>
+
+      <!-- =============== EXPORT TAB =============== -->
 
       <!-- EXPORT -->
-      <div class="section">
-        <div class="section-title">Export</div>
-        <div class="range-row">
-          <div class="range-label"><span>Loop duration</span><span class="range-value" id="val-loop">4.0s</span></div>
-          <input type="range" id="ctl-loop" min="1" max="10" step="0.5" value="4">
+      <div class="section collapsible" data-tab="export">
+        <div class="section-title" data-collapsible>Export</div>
+        <div class="collapsible-body">
+          <div class="range-row">
+            <div class="range-label"><span>Loop duration</span><span class="range-value" id="val-loop">4.0s</span></div>
+            <input type="range" id="ctl-loop" min="1" max="10" step="0.5" value="4">
+          </div>
+          <div class="btn-row">
+            <button class="btn-s" id="btn-png">PNG</button>
+            <button class="btn-p" id="btn-webm">WebM</button>
+          </div>
+          <button class="btn-s" id="btn-shader-html" style="margin-top:8px">Shader HTML</button>
         </div>
-        <div class="btn-row">
-          <button class="btn-s" id="btn-png">PNG</button>
-          <button class="btn-p" id="btn-webm">WebM</button>
-        </div>
-        <button class="btn-s" id="btn-shader-html" style="margin-top:8px">Shader HTML</button>
       </div>
 
     </aside>

@@ -131,8 +131,8 @@ export function initBackground({ state, uniforms, viewport, history }) {
     state.bg.solid = e.target.value;
     solidHex.textContent = e.target.value.toUpperCase();
     if (state.bg.mode === 'solid') redraw();
-    history?.push();
   });
+  solidColor.addEventListener('change', () => { history?.push(); });
 
   // Gradient
   const gFrom = document.getElementById('bg-grad-from');
@@ -151,20 +151,20 @@ export function initBackground({ state, uniforms, viewport, history }) {
     state.bg.gradient.from = e.target.value;
     gFromHex.textContent = e.target.value.toUpperCase();
     if (state.bg.mode === 'gradient') redraw();
-    history?.push();
   });
+  gFrom.addEventListener('change', () => { history?.push(); });
   gTo.addEventListener('input', (e) => {
     state.bg.gradient.to = e.target.value;
     gToHex.textContent = e.target.value.toUpperCase();
     if (state.bg.mode === 'gradient') redraw();
-    history?.push();
   });
+  gTo.addEventListener('change', () => { history?.push(); });
   gAngle.addEventListener('input', (e) => {
     state.bg.gradient.angle = parseInt(e.target.value, 10);
     gAngleVal.textContent = state.bg.gradient.angle + '°';
     if (state.bg.mode === 'gradient') redraw();
-    history?.push();
   });
+  gAngle.addEventListener('change', () => { history?.push(); });
 
   // Image upload
   const imgDrop = document.getElementById('bg-img-drop');
