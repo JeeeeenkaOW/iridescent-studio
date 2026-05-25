@@ -15,7 +15,7 @@
 }
 </script>
 </head>
-<body data-active-tab="material">
+<body data-active-tab="project">
 
 <nav class="nav">
   <a class="nav-logo" href="#">
@@ -45,7 +45,8 @@
 
     <!-- TAB BAR — mobile only. On desktop it's hidden via CSS. -->
     <nav class="tab-bar" id="tab-bar">
-      <button class="tab-btn active" data-tab-btn="material">Material</button>
+      <button class="tab-btn active" data-tab-btn="project">Project</button>
+      <button class="tab-btn" data-tab-btn="material">Material</button>
       <button class="tab-btn" data-tab-btn="lighting">Lighting</button>
       <button class="tab-btn" data-tab-btn="effects">Effects</button>
       <button class="tab-btn" data-tab-btn="setup">Setup</button>
@@ -59,6 +60,48 @@
         <h1 class="sidebar-title">Web Material Forge</h1>
         <p class="sidebar-desc">Drop an SVG or PNG. Albedo, normal, and bloom maps generate from the image; a fragment shader fakes a range of materials, ready for preview, image and video render.</p>
       </div>
+
+      <!-- =============== PROJECT TAB =============== -->
+
+      <!-- PROJECT — save/load whole-tool config, then source vector.
+           This is the entry point of a session: drop your art, or
+           drop a saved config to recreate a material you made before.
+           Config save/load handled by controls/project.js; source
+           vector drop wired by controls/upload.js (unchanged — it
+           still finds #drop-zone and friends by ID, just under a
+           new parent section). -->
+      <div class="section" data-tab="project">
+        <div class="section-title">Project</div>
+        <div class="btn-row">
+          <button class="btn-s" id="btn-save-config">Save config</button>
+          <button class="btn-s" id="btn-load-config">Load config</button>
+        </div>
+        <input type="file" id="config-file-input" accept=".json,application/json" style="display:none">
+      </div>
+
+      <div class="div" data-tab="project"></div>
+
+      <!-- SOURCE VECTOR (drop zone) — moved here from Setup. -->
+      <div class="section" data-tab="project">
+        <div class="section-title">Source vector</div>
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept=".svg,image/svg+xml,.png,image/png">
+          <div class="drop-icon">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <p class="drop-title">Drop SVG or PNG</p>
+          <p class="drop-sub">or <span class="drop-link">browse files</span></p>
+        </div>
+        <div class="drop-current" id="drop-current" style="display:none">
+          <span class="drop-current-name" id="drop-current-name"></span>
+          <button class="drop-current-clear" id="drop-current-clear" title="Reset to default">×</button>
+        </div>
+      </div>
+
+      <div class="div" data-tab="project"></div>
 
       <!-- =============== MATERIAL TAB =============== -->
 
@@ -108,30 +151,6 @@
       <div class="div" data-tab="effects"></div>
 
       <!-- =============== SETUP TAB =============== -->
-
-      <!-- UPLOAD -->
-      <div class="section collapsible" data-tab="setup">
-        <div class="section-title" data-collapsible>Source vector</div>
-        <div class="collapsible-body">
-          <div class="drop-zone" id="drop-zone">
-            <input type="file" id="file-input" accept=".svg,image/svg+xml,.png,image/png">
-            <div class="drop-icon">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <p class="drop-title">Drop SVG or PNG</p>
-            <p class="drop-sub">or <span class="drop-link">browse files</span></p>
-          </div>
-          <div class="drop-current" id="drop-current" style="display:none">
-            <span class="drop-current-name" id="drop-current-name"></span>
-            <button class="drop-current-clear" id="drop-current-clear" title="Reset to default">×</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="div" data-tab="setup"></div>
 
       <!-- BACKGROUND -->
       <div class="section collapsible collapsed" data-tab="setup">

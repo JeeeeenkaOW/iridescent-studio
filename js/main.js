@@ -28,6 +28,7 @@ import { initShader } from './controls/shader.js';
 import { initEffects } from './controls/effects.js';
 import { initLighting } from './controls/lighting.js';
 import { initShaderExport } from './controls/shader-export.js';
+import { initProject } from './controls/project.js';
 import { initHistory } from './controls/history.js';
 import { initCollapsibles } from './controls/collapsibles.js';
 import { initTabs } from './controls/tabs.js';
@@ -447,6 +448,16 @@ initShaderExport({
   getSnapshot:     () => shaderCtl.snapshot(),
   getEffectsSnapshot:  () => effectsCtl?.snapshot?.()  ?? {},
   getLightingSnapshot: () => lightingCtl?.snapshot?.() ?? null,
+});
+
+// Project save/load — reuses the same captureState / applyState used
+// for undo/redo, just serialized to a downloadable JSON file. Wired
+// last so all controls exist before captureState is invoked, and so
+// the load path can call history.push() on the freshly applied state.
+initProject({
+  captureState,
+  applyState,
+  history,
 });
 
 // Seed history's initial state now that every control exists.

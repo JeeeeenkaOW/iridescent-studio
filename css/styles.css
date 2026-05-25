@@ -136,6 +136,7 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
   /* Show only sections (and their dividers) belonging to the active
      tab. `[data-tab]` selector matches sections AND `.div` spacers,
      both of which we annotated in index.html. */
+  body[data-active-tab="project"]  [data-tab]:not([data-tab="project"]),
   body[data-active-tab="material"] [data-tab]:not([data-tab="material"]),
   body[data-active-tab="lighting"] [data-tab]:not([data-tab="lighting"]),
   body[data-active-tab="effects"]  [data-tab]:not([data-tab="effects"]),
