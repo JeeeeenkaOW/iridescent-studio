@@ -51,6 +51,12 @@ export const refractionBlock = /* glsl */ `
     // ---- Frost: 8-tap ring blur on the refracted bg sample. Soft
     // background even when frost-perturbed N already broke up the
     // specular. Radius scales with u_frost.
+    //
+    // u_bgTransparent does NOT gate this read. Transparency is a
+    // pure final-composite concern — glass still refracts whatever
+    // bg the user designed against (so a glass material designed on
+    // a red bg exports as "glass refracting red", with the area
+    // around the silhouette cut out).
     float frostR = u_frost * 0.020;
     vec3 glassBg;
     if (u_frost <= 0.001) {

@@ -53,6 +53,8 @@ export const compositeBlock = /* glsl */ `
 `;
 
 export const outputBlock = /* glsl */ `
+    // Same model as solid/glass: bg always sampled, composite unchanged.
+    // Only alpha changes for transparent export.
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     // particleMask gates the dots into the bg. halo adds glow
@@ -66,5 +68,8 @@ export const outputBlock = /* glsl */ `
     col = acesTonemap(col);
 
     col += (hash(v_uv * u_resolution + u_time) - 0.5) * 0.012;
-    gl_FragColor = vec4(col, 1.0);
+
+    float coverage = clamp(inside * particleMask + haloMask, 0.0, 1.0);
+    float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
+    gl_FragColor = vec4(col, alpha);
 `;

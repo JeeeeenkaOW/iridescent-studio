@@ -136,6 +136,7 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
   /* Show only sections (and their dividers) belonging to the active
      tab. `[data-tab]` selector matches sections AND `.div` spacers,
      both of which we annotated in index.html. */
+  body[data-active-tab="project"]  [data-tab]:not([data-tab="project"]),
   body[data-active-tab="material"] [data-tab]:not([data-tab="material"]),
   body[data-active-tab="lighting"] [data-tab]:not([data-tab="lighting"]),
   body[data-active-tab="effects"]  [data-tab]:not([data-tab="effects"]),
@@ -258,6 +259,18 @@ input[type="color"]::-moz-color-swatch{border:none}
    action buttons. Without this they sit too close — the slider's
    thumb almost touches the PNG/WebM buttons. */
 .export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100) 0}
+
+/* Plain section label, no toggle/value on the right — used for the
+   resolution picker label. Matches range-label typography so it
+   reads as part of the same control family. */
+.ctl-label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:4px}
+
+/* PNG sequence progress UI. Inline (no modal) — slots between the
+   sequence button and the Shader HTML button. */
+.seq-progress{display:flex;flex-direction:column;gap:4px;margin:2px 0}
+.seq-progress-bar{height:4px;background:var(--s3);border:1px solid var(--b4);overflow:hidden}
+.seq-progress-fill{height:100%;background:var(--ow);width:0%;transition:width .1s linear}
+.seq-progress-label{font-size:10px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 
 /* ============ SHADER CONTROLS HOST ============ */
 #shader-controls{display:flex;flex-direction:column;gap:10px}

@@ -55,6 +55,11 @@ export const compositeBlock = /* glsl */ `
 `;
 
 export const outputBlock = /* glsl */ `
+    // Same model as solid: bg always sampled (glass needs it for
+    // refraction anyway), composite runs unchanged. Only alpha
+    // changes for transparent export, so the user gets "glass
+    // refracting their designed bg, with the bg cut out outside
+    // the silhouette."
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     vec3 fg = ornament * mask + halo;
@@ -66,5 +71,8 @@ export const outputBlock = /* glsl */ `
     col = acesTonemap(col);
 
     col += (hash(v_uv * u_resolution + u_time) - 0.5) * 0.018;
-    gl_FragColor = vec4(col, 1.0);
+
+    float coverage = clamp(inside * mask + haloMask, 0.0, 1.0);
+    float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
+    gl_FragColor = vec4(col, alpha);
 `;

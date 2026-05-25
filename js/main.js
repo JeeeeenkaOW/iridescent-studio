@@ -28,6 +28,7 @@ import { initShader } from './controls/shader.js';
 import { initEffects } from './controls/effects.js';
 import { initLighting } from './controls/lighting.js';
 import { initShaderExport } from './controls/shader-export.js';
+import { initProject } from './controls/project.js';
 import { initHistory } from './controls/history.js';
 import { initCollapsibles } from './controls/collapsibles.js';
 import { initTabs } from './controls/tabs.js';
@@ -42,6 +43,7 @@ const state = {
   inputBlob: null,
   bg: {
     mode: 'solid',
+    transparent: false,
     solid: '#000000',
     gradient: { from: '#000000', to: '#202020', angle: 180 },
     imageBlob: null,
@@ -50,7 +52,16 @@ const state = {
   normals: 'edge',
   strength: 4.0,
   autoDrift: true,
+  // Preview-loop mode: editor uses the same circular auto-drift path
+  // and periodic noise time as export capture, so the user can verify
+  // their loop closes before recording. Forces auto-drift on, ignores
+  // cursor input. See motion control + render loop.
+  previewLoop: false,
   loopDuration: 4.0,
+  // Export controls (apply to WebM and PNG sequence; PNG snapshot
+  // uses resScale only).
+  fps: 30,
+  resScale: 1,        // 1, 2, or 4 — multiplier on viewport size
 };
 
 // =========================================================
@@ -60,8 +71,13 @@ const viewport = document.getElementById('viewport');
 const canvas = document.createElement('canvas');
 viewport.appendChild(canvas);
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+// alpha: true is required for transparent PNG/WebM export. setClearAlpha(0)
+// ensures the WebGL framebuffer's "unwritten" pixels are fully transparent
+// rather than opaque black; the shader explicitly writes alpha=1 in normal
+// (non-transparent-bg) mode so non-transparent exports are unaffected.
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearAlpha(0);
 
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -81,6 +97,10 @@ const sharedUniforms = {
   u_normal:       { value: null },
   u_bloom:        { value: null },
   u_bgTex:        { value: null },
+  // 1.0 when transparent background is on. Each shader's outputBlock
+  // gates the bg sample with this and writes alpha = inside * mask
+  // instead of 1.0, so the ornament gets a proper alpha cutout.
+  u_bgTransparent: { value: 0.0 },
 };
 
 let activeMesh = null;
@@ -184,6 +204,40 @@ async function rebuildAndResize() {
   resize();
 }
 
+// Run `fn` with the renderer temporarily resized to (baseW*scale, baseH*scale).
+// Used by every export path to support the resolution picker. Restores to the
+// canvas's natural size after fn completes (resolves or rejects). bg redraws
+// happen automatically via resize() since the gradient/image renderer adapts
+// to canvas aspect; aspect is preserved so they don't squish.
+//
+// For PNG: scale up, render, capture, scale down. Quick.
+// For WebM: scale up, start recording (captureStream locks dimensions),
+//   wait, stop, scale down.
+// For PNG sequence: scale up, render+capture each frame in a loop, scale down.
+async function withResolution(scale, fn) {
+  const baseW = viewport.clientWidth;
+  const baseH = viewport.clientHeight;
+  const targetW = Math.round(baseW * scale);
+  const targetH = Math.round(baseH * scale);
+  const needsResize = scale !== 1;
+  try {
+    if (needsResize) {
+      renderer.setSize(targetW, targetH, false);
+      sharedUniforms.u_resolution.value.set(targetW, targetH);
+      // Bg canvas redraws its aspect-fit gradient/image at the new size.
+      if (bgCtl && bgCtl.redraw) bgCtl.redraw();
+    }
+    return await fn();
+  } finally {
+    if (needsResize) {
+      // resize() reads viewport.clientWidth/Height which haven't changed
+      // (we resized the renderer, not the CSS size), so this restores
+      // exactly to the natural canvas resolution.
+      resize();
+    }
+  }
+}
+
 // =========================================================
 // POINTER + AUTO-DRIFT
 // =========================================================
@@ -229,10 +283,24 @@ const startTime = performance.now();
 let captureStart = null;
 
 function loop() {
+  // PNG sequence export drives uniforms + render manually frame-by-frame.
+  // If the rAF loop runs in between sequence frames, it'll overwrite the
+  // uniforms we just set. Skip the rAF render entirely while sequencing —
+  // the sequence exporter is the sole renderer.
+  if (state.sequencing) {
+    requestAnimationFrame(loop);
+    return;
+  }
+
   const now = performance.now();
   const capturing = captureStart !== null;
+  // "Loop time domain" = anything that needs periodic time + circular
+  // cursor path. Capture is the original case; previewLoop opts in to
+  // the same behaviour during interactive editing so the user can see
+  // their loop close before they hit record.
+  const loopTimeDomain = capturing || state.previewLoop;
 
-  // In capture mode, wrap t modulo loopDuration. This is THE key to
+  // In loop-time-domain, wrap t modulo loopDuration. This is THE key to
   // a seamless loop: by construction, state at t=loopDuration is
   // identical to state at t=0 (every shader noise field driven by
   // loopTime/loopTime2D, the auto-path, and u_time itself all wrap
@@ -240,35 +308,44 @@ function loop() {
   // last (it's always slightly less than loopDuration due to frame
   // pacing), that frame's state is one Δ-step before t=0, so the
   // last→first frame transition on replay is just one normal step.
+  //
+  // tBase: when actively recording, anchor to captureStart so the
+  // exported video starts at t=0. Otherwise anchor to startTime — which
+  // means flipping preview-loop on mid-session enters at the current
+  // wall-clock phase. That's fine; the loop is still seamless because
+  // wrapping is modular.
   const loopDur = state.loopDuration || 4.0;
-  const tRaw = capturing
+  const tBase = capturing
     ? (now - captureStart) / 1000
     : (now - startTime) / 1000;
-  const t = capturing ? (tRaw % loopDur) : tRaw;
+  const t = loopTimeDomain ? (tBase % loopDur) : tBase;
 
-  if (capturing) {
-    // Recording mode: snap the cursor directly to a perfect circle
-    // and compute velocity analytically (the circle's tangent at
-    // this phase). Computing velocity from position deltas would
-    // give garbage on frame 0 (no prior position) and create a
-    // first-frame jump that breaks the loop visually for any effect
-    // that uses u_mouseVel (the metaball tail).
+  if (loopTimeDomain) {
+    // Loop preview / capture: snap the cursor directly to a perfect circle
+    // and compute velocity analytically (the circle's tangent at this
+    // phase). Computing velocity from position deltas would give garbage
+    // on frame 0 (no prior position) and create a first-frame jump that
+    // breaks the loop visually for any effect that uses u_mouseVel (the
+    // metaball tail). For preview-loop this matters less but the analytical
+    // form is consistent and avoids surprising jumps when preview-loop is
+    // toggled on.
+    //
+    // Cursor input is intentionally ignored here — preview-loop is "watch
+    // the loop play" mode. To regain interactive control, toggle it off.
     const auto = autoPathLooping(t, loopDur);
     mouseSmooth.x = auto.x;
     mouseSmooth.y = auto.y;
     mousePrev.x = auto.x;
     mousePrev.y = auto.y;
     // Analytical tangent of the circle at phase = (t/loopDur)*2π:
-    //   x = 0.5 + 0.30 * sin(phase)  → dx/dt = 0.30 * cos(phase) * 2π/loopDur
+    //   x = 0.5 + 0.30 * sin(phase)  → dx/dt =  0.30 * cos(phase) * 2π/loopDur
     //   y = 0.5 + 0.24 * cos(phase)  → dy/dt = -0.24 * sin(phase) * 2π/loopDur
-    // Scale by a small frame-time factor so the velocity magnitude
-    // is in the same ballpark as the interactive mode (where vel is
-    // measured in "UV units per frame").
+    // Scale by a small frame-time factor so the velocity magnitude is in
+    // the same ballpark as the interactive mode.
     const phase = (t / loopDur) * Math.PI * 2;
     const angularRate = (Math.PI * 2) / loopDur;
     const dxdt =  0.30 * Math.cos(phase) * angularRate;
     const dydt = -0.24 * Math.sin(phase) * angularRate;
-    // Per-frame velocity at 60fps:
     const perFrame = 1 / 60;
     sharedUniforms.u_mouseVel.value.set(dxdt * perFrame, -dydt * perFrame);
   } else {
@@ -294,6 +371,12 @@ function loop() {
 
   sharedUniforms.u_time.value = t;
   sharedUniforms.u_mouse.value.set(mouseSmooth.x, 1 - mouseSmooth.y);
+  // u_loopMode = 1 in any loop-time-domain so shader noise (loopTime,
+  // loopTime2D) returns periodic values. Capture mode used to set this
+  // via getRecordingCtx; we now drive it from here so preview-loop
+  // benefits from the same shader periodicity without duplicating logic.
+  sharedUniforms.u_loopMode.value = loopTimeDomain ? 1.0 : 0.0;
+  sharedUniforms.u_loopDuration.value = loopDur;
 
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
@@ -376,19 +459,18 @@ bgCtl = initBackground({ state, uniforms: sharedUniforms, viewport, history });
 normalsCtl = initNormals({ state, rebuild, history });
 motionCtl  = initMotion({ state, history });
 initExport({
-  state, renderer, scene, camera,
+  state, renderer, scene, camera, sharedUniforms, history, withResolution,
   getRecordingCtx: () => ({
     resetIdle: () => { lastUserMoveAt = -Infinity; },
     startCapture: () => {
       captureStart = performance.now();
-      // Switch the shader noise to periodic mode so flow/displacement/
-      // halo all loop seamlessly. Duration matches the user's slider.
-      sharedUniforms.u_loopMode.value     = 1.0;
-      sharedUniforms.u_loopDuration.value = state.loopDuration || 4.0;
+      // Note: u_loopMode / u_loopDuration are now owned by the render
+      // loop, which sets them every frame based on (capturing ||
+      // state.previewLoop). We just have to set captureStart and the
+      // render loop picks it up.
     },
     endCapture: () => {
       captureStart = null;
-      sharedUniforms.u_loopMode.value = 0.0;
     },
   }),
 });
@@ -447,6 +529,16 @@ initShaderExport({
   getSnapshot:     () => shaderCtl.snapshot(),
   getEffectsSnapshot:  () => effectsCtl?.snapshot?.()  ?? {},
   getLightingSnapshot: () => lightingCtl?.snapshot?.() ?? null,
+});
+
+// Project save/load — reuses the same captureState / applyState used
+// for undo/redo, just serialized to a downloadable JSON file. Wired
+// last so all controls exist before captureState is invoked, and so
+// the load path can call history.push() on the freshly applied state.
+initProject({
+  captureState,
+  applyState,
+  history,
 });
 
 // Seed history's initial state now that every control exists.
