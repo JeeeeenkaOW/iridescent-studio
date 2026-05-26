@@ -78,15 +78,11 @@ export const outputBlock = /* glsl */ `
     float grainSeed = mix(u_time, loopSeed, step(0.5, u_loopMode));
     col += (hash(v_uv * u_resolution + grainSeed) - 0.5) * 0.018;
 
-    // Sleek silhouette alpha — hard binary cutoff, halo excluded.
-    // bg-through-refraction is preserved because col INSIDE the
-    // silhouette already contains the refracted bg (see compositeBlock).
-    float coverage = step(0.5, inside * mask);
+    // Smooth high-quality silhouette alpha from the SVG's native AA.
+    // See solid/output for rationale. bg-through-refraction is preserved
+    // because col INSIDE the silhouette already contains the refracted
+    // bg (see compositeBlock); we just gate the final alpha here.
+    float coverage = inside * mask;
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
-
-    // Zero RGB outside the silhouette in transparent mode. See
-    // solid/output for rationale.
-    col *= mix(1.0, coverage, step(0.5, u_bgTransparent));
-
     gl_FragColor = vec4(col, alpha);
 `;
