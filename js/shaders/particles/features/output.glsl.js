@@ -76,9 +76,13 @@ export const outputBlock = /* glsl */ `
     col += (hash(v_uv * u_resolution + grainSeed) - 0.5) * 0.012;
 
     // Sleek silhouette alpha. For particles the silhouette IS the dots
-    // (particleMask), so a sharp threshold on inside*particleMask gives
-    // crisp dot edges with no halo bleed.
-    float coverage = smoothstep(0.45, 0.55, inside * particleMask);
+    // (particleMask), so a hard threshold gives crisp dot edges.
+    float coverage = step(0.5, inside * particleMask);
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
+
+    // Zero RGB outside the dots in transparent mode. See solid/output
+    // for rationale.
+    col *= mix(1.0, coverage, step(0.5, u_bgTransparent));
+
     gl_FragColor = vec4(col, alpha);
 `;

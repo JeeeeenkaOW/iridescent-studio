@@ -78,10 +78,15 @@ export const outputBlock = /* glsl */ `
     float grainSeed = mix(u_time, loopSeed, step(0.5, u_loopMode));
     col += (hash(v_uv * u_resolution + grainSeed) - 0.5) * 0.018;
 
-    // Sleek silhouette alpha — sharp edge, pixel-AA'd, halo excluded.
+    // Sleek silhouette alpha — hard binary cutoff, halo excluded.
     // bg-through-refraction is preserved because col INSIDE the
     // silhouette already contains the refracted bg (see compositeBlock).
-    float coverage = smoothstep(0.45, 0.55, inside * mask);
+    float coverage = step(0.5, inside * mask);
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
+
+    // Zero RGB outside the silhouette in transparent mode. See
+    // solid/output for rationale.
+    col *= mix(1.0, coverage, step(0.5, u_bgTransparent));
+
     gl_FragColor = vec4(col, alpha);
 `;

@@ -54,12 +54,21 @@ export const outputBlock = /* glsl */ `
     float grainSeed = mix(u_time, loopSeed, step(0.5, u_loopMode));
     col += (hash(v_uv * u_resolution + grainSeed) - 0.5) * 0.018;
 
-    // Sleek-edge alpha when transparent. We want a sharp silhouette
-    // (no soft halo bleed), but still pixel-AA'd so edges aren't
-    // staircased. smoothstep over a tight band gives that.
+    // Sleek-edge alpha when transparent. Hard binary cutoff at the
+    // SVG's anti-aliased edge — every pixel is either fully opaque
+    // (inside the ornament) or fully transparent (outside). No partial
+    // alpha at the silhouette edge means no risk of fringing or AA
+    // artifacts in viewers that handle alpha imperfectly.
     // Halo is intentionally NOT included — transparent export = the
     // ornament cut out cleanly, no outer glow bleeding into the alpha.
-    float coverage = smoothstep(0.45, 0.55, inside * mask);
+    float coverage = step(0.5, inside * mask);
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
+
+    // Zero RGB outside the silhouette in transparent mode. Belt-and-
+    // suspenders: even if a viewer ignores the alpha channel, RGB
+    // is already zero so the cutout still reads correctly. Inside
+    // the silhouette coverage=1, so col is unaffected.
+    col *= mix(1.0, coverage, step(0.5, u_bgTransparent));
+
     gl_FragColor = vec4(col, alpha);
 `;
