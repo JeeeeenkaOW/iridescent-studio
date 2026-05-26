@@ -90,7 +90,6 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
   // ---------- Resolution multiplier ----------
   // 1×, 2×, or 4× the viewport's natural size. Applied per-export via
   // withResolution(scale, fn). Default 1× = "what you see is what you get."
-<<<<<<< HEAD
   //
   // We also surface the actual pixel dimensions in the label, so the
   // user knows what they're getting before they hit export. The number
@@ -111,23 +110,17 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
     const h = Math.round(baseH * state.resScale);
     resDimsLabel.textContent = `${w} × ${h} px`;
   }
-=======
->>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
   if (resSeg) {
     const resBtns = resSeg.querySelectorAll('.seg-btn');
     function syncResUI() {
       resBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.res, 10) === state.resScale));
     }
     syncResUI();
-<<<<<<< HEAD
     updateResDims();
-=======
->>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
     resBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         state.resScale = parseInt(btn.dataset.res, 10);
         syncResUI();
-<<<<<<< HEAD
         updateResDims();
       });
     });
@@ -138,25 +131,6 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
   window.addEventListener('resize', () => {
     // Defer one frame so main.js's resize() has updated renderer first.
     requestAnimationFrame(updateResDims);
-=======
-      });
-    });
-  }
-
-  // =========================================================
-  // PNG SNAPSHOT
-  // =========================================================
-  btnPng.addEventListener('click', async () => {
-    await withResolution(state.resScale, async () => {
-      renderer.render(scene, camera);
-      await new Promise(resolve => {
-        renderer.domElement.toBlob((blob) => {
-          if (blob) downloadBlob(blob, `wmf_${Date.now()}.png`);
-          resolve();
-        }, 'image/png');
-      });
-    });
->>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
   });
   // First sizing might happen after init (fonts loading etc.) — do a
   // delayed read so the initial "— × — px" placeholder is replaced.
@@ -176,11 +150,6 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
       });
     });
   });
-
-  // =========================================================
-  // WEBM
-  // =========================================================
-  let webmTransparencyWarned = false;
 
   // =========================================================
   // WEBM
@@ -247,7 +216,6 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
       recordingEl.classList.add('on');
       btnWebm.disabled = true;
       rec.start();
-<<<<<<< HEAD
       // Stop slightly before tBase reaches loopDur so we don't capture
       // a frame that has just wrapped back to t≈0 (which would land
       // inside the file mid-stream and replay as a jump cut, not a
@@ -258,9 +226,6 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
       const safetyMarginMs = 1000 / Math.max(state.fps, 1);
       const recordMs = Math.max(100, state.loopDuration * 1000 - safetyMarginMs);
       await new Promise(r => setTimeout(r, recordMs));
-=======
-      await new Promise(r => setTimeout(r, state.loopDuration * 1000));
->>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
       rec.stop();
       recordingEl.classList.remove('on');
       btnWebm.disabled = false;

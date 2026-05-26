@@ -67,7 +67,6 @@ export const outputBlock = /* glsl */ `
 
     col = acesTonemap(col);
 
-<<<<<<< HEAD
     // Grain seed: loop-safe in loop mode. Periodic + continuous via
     // sin/cos of integer multiples of the loop phase. See solid/output
     // for the full rationale.
@@ -80,11 +79,6 @@ export const outputBlock = /* glsl */ `
     // (particleMask), so a sharp threshold on inside*particleMask gives
     // crisp dot edges with no halo bleed.
     float coverage = smoothstep(0.45, 0.55, inside * particleMask);
-=======
-    col += (hash(v_uv * u_resolution + u_time) - 0.5) * 0.012;
-
-    float coverage = clamp(inside * particleMask + haloMask, 0.0, 1.0);
->>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
     gl_FragColor = vec4(col, alpha);
 `;

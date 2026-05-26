@@ -264,15 +264,12 @@ input[type="color"]::-moz-color-swatch{border:none}
    resolution picker label. Matches range-label typography so it
    reads as part of the same control family. */
 .ctl-label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:4px}
-<<<<<<< HEAD
 /* Resolution label has a small dimension preview on the right. Same
    flex pattern as .range-label so the two read as a family. The
    right-hand value uses tabular-nums so the digits don't jitter as
    the viewport resizes. */
 .resolution-label{display:flex;justify-content:space-between;align-items:center}
 .ctl-label-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
-=======
->>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
 
 /* PNG sequence progress UI. Inline (no modal) — slots between the
    sequence button and the Shader HTML button. */
