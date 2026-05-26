@@ -19,6 +19,7 @@ export function createUniforms(shared) {
     u_normal:       shared.u_normal,
     u_bloom:        shared.u_bloom,
     u_bgTex:        shared.u_bgTex,
+    u_bgTransparent: shared.u_bgTransparent,
 
     u_transparency: { value: defaults.material.transparency },
     u_refraction:   { value: defaults.material.refraction },

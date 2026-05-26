@@ -24,6 +24,7 @@ export function createUniforms(shared) {
     u_normal:       shared.u_normal,
     u_bloom:        shared.u_bloom,
     u_bgTex:        shared.u_bgTex,
+    u_bgTransparent: shared.u_bgTransparent,
 
     // Material — base + reflection
     u_baseColor:    { value: hexToVec3(defaults.material.baseColor) },
