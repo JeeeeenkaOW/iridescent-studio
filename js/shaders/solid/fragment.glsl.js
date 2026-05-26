@@ -56,6 +56,7 @@ const materialUniforms = /* glsl */ `
   uniform sampler2D u_normal;
   uniform sampler2D u_bloom;
   uniform sampler2D u_bgTex;
+  uniform float u_bgTransparent;
 
   // Material — base + reflection
   uniform vec3  u_baseColor;

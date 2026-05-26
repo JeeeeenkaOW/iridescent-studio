@@ -55,6 +55,19 @@ export const compositeBlock = /* glsl */ `
 `;
 
 export const outputBlock = /* glsl */ `
+<<<<<<< HEAD
+    // Same model as solid: bg always sampled, composite runs
+    // unchanged. Inside the silhouette, the user sees their glass
+    // composite — including the refracted bg, which is the whole
+    // point of glass. Outside the silhouette, alpha drops to 0 with
+    // a hard pixel-AA edge — no halo bleed in the cutout.
+=======
+    // Same model as solid: bg always sampled (glass needs it for
+    // refraction anyway), composite runs unchanged. Only alpha
+    // changes for transparent export, so the user gets "glass
+    // refracting their designed bg, with the bg cut out outside
+    // the silhouette."
+>>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     vec3 fg = ornament * mask + halo;
@@ -65,6 +78,24 @@ export const outputBlock = /* glsl */ `
 
     col = acesTonemap(col);
 
+<<<<<<< HEAD
+    // Grain seed: loop-safe in loop mode. Periodic + continuous via
+    // sin/cos of integer multiples of the loop phase. See solid/output
+    // for the full rationale.
+    float loopAngle = u_time / max(u_loopDuration, 0.001) * 6.28318;
+    float loopSeed = sin(loopAngle) * 37.0 + cos(loopAngle * 2.0) * 51.0;
+    float grainSeed = mix(u_time, loopSeed, step(0.5, u_loopMode));
+    col += (hash(v_uv * u_resolution + grainSeed) - 0.5) * 0.018;
+
+    // Sleek silhouette alpha — sharp edge, pixel-AA'd, halo excluded.
+    // bg-through-refraction is preserved because col INSIDE the
+    // silhouette already contains the refracted bg (see compositeBlock).
+    float coverage = smoothstep(0.45, 0.55, inside * mask);
+=======
     col += (hash(v_uv * u_resolution + u_time) - 0.5) * 0.018;
-    gl_FragColor = vec4(col, 1.0);
+
+    float coverage = clamp(inside * mask + haloMask, 0.0, 1.0);
+>>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
+    float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
+    gl_FragColor = vec4(col, alpha);
 `;

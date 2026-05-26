@@ -239,6 +239,12 @@ export function initBackground({ state, uniforms, viewport, history }) {
   function snapshot() {
     return {
       mode: state.bg.mode,
+      // `transparent` is conceptually a bg property, but its toggle UI
+      // and uniform-push live in the Export control (it's a render-mode
+      // switch for export, not a bg design decision). We snapshot it
+      // here so project save/load round-trips it via the bg payload,
+      // then call out to the export control on restore to re-sync UI.
+      transparent: state.bg.transparent,
       solid: state.bg.solid,
       gradient: { ...state.bg.gradient },
     };
@@ -246,6 +252,15 @@ export function initBackground({ state, uniforms, viewport, history }) {
   function restore(snap) {
     if (!snap) return;
     let needsRedraw = false;
+
+    // Transparent is owned in state.bg but the UI/uniform lives in
+    // export. Set state and fire an event the export control listens
+    // for; this keeps the two controls decoupled (export doesn't have
+    // to be initialized for the bg restore to succeed).
+    if (typeof snap.transparent === 'boolean' && snap.transparent !== state.bg.transparent) {
+      state.bg.transparent = snap.transparent;
+      window.dispatchEvent(new CustomEvent('wmf-transparent-changed'));
+    }
 
     if (snap.mode && snap.mode !== state.bg.mode) {
       state.bg.mode = snap.mode;

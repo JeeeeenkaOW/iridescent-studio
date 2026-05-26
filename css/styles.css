@@ -260,6 +260,27 @@ input[type="color"]::-moz-color-swatch{border:none}
    thumb almost touches the PNG/WebM buttons. */
 .export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100) 0}
 
+/* Plain section label, no toggle/value on the right — used for the
+   resolution picker label. Matches range-label typography so it
+   reads as part of the same control family. */
+.ctl-label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:4px}
+<<<<<<< HEAD
+/* Resolution label has a small dimension preview on the right. Same
+   flex pattern as .range-label so the two read as a family. The
+   right-hand value uses tabular-nums so the digits don't jitter as
+   the viewport resizes. */
+.resolution-label{display:flex;justify-content:space-between;align-items:center}
+.ctl-label-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
+=======
+>>>>>>> 97d724636971e0d096fbf81c936c724d0118f57f
+
+/* PNG sequence progress UI. Inline (no modal) — slots between the
+   sequence button and the Shader HTML button. */
+.seq-progress{display:flex;flex-direction:column;gap:4px;margin:2px 0}
+.seq-progress-bar{height:4px;background:var(--s3);border:1px solid var(--b4);overflow:hidden}
+.seq-progress-fill{height:100%;background:var(--ow);width:0%;transition:width .1s linear}
+.seq-progress-label{font-size:10px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
+
 /* ============ SHADER CONTROLS HOST ============ */
 #shader-controls{display:flex;flex-direction:column;gap:10px}
 
