@@ -25,17 +25,23 @@ export const haloBlock = /* glsl */ `
 `;
 
 export const outputBlock = /* glsl */ `
-    // bg is sampled unconditionally — the ornament composites over it
-    // exactly as the user designed. Transparency is a final-alpha
-    // concern: inside the silhouette the user keeps their designed
-    // composite (including any bg-leak the material does); outside,
-    // the alpha drops to 0 so the bg is fully removed from the
-    // exported file. The silhouette edge is a hard pixel-AA cut, not
-    // a soft fade — no halo bleed.
+    // bg is sampled unconditionally; what we DO with it depends on
+    // transparent mode. In opaque mode we composite the ornament over
+    // the user's designed bg (gradient/image/solid). In transparent
+    // mode we want to emit the pure ornament color with alpha = mask
+    // so a downstream compositor can blend the ornament cleanly
+    // against any backdrop — no dark fringe from the studio bg.
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     vec3 fg = ornament * mask + halo;
-    vec3 col = mix(bg, bg * (1.0 - mask) + fg, inside);
+    // Opaque path: ornament composites over bg using the AA mask.
+    vec3 colOpaque = mix(bg, bg * (1.0 - mask) + fg, inside);
+    // Transparent path: the ornament's own color, with no bg
+    // admixture. mask still scales the ornament so the silhouette
+    // is correct, but there's no bg term to darken AA edges. Halo
+    // is intentionally excluded — transparent export = ornament only.
+    vec3 colTransparent = ornament;
+    vec3 col = mix(colOpaque, colTransparent, step(0.5, u_bgTransparent));
 
     float vig = 1.0 - smoothstep(0.35, 1.15, length(v_uv - 0.5));
     col *= vig;

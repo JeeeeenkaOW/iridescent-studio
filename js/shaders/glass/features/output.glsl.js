@@ -55,15 +55,22 @@ export const compositeBlock = /* glsl */ `
 `;
 
 export const outputBlock = /* glsl */ `
-    // Same model as solid: bg always sampled, composite runs
-    // unchanged. Inside the silhouette, the user sees their glass
-    // composite — including the refracted bg, which is the whole
-    // point of glass. Outside the silhouette, alpha drops to 0 with
-    // a hard pixel-AA edge — no halo bleed in the cutout.
+    // bg is sampled unconditionally; what we DO with it depends on
+    // transparent mode. In opaque mode the ornament composites over
+    // the user's designed bg. In transparent mode we emit the
+    // ornament's own color — which for glass already includes the
+    // refracted bg sample baked into "through" (see compositeBlock),
+    // so "bg shows through glass refraction" is preserved while the
+    // surrounding non-ornament bg drops out cleanly.
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     vec3 fg = ornament * mask + halo;
-    vec3 col = mix(bg, bg * (1.0 - mask) + fg, inside);
+    vec3 colOpaque = mix(bg, bg * (1.0 - mask) + fg, inside);
+    // Transparent path: ornament alone, no surrounding bg admixture
+    // to darken AA edges. Refraction stays because it's part of
+    // ornament, not part of the bg term.
+    vec3 colTransparent = ornament;
+    vec3 col = mix(colOpaque, colTransparent, step(0.5, u_bgTransparent));
 
     float vig = 1.0 - smoothstep(0.35, 1.15, length(v_uv - 0.5));
     col *= vig;
@@ -79,9 +86,8 @@ export const outputBlock = /* glsl */ `
     col += (hash(v_uv * u_resolution + grainSeed) - 0.5) * 0.018;
 
     // Smooth high-quality silhouette alpha from the SVG's native AA.
-    // See solid/output for rationale. bg-through-refraction is preserved
-    // because col INSIDE the silhouette already contains the refracted
-    // bg (see compositeBlock); we just gate the final alpha here.
+    // Using mask directly gives a pixel-perfect edge matching the
+    // source SVG. Halo excluded.
     float coverage = inside * mask;
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
     gl_FragColor = vec4(col, alpha);

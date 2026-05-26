@@ -53,14 +53,19 @@ export const compositeBlock = /* glsl */ `
 `;
 
 export const outputBlock = /* glsl */ `
-    // Same model as solid/glass: bg always sampled, composite unchanged.
-    // Only alpha changes for transparent export.
+    // bg sampled unconditionally. Opaque mode: composite particles
+    // over user's designed bg. Transparent mode: emit the ornament
+    // color directly so AA edges of each dot fade ornament→nothing,
+    // not ornament→studio-bg.
     vec3 bg = texture2D(u_bgTex, v_uv).rgb;
 
     // particleMask gates the dots into the bg. halo adds glow
     // around dot edges (independent of particleMask).
     vec3 fg = ornament * particleMask + halo;
-    vec3 col = mix(bg, bg * (1.0 - particleMask) + fg, inside);
+    vec3 colOpaque = mix(bg, bg * (1.0 - particleMask) + fg, inside);
+    // Transparent path: ornament alone, no bg darkening AA at dot edges.
+    vec3 colTransparent = ornament;
+    vec3 col = mix(colOpaque, colTransparent, step(0.5, u_bgTransparent));
 
     float vig = 1.0 - smoothstep(0.35, 1.15, length(v_uv - 0.5));
     col *= vig;
@@ -78,7 +83,7 @@ export const outputBlock = /* glsl */ `
     // Smooth high-quality silhouette alpha. For particles the
     // silhouette IS the dots (particleMask), which has soft Gaussian-
     // like edges already. Using the raw mask product as alpha gives
-    // crisp dots with proper AA. See solid/output for rationale.
+    // crisp dots with proper AA.
     float coverage = inside * particleMask;
     float alpha = mix(1.0, coverage, step(0.5, u_bgTransparent));
     gl_FragColor = vec4(col, alpha);
