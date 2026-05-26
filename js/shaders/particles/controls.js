@@ -10,15 +10,96 @@
 // dust motes shimmering in the air. Rise + Twinkle = embers.
 // Scatter alone = explosion. Default is mild Drift only.
 //
+// SHAPES (single-select):
+//   0 = circle   — SDF
+//   1 = diamond  — SDF
+//   2 = custom   — silhouette of user-uploaded SVG, rasterized into
+//                  u_particleSvg and sampled in the fragment shader.
+//                  Clicking the "Custom" button opens a file picker;
+//                  clicking it again (when an SVG is already loaded)
+//                  re-opens the picker so the user can swap shapes.
+//
+import * as THREE from 'three';
 import { defaults } from './defaults.js';
 import { hexToVec3 } from '../../util/color.js';
 
 const SHAPES = [
   { id: 0, label: 'Circle'  },
-  { id: 1, label: 'Square'  },
-  { id: 2, label: 'Diamond' },
-  { id: 3, label: 'Ring'    },
+  { id: 1, label: 'Diamond' },
+  { id: 2, label: 'Custom'  },
 ];
+
+// Rasterize an SVG document (as text) to a square Canvas, then return
+// a Three.js CanvasTexture for use as a sampler. We render the SVG in
+// pure white onto a transparent background so the GLSL alpha channel
+// IS the silhouette — colors/fills in the source SVG are flattened.
+//
+// Size is chosen high enough that crisp edges survive any practical
+// particle size, but small enough to stay cheap (a single 256² mip).
+const PARTICLE_SVG_TEX_SIZE = 256;
+
+async function rasterizeSvgToTexture(svgText) {
+  // Force a white-only fill regardless of the source SVG's colors —
+  // we want a silhouette mask, not a colored sprite. We inject a
+  // <style> at the top that overrides fill/stroke on all elements.
+  // The CSS specificity is fine because we add !important.
+  const silhouetteCSS =
+    `<style>*{fill:#fff !important;stroke:#fff !important;` +
+    `fill-opacity:1 !important;stroke-opacity:1 !important;}</style>`;
+
+  // Inject the style inside the first <svg ...> opening tag so it
+  // applies to the whole document.
+  let prepared = svgText.replace(
+    /<svg\b[^>]*>/i,
+    (match) => match + silhouetteCSS
+  );
+  // Fallback if no <svg> tag was found (shouldn't happen with valid
+  // SVG, but be defensive).
+  if (prepared === svgText) prepared = svgText;
+
+  const blob = new Blob([prepared], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+
+  // Load via <img> so we can paint to a canvas. SVG aspect ratio is
+  // preserved by scaling-to-fit inside the square canvas.
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error('Failed to load SVG as image'));
+    img.src = url;
+  });
+
+  const size = PARTICLE_SVG_TEX_SIZE;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  // Fit the SVG into the square, preserving aspect ratio, centred.
+  // Use a tiny inset so the silhouette doesn't touch the edges.
+  const inset = size * 0.04;
+  const avail = size - inset * 2;
+  const iw = img.naturalWidth  || size;
+  const ih = img.naturalHeight || size;
+  const scale = Math.min(avail / iw, avail / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  const dx = (size - dw) / 2;
+  const dy = (size - dh) / 2;
+  ctx.drawImage(img, dx, dy, dw, dh);
+
+  URL.revokeObjectURL(url);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.wrapS     = THREE.ClampToEdgeWrapping;
+  tex.wrapT     = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
 
 export function initParticlesControls({ host, uniforms, history }) {
   const d = defaults;
@@ -38,12 +119,13 @@ export function initParticlesControls({ host, uniforms, history }) {
       </div>
 
       <div class="range-row">
-        <div class="range-label"><span>Shape</span></div>
-        <div class="segmented cols-4">
+        <div class="range-label"><span>Shape</span><span class="range-value" data-pc-custom-name></span></div>
+        <div class="segmented cols-3">
           ${SHAPES.map(s => `
             <button class="seg-btn ${s.id === d.material.shape ? 'active' : ''}" data-pc-shape="${s.id}">${s.label}</button>
           `).join('')}
         </div>
+        <input type="file" data-pc-svg-input accept=".svg,image/svg+xml" style="display:none">
       </div>
 
       <div class="range-row">
@@ -110,16 +192,92 @@ export function initParticlesControls({ host, uniforms, history }) {
   const hue     = host.querySelector('[data-pc-hue]');
   const hueV    = host.querySelector('[data-pc-hue-val]');
   const shapeBtns = host.querySelectorAll('[data-pc-shape]');
+  const svgInput   = host.querySelector('[data-pc-svg-input]');
+  const customName = host.querySelector('[data-pc-custom-name]');
 
   let shape = d.material.shape;
+  // Track the loaded SVG so we can restore session state across
+  // history snapshots and preset switches.
+  let customSvgText = null;
+  let customSvgName = null;
+
+  // Dispose the previous CanvasTexture before installing a new one,
+  // to avoid GPU leaks when the user swaps SVGs repeatedly.
+  function setCustomTexture(tex) {
+    const prev = uniforms.u_particleSvg.value;
+    if (prev && typeof prev.dispose === 'function') {
+      prev.dispose();
+    }
+    uniforms.u_particleSvg.value = tex;
+    uniforms.u_hasParticleSvg.value = 1.0;
+  }
+
+  function refreshCustomNameLabel() {
+    if (shape === 2 && customSvgName) {
+      customName.textContent = customSvgName;
+    } else {
+      customName.textContent = '';
+    }
+  }
+
+  async function loadSvgFile(file) {
+    if (!file) return false;
+    const lc = file.name.toLowerCase();
+    const isSvg = lc.endsWith('.svg') || file.type === 'image/svg+xml';
+    if (!isSvg) {
+      alert('Please choose an SVG file for the particle shape.');
+      return false;
+    }
+    try {
+      const text = await file.text();
+      const tex  = await rasterizeSvgToTexture(text);
+      setCustomTexture(tex);
+      customSvgText = text;
+      customSvgName = file.name;
+      return true;
+    } catch (err) {
+      console.error('Failed to load custom particle SVG:', err);
+      alert('Could not parse that SVG. Try another file.');
+      return false;
+    }
+  }
 
   shapeBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      shape = parseInt(btn.dataset.pcShape, 10);
+    btn.addEventListener('click', async () => {
+      const newShape = parseInt(btn.dataset.pcShape, 10);
+
+      // Custom button: always open the file picker on click. If the
+      // user cancels, only switch to Custom if a previous SVG exists
+      // (so a cancel never leaves the preview in an empty state).
+      if (newShape === 2) {
+        svgInput.value = ''; // allow re-picking same filename
+        svgInput.click();
+        // The file input's change handler does the actual switching
+        // and history push, so we return here to avoid double-pushes.
+        return;
+      }
+
+      shape = newShape;
       shapeBtns.forEach(b => b.classList.toggle('active', b === btn));
       uniforms.u_particleShape.value = shape;
+      refreshCustomNameLabel();
       history?.push();
     });
+  });
+
+  svgInput.addEventListener('change', async () => {
+    const file = svgInput.files && svgInput.files[0];
+    if (!file) return;
+    const ok = await loadSvgFile(file);
+    if (!ok) return;
+    // Switch to Custom shape now that an SVG is loaded.
+    shape = 2;
+    shapeBtns.forEach(b =>
+      b.classList.toggle('active', parseInt(b.dataset.pcShape, 10) === shape)
+    );
+    uniforms.u_particleShape.value = shape;
+    refreshCustomNameLabel();
+    history?.push();
   });
 
   base.addEventListener('input', (e) => {
@@ -149,6 +307,18 @@ export function initParticlesControls({ host, uniforms, history }) {
 
   return {
     snapshot() {
+      // The custom-SVG dataURL is captured synchronously from the
+      // currently installed CanvasTexture (if any). We keep BOTH the
+      // SVG text (for re-rasterization on history restore) and the
+      // raster PNG dataURL (for the Shader HTML exporter, which can't
+      // run async work in its baking step).
+      let customSvgDataURL = null;
+      const tex = uniforms.u_particleSvg?.value;
+      if (uniforms.u_hasParticleSvg?.value > 0.5 &&
+          tex && tex.image instanceof HTMLCanvasElement) {
+        try { customSvgDataURL = tex.image.toDataURL('image/png'); }
+        catch (e) { customSvgDataURL = null; }
+      }
       return {
         material: {
           baseColor:     base.value,
@@ -157,6 +327,11 @@ export function initParticlesControls({ host, uniforms, history }) {
           jitter:        parseInt(jit.value, 10) / 100,
           softness:      parseInt(sof.value, 10) / 100,
           shape,
+          // Custom-SVG state — text is enough to re-rasterize on
+          // restore; dataURL is used by the Shader HTML exporter.
+          customSvgText: customSvgText,
+          customSvgName: customSvgName,
+          customSvgDataURL,
           motionDrift:   parseInt(mdr.value, 10) / 100,
           motionRise:    parseInt(mri.value, 10) / 100,
           motionTwinkle: parseInt(mtw.value, 10) / 100,
@@ -165,7 +340,7 @@ export function initParticlesControls({ host, uniforms, history }) {
         },
       };
     },
-    restore(snap) {
+    async restore(snap) {
       if (!snap?.material) return;
       const m = snap.material;
       if (typeof m.baseColor === 'string') {
@@ -189,11 +364,27 @@ export function initParticlesControls({ host, uniforms, history }) {
       restoreSlider(mtw, mtwV, 'u_motionTwinkle',    m.motionTwinkle, 100,  '%');
       restoreSlider(msc, mscV, 'u_motionScatter',    m.motionScatter, 100,  '%');
       restoreSlider(hue, hueV, 'u_particleHueShift', m.hueShift,      100,  '%');
+
+      // Restore custom-SVG state if present. Re-rasterize from the
+      // stored SVG text so the texture re-creates exactly. We do this
+      // BEFORE setting shape so the no-SVG fallback never flickers.
+      if (typeof m.customSvgText === 'string' && m.customSvgText.length > 0) {
+        try {
+          const tex = await rasterizeSvgToTexture(m.customSvgText);
+          setCustomTexture(tex);
+          customSvgText = m.customSvgText;
+          customSvgName = m.customSvgName || 'custom.svg';
+        } catch (err) {
+          console.error('Failed to restore custom particle SVG:', err);
+        }
+      }
+
       if (typeof m.shape === 'number') {
         shape = m.shape;
         shapeBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.pcShape, 10) === shape));
         uniforms.u_particleShape.value = shape;
       }
+      refreshCustomNameLabel();
     },
   };
 }

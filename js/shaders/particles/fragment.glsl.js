@@ -51,6 +51,12 @@ const materialUniforms = /* glsl */ `
   uniform float u_particleJitter;
   uniform float u_particleSoftness;
   uniform float u_particleShape;
+  // Custom-SVG shape support. Particles material rasterizes the user's
+  // uploaded SVG to a texture; u_hasParticleSvg flags whether one is
+  // loaded (>0.5 = yes), so the shader can cleanly fall back to circle
+  // when shape=Custom but no SVG has been uploaded yet.
+  uniform sampler2D u_particleSvg;
+  uniform float u_hasParticleSvg;
   // Four independent motion modes — can be combined.
   uniform float u_motionDrift;
   uniform float u_motionRise;

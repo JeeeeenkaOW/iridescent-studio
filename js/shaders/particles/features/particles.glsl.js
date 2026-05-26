@@ -19,10 +19,11 @@
 // from 0 (off) to 1 (full).
 //
 // SHAPES (single-select via u_particleShape):
-//   0 = circle   — soft round dots (default)
-//   1 = square   — sharp/soft squares
-//   2 = diamond  — rotated squares
-//   3 = ring     — hollow circle
+//   0 = circle  — soft round dots (default), SDF-based
+//   1 = diamond — rotated squares, SDF-based
+//   2 = custom  — user-uploaded SVG silhouette sampled from u_particleSvg.
+//                 If no SVG has been uploaded (u_hasParticleSvg == 0),
+//                 falls back to circle so the preview never breaks.
 //
 // Variables this block declares (consumed by the rest of the shader):
 //   particleMask, particleAlbedo, particleN, particleBloom, particleCenter
@@ -102,30 +103,53 @@ export const particlesBlock = /* glsl */ `
 
         // SHAPE — switch dot-coverage function by u_particleShape.
         //   0 circle:  cov = smoothstep(radius, radius-soft, length)
-        //   1 square:  cov = smoothstep over max(|x|, |y|)
-        //   2 diamond: cov = smoothstep over |x|+|y|
-        //   3 ring:    cov = (1 - smoothstep) at outer, ALSO subtract inner ring
+        //   1 diamond: cov = smoothstep over |x|+|y|  (Manhattan)
+        //   2 custom:  sample u_particleSvg alpha at local coords.
+        //              Falls back to circle if no SVG uploaded yet.
         float cov = 0.0;
         if (u_particleShape < 0.5) {
-          // Circle
+          // Circle — Euclidean distance
           cov = 1.0 - smoothstep(radius - soft, radius, dist);
         } else if (u_particleShape < 1.5) {
-          // Square — Chebyshev distance
-          vec2 absd = abs(d) / cellSize;
-          float chebyshev = max(absd.x, absd.y);
-          cov = 1.0 - smoothstep(radius - soft, radius, chebyshev);
-        } else if (u_particleShape < 2.5) {
           // Diamond — Manhattan distance
           vec2 absd = abs(d) / cellSize;
           float manhattan = absd.x + absd.y;
           cov = 1.0 - smoothstep(radius - soft, radius, manhattan);
         } else {
-          // Ring — outer minus inner
-          float outerR = radius;
-          float innerR = radius * 0.55;
-          float outer = 1.0 - smoothstep(outerR - soft, outerR, dist);
-          float inner = 1.0 - smoothstep(innerR - soft, innerR, dist);
-          cov = outer - inner;
+          // Custom SVG silhouette. We sample the user's rasterized
+          // SVG texture at a local UV centred on the particle. The
+          // SVG occupies a square of side (2 * radius) in cell units
+          // (so the radius slider scales it like the other shapes).
+          //
+          // Soft falloff is achieved by taking the texture's alpha
+          // and feathering it with smoothstep — this gives the same
+          // soft-edged behaviour as the SDF shapes at the boundary.
+          //
+          // No-SVG fallback: if u_hasParticleSvg == 0, render as a
+          // circle so users see particles immediately on first load,
+          // even before they pick their custom SVG.
+          if (u_hasParticleSvg > 0.5) {
+            // Local UV in [0,1] across the particle's bounding box.
+            // d is in UV space, aspect-corrected. Convert to cell-
+            // relative units, then to [0,1] across a (2*radius) box.
+            vec2 localUV = (d / cellSize) / (2.0 * radius) + 0.5;
+            // Outside the bounding box → no coverage.
+            if (localUV.x >= 0.0 && localUV.x <= 1.0 &&
+                localUV.y >= 0.0 && localUV.y <= 1.0) {
+              // Flip Y because texture origin differs from UV origin
+              // for our rasterized canvas (CanvasTexture is top-left).
+              localUV.y = 1.0 - localUV.y;
+              float a = texture2D(u_particleSvg, localUV).a;
+              // Soft edge: feather the alpha. soft is in radius units
+              // (~[0,0.5]); convert to an alpha threshold range.
+              float lo = clamp(0.5 - soft * 0.6, 0.0, 0.95);
+              float hi = clamp(0.5 + soft * 0.6, 0.05, 1.0);
+              cov = smoothstep(lo, hi, a);
+            }
+          } else {
+            // Fallback to circle.
+            cov = 1.0 - smoothstep(radius - soft, radius, dist);
+          }
         }
 
         // Sample albedo at the particle's centre.

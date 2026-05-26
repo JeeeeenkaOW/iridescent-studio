@@ -6,6 +6,16 @@ import { defaults } from './defaults.js';
 import { hexToVec3 } from '../../util/color.js';
 import { listEffects } from '../../effects/index.js';
 
+// 1×1 transparent placeholder so the sampler is always valid in GLSL,
+// even before the user uploads a custom-shape SVG. Three.js requires
+// sampler2D uniforms to point at a real Texture.
+function makeBlankTexture() {
+  const data = new Uint8Array([0, 0, 0, 0]);
+  const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export function createUniforms(shared) {
   const u = {
     // Shared
@@ -29,6 +39,13 @@ export function createUniforms(shared) {
     u_particleJitter:   { value: defaults.material.jitter },
     u_particleSoftness: { value: defaults.material.softness },
     u_particleShape:    { value: defaults.material.shape },
+    // Custom-SVG sampler. Starts as a 1×1 transparent texture; the
+    // controls module replaces this with a real CanvasTexture once the
+    // user uploads an SVG. u_hasParticleSvg toggles between fallback
+    // (circle) and actual sampling. Texture is owned/disposed by the
+    // controls module.
+    u_particleSvg:      { value: makeBlankTexture() },
+    u_hasParticleSvg:   { value: 0.0 },
     // Motion modes (independent strengths)
     u_motionDrift:      { value: defaults.material.motionDrift },
     u_motionRise:       { value: defaults.material.motionRise },

@@ -12,7 +12,7 @@
 //   - scatter — particles push radially outward from centre
 //
 // SHAPES (single-select):
-//   0 = circle, 1 = square, 2 = diamond, 3 = ring
+//   0 = circle, 1 = diamond, 2 = custom SVG (silhouette)
 //
 export const defaults = {
   material: {

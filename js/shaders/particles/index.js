@@ -3,7 +3,7 @@
 // =========================================================
 // Renders the source SVG as a field of discrete dots. Four
 // independent motion modes (Drift / Rise / Twinkle / Scatter) can
-// be combined. Four shapes (Circle / Square / Diamond / Ring).
+// be combined. Three shapes (Circle / Diamond / Custom SVG).
 // Same lighting + effects integration as Solid/Glass.
 //
 import { vertexShader }       from './vertex.glsl.js';
@@ -17,6 +17,23 @@ function serializeForExport(snapshot) {
   const lit = defaults.lighting;
   const amb = defaults.ambient;
 
+  // Custom-shape export: when shape=Custom AND the user has uploaded
+  // an SVG, we bake the rasterized canvas as a PNG data URL. The
+  // exported HTML loads it as u_particleSvg and flips u_hasParticleSvg
+  // to 1.0. If no SVG was uploaded (or shape != Custom), we emit a
+  // tiny transparent placeholder and leave the flag at 0 so the
+  // fallback (circle) renders in the export.
+  const hasCustomSvg =
+    mat.shape === 2 &&
+    typeof mat.customSvgDataURL === 'string' &&
+    mat.customSvgDataURL.length > 0;
+  const particleSvgURL = hasCustomSvg
+    ? mat.customSvgDataURL
+    // 1×1 transparent PNG — a tiny valid placeholder so the sampler
+    // is always bindable.
+    : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
+  const hasParticleSvg = hasCustomSvg ? 1.0 : 0.0;
+
   const constants = `
 const BASE_COLOR_HEX     = ${JSON.stringify(mat.baseColor ?? defaults.material.baseColor)};
 const PARTICLE_DENSITY   = ${mat.density   ?? defaults.material.density};
@@ -24,6 +41,8 @@ const PARTICLE_SIZE      = ${mat.size      ?? defaults.material.size};
 const PARTICLE_JITTER    = ${mat.jitter    ?? defaults.material.jitter};
 const PARTICLE_SOFTNESS  = ${mat.softness  ?? defaults.material.softness};
 const PARTICLE_SHAPE     = ${mat.shape     ?? defaults.material.shape};
+const PARTICLE_SVG_URL   = ${JSON.stringify(particleSvgURL)};
+const HAS_PARTICLE_SVG   = ${hasParticleSvg};
 const MOTION_DRIFT       = ${mat.motionDrift   ?? defaults.material.motionDrift};
 const MOTION_RISE        = ${mat.motionRise    ?? defaults.material.motionRise};
 const MOTION_TWINKLE     = ${mat.motionTwinkle ?? defaults.material.motionTwinkle};
@@ -48,6 +67,8 @@ const HALO_BASE_INT      = 0.32;
     u_particleJitter:    { value: PARTICLE_JITTER },
     u_particleSoftness:  { value: PARTICLE_SOFTNESS },
     u_particleShape:    { value: PARTICLE_SHAPE },
+    u_particleSvg:       { value: (await loadTexture(PARTICLE_SVG_URL)) },
+    u_hasParticleSvg:    { value: HAS_PARTICLE_SVG },
     u_motionDrift:       { value: MOTION_DRIFT },
     u_motionRise:        { value: MOTION_RISE },
     u_motionTwinkle:     { value: MOTION_TWINKLE },

@@ -429,8 +429,11 @@ async function applyState(snap) {
     shaderCtl.restoreShaderId(snap.shaderId);
   }
   // 2) Restore material's own controls against the (possibly new)
-  //    material's snapshot.
-  shaderCtl.getActiveControls()?.restore?.(snap.material);
+  //    material's snapshot. Awaited because the Particles material's
+  //    restore is async (re-rasterizes the custom-shape SVG into a
+  //    CanvasTexture). Other materials return undefined/sync; await
+  //    on a non-Promise is harmless.
+  await shaderCtl.getActiveControls()?.restore?.(snap.material);
   // 3) Restore Lighting (its enabled state + slider values; if the
   //    override toggle was on, the sliders write into the new
   //    material's uniforms).
