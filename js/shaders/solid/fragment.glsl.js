@@ -71,6 +71,7 @@ const materialUniforms = /* glsl */ `
   uniform float u_fresnel;
   uniform float u_fresnelPower;
   uniform float u_blobEnabled;      // 0 or 1
+  uniform float u_blobRadius;       // outer radius of cursor blob
 
   // Lighting (preset; the top-level Lighting controls override these)
   uniform float u_diffuse;

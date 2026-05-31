@@ -39,6 +39,7 @@ export function createUniforms(shared) {
     u_fresnel:      { value: defaults.material.fresnel },
     u_fresnelPower: { value: defaults.material.fresnelPower },
     u_blobEnabled:  { value: defaults.material.blobEnabled ? 1.0 : 0.0 },
+    u_blobRadius:   { value: defaults.material.blobRadius },
 
     // Lighting (preset; the top-level Lighting controls override these)
     u_diffuse:        { value: defaults.lighting.diffuse },

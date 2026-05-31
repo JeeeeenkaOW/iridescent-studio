@@ -23,6 +23,7 @@ const SSS_STRENGTH      = ${mat.sssStrength ?? defaults.material.sssStrength};
 const FRESNEL           = ${mat.fresnel ?? defaults.material.fresnel};
 const FRESNEL_POWER     = ${mat.fresnelPower ?? defaults.material.fresnelPower};
 const BLOB_ENABLED      = ${mat.blobEnabled !== false ? 1.0 : 0.0};
+const BLOB_RADIUS       = ${mat.blobRadius ?? defaults.material.blobRadius};
 
 const DIFFUSE_PRESET    = ${lit.diffuse};
 const SPECULAR_PRESET   = ${lit.specular};
@@ -47,6 +48,7 @@ const HALO_BASE_INT     = 0.32;
     u_fresnel:           { value: FRESNEL },
     u_fresnelPower:      { value: FRESNEL_POWER },
     u_blobEnabled:       { value: BLOB_ENABLED },
+    u_blobRadius:        { value: BLOB_RADIUS },
     u_diffuse:           { value: DIFFUSE_PRESET },
     u_specular:          { value: SPECULAR_PRESET },
     u_shininess:         { value: SHININESS_PRESET },

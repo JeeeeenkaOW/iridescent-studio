@@ -84,17 +84,83 @@ export async function rasterize(svgOrPng) {
 }
 
 // =========================================================
-// NORMALIZE — composite over black, auto-invert if mean luma > 0.5
+// NORMALIZE — produce a "white-on-black" silhouette texture
 // =========================================================
-// Ensures the ornament reads "white-on-black" regardless of source.
-// If the user uploads a black-on-white logo, we invert it so the shader
-// (which treats luminance as the silhouette mask) still works correctly.
+// The shader uses `max(albedo.r, albedo.g, albedo.b)` as its silhouette
+// mask, so the texture this function returns must encode "inside the
+// ornament" as bright pixels and "outside" as black.
+//
+// There are two source-shape cases we have to handle:
+//
+//   (A) Source has TRANSPARENCY (most SVGs, transparent PNGs). The
+//       alpha channel already tells us unambiguously which pixels are
+//       inside the ornament. We rewrite the colour channels to a
+//       grayscale copy of alpha and ignore the original luminance.
+//       This is correct regardless of the original fill colour: a
+//       white circle, a black circle, and a magenta circle on
+//       transparent backgrounds all produce the same silhouette.
+//
+//       (Why throw away the colour? The shader doesn't use albedo
+//       colour anyway — `u_baseColor` drives the surface — so the
+//       texture's job is purely to carry the silhouette mask plus the
+//       edge anti-aliasing in alpha. Luminance == alpha gives us that
+//       with no loss.)
+//
+//   (B) Source is FULLY OPAQUE (e.g. a PNG logo with a baked-in white
+//       background). Alpha is uniformly 1 so it can't tell us where
+//       the ornament is — we have to read luminance. We composite over
+//       black, measure mean luminance, and invert if it's > 0.5. This
+//       is the original heuristic and handles the "black-drawing-on-
+//       white-bg" case the function was first written for.
+//
+// Previous behaviour combined these into one path that always did the
+// luminance-flip. That mis-handled case (A) any time a bright shape
+// covered more than ~50% of the padded canvas — e.g. a white circle
+// on a transparent SVG canvas got falsely inverted into a black
+// circle on white, and the shader read the surrounding rectangle as
+// the silhouette. That's the bug this branch fixes.
 //
 export function normalize(sourceCanvas) {
   const w = sourceCanvas.width, h = sourceCanvas.height;
+  const ctxSrc = sourceCanvas.getContext('2d');
+  const srcData = ctxSrc.getImageData(0, 0, w, h);
+  const sd = srcData.data;
+  const N = w * h;
+
+  // Detect transparency. Any pixel with alpha < 255 means the source
+  // is using its alpha channel as a silhouette mask. Bail early once
+  // we see one — most files either have lots of transparent pixels
+  // (SVG, PNG logos) or none (opaque screenshots), so the loop is
+  // typically very short or runs to completion.
+  let hasTransparency = false;
+  for (let i = 0; i < N; i++) {
+    if (sd[i * 4 + 3] < 255) { hasTransparency = true; break; }
+  }
+
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
+
+  if (hasTransparency) {
+    // CASE (A): write alpha into RGB so luminance == coverage. Alpha
+    // is preserved in the output so the shader's mask stays anti-
+    // aliased at silhouette edges (the rasterizer already produced
+    // smooth alpha; we don't want to throw that away by hard-thresholding).
+    const out = ctx.createImageData(w, h);
+    const od = out.data;
+    for (let i = 0; i < N; i++) {
+      const a = sd[i * 4 + 3];
+      od[i * 4]     = a;
+      od[i * 4 + 1] = a;
+      od[i * 4 + 2] = a;
+      od[i * 4 + 3] = a;
+    }
+    ctx.putImageData(out, 0, 0);
+    return c;
+  }
+
+  // CASE (B): fully opaque source — fall through to the original
+  // composite-over-black + invert-if-bright heuristic.
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
   ctx.drawImage(sourceCanvas, 0, 0);
@@ -102,7 +168,6 @@ export function normalize(sourceCanvas) {
   const imgData = ctx.getImageData(0, 0, w, h);
   const data = imgData.data;
   let sum = 0;
-  const N = w * h;
   for (let i = 0; i < N; i++) {
     const r = data[i*4]/255, g = data[i*4+1]/255, b = data[i*4+2]/255;
     sum += 0.299*r + 0.587*g + 0.114*b;

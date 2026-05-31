@@ -73,6 +73,11 @@ export function initSolidControls({ host, uniforms, history }) {
         <label>Cursor blob</label>
         <div class="toggle ${d.material.blobEnabled ? 'on' : ''}" data-sc-blob></div>
       </div>
+
+      <div class="range-row">
+        <div class="range-label"><span>Cursor blob size</span><span class="range-value" data-sc-blobr-val>${Math.round(d.material.blobRadius * 100)}%</span></div>
+        <input type="range" data-sc-blobr min="5" max="60" step="1" value="${Math.round(d.material.blobRadius * 100)}">
+      </div>
   `;
 
   const base    = host.querySelector('[data-sc-base]');
@@ -90,6 +95,8 @@ export function initSolidControls({ host, uniforms, history }) {
   const fres    = host.querySelector('[data-sc-fres]');
   const fresV   = host.querySelector('[data-sc-fres-val]');
   const blob    = host.querySelector('[data-sc-blob]');
+  const blobR   = host.querySelector('[data-sc-blobr]');
+  const blobRV  = host.querySelector('[data-sc-blobr-val]');
 
   let blobEnabled = !!d.material.blobEnabled;
 
@@ -159,6 +166,20 @@ export function initSolidControls({ host, uniforms, history }) {
     history?.push();
   });
 
+  // Cursor blob radius — slider value [5..60] maps directly to
+  // u_blobRadius [0.05..0.60] in aspect-corrected UV space. The
+  // metaball shader scales the inner edge proportionally so the soft
+  // falloff looks consistent across the range. Slider stays active
+  // even when the blob toggle is off — adjusting it pre-sets the size
+  // so re-enabling the blob brings back exactly the size the user
+  // last dialed in. Push on `change` to keep drag = one undo step.
+  blobR.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    blobRV.textContent = v + '%';
+    uniforms.u_blobRadius.value = v / 100;
+  });
+  blobR.addEventListener('change', () => history?.push());
+
   return {
     snapshot() {
       const mixPct = parseInt(mix.value, 10);
@@ -178,6 +199,7 @@ export function initSolidControls({ host, uniforms, history }) {
           // fresnelPower is no longer a slider — locked to defaults.
           fresnelPower:     defaults.material.fresnelPower,
           blobEnabled,
+          blobRadius:       parseInt(blobR.value, 10) / 100,
         },
       };
     },
@@ -227,6 +249,12 @@ export function initSolidControls({ host, uniforms, history }) {
         blobEnabled = m.blobEnabled;
         blob.classList.toggle('on', blobEnabled);
         uniforms.u_blobEnabled.value = blobEnabled ? 1.0 : 0.0;
+      }
+      if (typeof m.blobRadius === 'number') {
+        const pct = Math.round(m.blobRadius * 100);
+        blobR.value = String(pct);
+        blobRV.textContent = pct + '%';
+        uniforms.u_blobRadius.value = m.blobRadius;
       }
     },
   };

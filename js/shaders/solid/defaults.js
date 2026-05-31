@@ -26,6 +26,9 @@ export const defaults = {
     fresnel:      0.0,         // 0 = no rim
     fresnelPower: 4.0,
     blobEnabled:  true,        // cursor blob ON by default
+    blobRadius:   0.22,        // outer radius of the cursor blob; inner
+                               // edge scales proportionally so the
+                               // soft-edge looks consistent at any size
   },
 
   // Mercury preset lighting (broad warm-silver highlight).
