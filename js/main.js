@@ -23,6 +23,7 @@ import { initUpload } from './controls/upload.js';
 import { initBackground } from './controls/background.js';
 import { initNormals } from './controls/normals.js';
 import { initMotion } from './controls/motion.js';
+import { initFreeze } from './controls/freeze.js';
 import { initExport } from './controls/export.js';
 import { initShader } from './controls/shader.js';
 import { initEffects } from './controls/effects.js';
@@ -57,6 +58,14 @@ const state = {
   // their loop closes before recording. Forces auto-drift on, ignores
   // cursor input. See motion control + render loop.
   previewLoop: false,
+  // Freeze pose: lock u_mouse + u_time to a snapshot so the user can
+  // dial in the perfect light/iridescence angle and PNG-export it.
+  // Render loop short-circuits the cursor/drift/time logic when on.
+  // Click-to-place on the viewport updates freezePos in real time.
+  // See controls/freeze.js.
+  freeze: false,
+  freezePos: { x: 0.5, y: 0.5 },
+  freezeTime: 0,
   loopDuration: 4.0,
   // Export controls (apply to WebM and PNG sequence; PNG snapshot
   // uses resScale only).
@@ -292,6 +301,29 @@ function loop() {
     return;
   }
 
+  // Freeze pose short-circuit. When the user has locked the pose for
+  // export, bypass cursor/drift/time logic entirely and pin uniforms
+  // to the snapshot. Click-to-place updates state.freezePos in real
+  // time so the user can still move the highlight around — they just
+  // can't be surprised by drift mid-export. Note: this overrides
+  // capturing/previewLoop on purpose. If a user starts a WebM while
+  // frozen, they'll record a still — which is a clear, predictable
+  // outcome (turn freeze off first if you want motion).
+  if (state.freeze) {
+    mouseSmooth.x = state.freezePos.x;
+    mouseSmooth.y = state.freezePos.y;
+    mousePrev.x   = state.freezePos.x;
+    mousePrev.y   = state.freezePos.y;
+    sharedUniforms.u_mouse.value.set(state.freezePos.x, 1 - state.freezePos.y);
+    sharedUniforms.u_mouseVel.value.set(0, 0);
+    sharedUniforms.u_time.value = state.freezeTime;
+    sharedUniforms.u_loopMode.value = 0.0;
+    sharedUniforms.u_loopDuration.value = state.loopDuration || 4.0;
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+    return;
+  }
+
   const now = performance.now();
   const capturing = captureStart !== null;
   // "Loop time domain" = anything that needs periodic time + circular
@@ -403,6 +435,7 @@ const statusEl = document.getElementById('viewport-status');
 let bgCtl       = null;
 let normalsCtl  = null;
 let motionCtl   = null;
+let freezeCtl   = null;
 let shaderCtl   = null;
 let effectsCtl  = null;
 let lightingCtl = null;
@@ -416,6 +449,7 @@ function captureState() {
     bg:       bgCtl?.snapshot?.() ?? null,
     normals:  normalsCtl?.snapshot?.() ?? null,
     motion:   motionCtl?.snapshot?.() ?? null,
+    freeze:   freezeCtl?.snapshot?.() ?? null,
   };
 }
 
@@ -446,6 +480,8 @@ async function applyState(snap) {
   await normalsCtl?.restore?.(snap.normals);
   // 7) Motion toggle.
   motionCtl?.restore?.(snap.motion);
+  // 8) Freeze pose.
+  freezeCtl?.restore?.(snap.freeze);
 }
 
 const history = initHistory({
@@ -461,6 +497,20 @@ bgCtl = initBackground({ state, uniforms: sharedUniforms, viewport, history });
 
 normalsCtl = initNormals({ state, rebuild, history });
 motionCtl  = initMotion({ state, history });
+freezeCtl  = initFreeze({
+  state,
+  viewport,
+  // On enable, freeze captures the CURRENT mouseSmooth (the on-screen
+  // cursor position the loop is actually using, after smoothing /
+  // drift / etc) plus the current u_time. This makes "freeze now"
+  // preserve whatever pose the user was already looking at.
+  getCurrent: () => ({
+    x: mouseSmooth.x,
+    y: mouseSmooth.y,
+    time: sharedUniforms.u_time.value,
+  }),
+  history,
+});
 initExport({
   state, renderer, scene, camera, sharedUniforms, history, withResolution,
   getRecordingCtx: () => ({

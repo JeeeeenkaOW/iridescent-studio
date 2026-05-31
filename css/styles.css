@@ -259,6 +259,7 @@ input[type="color"]::-moz-color-swatch{border:none}
    action buttons. Without this they sit too close — the slider's
    thumb almost touches the PNG/WebM buttons. */
 .export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100) 0}
+.hint{font-size:11px;line-height:1.45;color:var(--t3);margin:4px 0 var(--sp-100) 0;transition:opacity 0.15s ease}
 
 /* Plain section label, no toggle/value on the right — used for the
    resolution picker label. Matches range-label typography so it
