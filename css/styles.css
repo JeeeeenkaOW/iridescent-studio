@@ -37,26 +37,18 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 /* ============ TOOL LAYOUT ============ */
 .tool{width:100%;display:grid;grid-template-columns:1fr 340px;gap:var(--sp-400);align-items:stretch;flex:1;min-height:calc(100vh - 180px)}
 
-/* Tab bar — only used in mobile mode. Hidden on desktop. */
-.tab-bar{display:none}
-
 .sidebar{background:var(--s1);border:1px solid var(--b4);border-radius:5px;padding:var(--sp-300);display:flex;flex-direction:column;gap:var(--sp-300);max-height:calc(100vh - 120px);overflow-y:auto;position:sticky;top:var(--sp-400)}
 .sidebar::-webkit-scrollbar{width:8px}
 .sidebar::-webkit-scrollbar-track{background:var(--s1)}
 .sidebar::-webkit-scrollbar-thumb{background:var(--s3);border-radius:0}
 
 /* ============ MOBILE LAYOUT (≤1000px) ============
-   The fundamental change from v6: viewport stays at the top of the
-   screen (sticky), tab bar sits right under it (also sticky), and the
-   sidebar below shows only the sections that belong to the active
-   tab. User taps a tab → only that section's controls show. No more
-   scrolling past 800px of sidebar to see the viewport.
-
-   Tabs are driven by `body[data-active-tab="X"]`. Each section in
-   the sidebar has `data-tab="X"`; CSS hides any section whose tab
-   doesn't match. On desktop the whole `data-active-tab` system is
-   ignored — the @media block below doesn't apply, so every section
-   shows. */
+   The viewport stays pinned to the top of the screen (sticky) so the
+   rendered ornament is always visible; the grouped Input/Look/Output
+   sidebar reflows below it and scrolls normally. The mobile tab bar
+   was removed in v20.1 — the workflow zones now carry the structure on
+   every screen size, so there's a single source of truth for ordering
+   and no separate phone-only navigation to keep in sync. */
 @media (max-width: 1000px){
   .page{padding:var(--sp-300)}
 
@@ -85,35 +77,6 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
     margin:0 calc(-1 * var(--sp-300));
   }
 
-  /* Tab bar sits directly under the sticky viewport. Also sticky so
-     it follows the viewport down and stays accessible while the user
-     scrolls the controls. */
-  .tab-bar{
-    display:grid;
-    grid-template-columns:repeat(5, 1fr);
-    background:var(--bg);
-    position:sticky;
-    top:45vh;
-    z-index:5;
-    border-bottom:1px solid var(--b4);
-    margin:0 calc(-1 * var(--sp-300));
-  }
-  .tab-btn{
-    background:transparent;
-    border:none;
-    border-bottom:2px solid transparent;
-    padding:var(--sp-300) 4px;
-    font-family:var(--font-brand);
-    font-size:10px;
-    font-weight:var(--fw-semi);
-    letter-spacing:var(--ls-up);
-    text-transform:uppercase;
-    color:var(--t3);
-    cursor:pointer;
-    transition:color .12s, border-color .12s;
-  }
-  .tab-btn:hover{color:var(--t1)}
-  .tab-btn.active{color:var(--tp);border-bottom-color:var(--ow)}
 
   /* Sidebar: no longer sticky, no max-height, no scrollbar — flows
      normally below the tab bar. The sticky viewport + tab bar above
@@ -133,17 +96,6 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
      bar at the top already says what this is. */
   .sidebar-header{display:none}
 
-  /* Show only sections (and their dividers) belonging to the active
-     tab. `[data-tab]` selector matches sections AND `.div` spacers,
-     both of which we annotated in index.html. */
-  body[data-active-tab="project"]  [data-tab]:not([data-tab="project"]),
-  body[data-active-tab="material"] [data-tab]:not([data-tab="material"]),
-  body[data-active-tab="lighting"] [data-tab]:not([data-tab="lighting"]),
-  body[data-active-tab="effects"]  [data-tab]:not([data-tab="effects"]),
-  body[data-active-tab="setup"]    [data-tab]:not([data-tab="setup"]),
-  body[data-active-tab="export"]   [data-tab]:not([data-tab="export"]){
-    display:none;
-  }
 }
 
 .sidebar-header{display:flex;flex-direction:column;gap:var(--sp-200);padding-bottom:var(--sp-400);border-bottom:1px solid var(--b4)}
@@ -153,6 +105,16 @@ body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-6
 
 .section{display:flex;flex-direction:column;gap:var(--sp-200)}
 .section-title{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);margin-bottom:var(--sp-100)}
+
+/* ============ WORKFLOW ZONES ============ */
+/* The sidebar reads top-to-bottom as Input -> Look -> Output. Each
+   zone groups its sections under an accent label and is split from the
+   next by a hairline rule, so a first-time user sees the workflow at a
+   glance instead of a flat stack of identical panels. */
+.project-bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-200);padding-bottom:var(--sp-300);border-bottom:1px solid var(--b4)}
+.zone{display:flex;flex-direction:column;gap:var(--sp-300)}
+.zone + .zone{padding-top:var(--sp-300);border-top:1px solid var(--b4)}
+.zone-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--ow)}
 
 /* ============ COLLAPSIBLE SECTIONS ============ */
 /* `.section.collapsible` turns a section into an accordion. The

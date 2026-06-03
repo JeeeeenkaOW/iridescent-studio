@@ -55,9 +55,15 @@ export const helpers = /* glsl */ `
   }
 
   // Replace the spec's hue with the palette while preserving its
-  // luminance. At intensity=0 the spec is unchanged; at intensity=1
-  // the spec's hue is fully palette (same brightness); at intensity=2
-  // the spec is palette AND boosted brightness for HDR push.
+  // luminance. The slider (u_iriIntensity, 0..2) splits in two:
+  //   k 0->1  — blend raw spec into the palette tint (how much rainbow)
+  //   k 1->2  — boost CHROMA (saturation), NOT brightness
+  // The old top half multiplied overall brightness by up to x2.5, which
+  // clipped every channel toward white. Now the top half pushes each
+  // channel away from its own luminance instead: colours get more
+  // vivid/saturated while luminance stays ~constant, so high settings
+  // read as deeply saturated rather than washing out to white. k<=1 is
+  // byte-for-byte unchanged, so the default look is untouched.
   vec3 tintSpecular(vec3 spec, float t){
     float k = clamp(u_iriIntensity, 0.0, 2.0);
     if (k < 0.001) return spec;
@@ -65,8 +71,13 @@ export const helpers = /* glsl */ `
     float lum = dot(spec, vec3(0.2126, 0.7152, 0.0722));
     vec3 tinted = palette * lum * 1.6;
     vec3 base = mix(spec, tinted, min(k, 1.0));
-    float overdrive = max(k - 1.0, 0.0);
-    return base * (1.0 + overdrive * 1.5);
+    // SAT_GAIN sets how vivid the top of the slider gets. At k=2 the
+    // chroma multiplier is (1.0 + SAT_GAIN). Tune by eye if needed.
+    float satGain = 1.2;
+    float sat = max(k - 1.0, 0.0);               // 0 at k<=1, 1 at k=2
+    float bl  = dot(base, vec3(0.2126, 0.7152, 0.0722));
+    vec3 vivid = mix(vec3(bl), base, 1.0 + sat * satGain);
+    return max(vivid, 0.0);
   }
 `;
 
