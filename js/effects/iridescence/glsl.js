@@ -49,32 +49,41 @@ export const helpers = /* glsl */ `
   // Multiplicative tint — used by Bloom for the halo. Returns
   // vec3(1.0) at intensity=0 so multiplying is a no-op.
   vec3 iridescence(float t){
-    float k = clamp(u_iriIntensity, 0.0, 2.0);
+    float k = clamp(u_iriIntensity, 0.0, 3.0);
     vec3 palette = iridescencePalette(t);
     return mix(vec3(1.0), palette, min(k, 1.0));
   }
 
   // Replace the spec's hue with the palette while preserving its
-  // luminance. The slider (u_iriIntensity, 0..2) splits in two:
+  // luminance. The slider (u_iriIntensity, 0..3) splits in two:
   //   k 0->1  — blend raw spec into the palette tint (how much rainbow)
-  //   k 1->2  — boost CHROMA (saturation), NOT brightness
-  // The old top half multiplied overall brightness by up to x2.5, which
-  // clipped every channel toward white. Now the top half pushes each
-  // channel away from its own luminance instead: colours get more
-  // vivid/saturated while luminance stays ~constant, so high settings
-  // read as deeply saturated rather than washing out to white. k<=1 is
-  // byte-for-byte unchanged, so the default look is untouched.
+  //   k 1->3  — boost CHROMA (saturation), NOT brightness
+  // The old top half multiplied overall brightness, which clipped every
+  // channel toward white. Now the top range pushes each channel away
+  // from its own luminance instead: colours get more vivid/saturated
+  // while luminance stays ~constant, so high settings read as deeply
+  // saturated rather than washing out to white. k<=1 is byte-for-byte
+  // unchanged, so the default look is untouched.
+  //
+  // Note on the practical ceiling: the spec is the brightest part of the
+  // surface, and the final ACES tonemap rolls bright values toward white
+  // (which desaturates exactly where iridescence is strongest). So past
+  // a point, more chroma push fights the tonemapper. If 300% still reads
+  // muted, the next lever is tonemap-aware (apply chroma after the
+  // rolloff), not a bigger satGain.
   vec3 tintSpecular(vec3 spec, float t){
-    float k = clamp(u_iriIntensity, 0.0, 2.0);
+    float k = clamp(u_iriIntensity, 0.0, 3.0);
     if (k < 0.001) return spec;
     vec3 palette = iridescencePalette(t);
     float lum = dot(spec, vec3(0.2126, 0.7152, 0.0722));
     vec3 tinted = palette * lum * 1.6;
     vec3 base = mix(spec, tinted, min(k, 1.0));
     // SAT_GAIN sets how vivid the top of the slider gets. At k=2 the
-    // chroma multiplier is (1.0 + SAT_GAIN). Tune by eye if needed.
-    float satGain = 1.2;
-    float sat = max(k - 1.0, 0.0);               // 0 at k<=1, 1 at k=2
+    // chroma multiplier is (1.0 + SAT_GAIN); at k=3 it's (1.0 + 2*SAT_GAIN).
+    // Raised from 1.2 -> 2.6 in v20_5 (was still reading too muted).
+    // Tune by eye if needed.
+    float satGain = 2.6;
+    float sat = max(k - 1.0, 0.0);               // 0 at k<=1, up to 2 at k=3
     float bl  = dot(base, vec3(0.2126, 0.7152, 0.0722));
     vec3 vivid = mix(vec3(bl), base, 1.0 + sat * satGain);
     return max(vivid, 0.0);

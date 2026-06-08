@@ -209,6 +209,23 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+// The window 'resize' event misses size changes that come from layout
+// rather than the window itself: sidebar reflow, the mobile sticky
+// viewport growing/shrinking as the URL bar hides/shows, orientation
+// changes, devtools docking. When the viewport box changes size without
+// a window resize, the drawing buffer keeps its old dimensions while CSS
+// (the canvas is width:100%/height:100%) stretches it to fill the new
+// box — which distorts the whole render, most visibly turning the round
+// cursor blob into an ellipse even when nothing is moving. A
+// ResizeObserver catches every box change and re-syncs the buffer +
+// u_resolution, so the buffer aspect always matches the displayed box
+// and screenAspect stays correct (blob stays round). The initial
+// observe() callback also covers any post-load layout shift.
+if (typeof ResizeObserver !== 'undefined') {
+  const viewportRO = new ResizeObserver(() => resize());
+  viewportRO.observe(viewport);
+}
+
 async function rebuildAndResize() {
   await rebuild();
   resize();

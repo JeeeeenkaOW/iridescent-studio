@@ -76,7 +76,7 @@ export function initSolidControls({ host, uniforms, history }) {
 
       <div class="range-row">
         <div class="range-label"><span>Cursor blob size</span><span class="range-value" data-sc-blobr-val>${Math.round(d.material.blobRadius * 100)}%</span></div>
-        <input type="range" data-sc-blobr min="5" max="60" step="1" value="${Math.round(d.material.blobRadius * 100)}">
+        <input type="range" data-sc-blobr min="5" max="150" step="1" value="${Math.round(d.material.blobRadius * 100)}">
       </div>
   `;
 
@@ -166,8 +166,11 @@ export function initSolidControls({ host, uniforms, history }) {
     history?.push();
   });
 
-  // Cursor blob radius — slider value [5..60] maps directly to
-  // u_blobRadius [0.05..0.60] in aspect-corrected UV space. The
+  // Cursor blob radius — slider value [5..150] maps directly to
+  // u_blobRadius [0.05..1.50] in aspect-corrected UV space. Above ~100
+  // the blob can cover the whole viewport (UV space is normalized to a
+  // unit square per axis), which is intended headroom for a big soft
+  // wash. The
   // metaball shader scales the inner edge proportionally so the soft
   // falloff looks consistent across the range. Slider stays active
   // even when the blob toggle is off — adjusting it pre-sets the size
