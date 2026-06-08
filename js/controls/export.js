@@ -7,12 +7,17 @@
 //   PNG snapshot — one frame at current time, downloaded as wmf_<ts>.png.
 //     Uses resolution scale; ignores fps and loop duration.
 //
-//   WebM loop — captureStream + MediaRecorder for loopDuration seconds at
-//     chosen fps. Uses resolution scale. Hands off cursor and time to
-//     main.js's render loop via getRecordingCtx (which sets captureStart;
-//     the render loop then enters "loop time domain" and the cursor
-//     follows the analytical loop path). MediaRecorder is Chrome/Edge
-//     only and historically strips alpha from WebM even with VP9.
+//   WebM loop — frame-locked capture. Renders exactly one period
+//     frame-by-frame (the same deterministic stepping the PNG sequence
+//     uses), pushing each rendered frame into a manual-frame
+//     captureStream(0) via track.requestFrame(), recorded by
+//     MediaRecorder. Because frames are stepped at t = i/N · loopDur
+//     (not sampled off wall-clock), the last frame is exactly one
+//     Δ-step before t=0 and the loop closes seamlessly — no jump cut.
+//     Frames are paced to real time so playback cadence matches fps.
+//     VP9 carries alpha in Chrome/Edge, but it's lossy (chroma
+//     subsampling can fringe fine edges); PNG sequence stays the crisp
+//     transparent deliverable. Chrome/Edge only.
 //
 //   PNG sequence — frame-by-frame manual stepping. The render loop is
 //     paused via state.sequencing; we set uniforms (time, cursor, vel)
@@ -22,6 +27,7 @@
 //     is loaded from CDN (jsdelivr +esm) on first use.
 //
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+import { loopCursor, loopCursorVel } from '../util/loop-path.js';
 
 export function initExport({ state, renderer, scene, camera, getRecordingCtx, sharedUniforms, history, withResolution }) {
   const recordingEl   = document.getElementById('recording');
@@ -165,13 +171,13 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
     if (state.bg && state.bg.transparent && !webmTransparencyWarned) {
       webmTransparencyWarned = true;
       const proceed = confirm(
-        'Transparent background is on, but most browsers do not record alpha\n' +
-        'into WebM. The exported video will probably appear opaque on a black\n' +
-        'background when played back.\n\n' +
-        'For true transparent video, use PNG sequence (for AE) instead — it\n' +
-        'gives you per-frame PNGs with proper alpha that AE can import as an\n' +
-        'image sequence.\n\n' +
-        'Continue with WebM export anyway?'
+        'Transparent WebM:\n\n' +
+        'Alpha IS recorded (Chrome/Edge, VP9), so the video keeps its\n' +
+        'cutout. But WebM is lossy — fine ornament edges can show slight\n' +
+        'colour fringing from chroma subsampling, even at high bitrate.\n\n' +
+        'For crisp, lossless transparent frames (e.g. for After Effects),\n' +
+        'use PNG sequence instead.\n\n' +
+        'Continue with WebM?'
       );
       if (!proceed) return;
     }
@@ -187,53 +193,110 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
     }
     if (!mime) { alert('No supported WebM codec found.'); return; }
 
-    // WebM must hold its resolution for the full recording duration —
-    // captureStream locks to the canvas size at .captureStream() time.
-    // So we wrap the whole record/wait/stop sequence inside withResolution.
-    await withResolution(state.resScale, async () => {
-      const stream = renderer.domElement.captureStream(state.fps);
-      const chunks = [];
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
-      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    const loopDur     = state.loopDuration || 4.0;
+    const fps         = Math.max(1, state.fps || 30);
+    const totalFrames = Math.max(1, Math.round(loopDur * fps));
+    const frameMs     = 1000 / fps;
 
-      // We need to await rec.onstop before exiting withResolution, so
-      // the resolution stays locked until the encoder is fully flushed.
-      // Wrap the recording in a promise that resolves on stop.
-      const finished = new Promise((resolve) => {
-        rec.onstop = () => {
-          const blob = new Blob(chunks, { type: 'video/webm' });
-          downloadBlob(blob, `wmf_${Date.now()}.webm`);
-          resolve();
-        };
+    btnWebm.disabled = true;
+    recordingEl.classList.add('on');
+
+    // Take over rendering exactly like the PNG-sequence path: the rAF
+    // render loop short-circuits on state.sequencing, so it won't fight
+    // the uniforms we set per frame. Driving the frames ourselves (rather
+    // than letting captureStream sample whatever the rAF loop happens to
+    // have rendered) is the whole point — it makes the WebM frame-
+    // identical to the PNG sequence and closes the loop seam.
+    state.sequencing = true;
+    const wasLoopMode = sharedUniforms.u_loopMode.value;
+    const wasLoopDur  = sharedUniforms.u_loopDuration.value;
+    sharedUniforms.u_loopMode.value     = 1.0;
+    sharedUniforms.u_loopDuration.value = loopDur;
+
+    try {
+      // captureStream locks to the canvas size at call time, so the whole
+      // record/step/stop sequence runs inside withResolution to hold the
+      // export resolution until the encoder is fully flushed.
+      await withResolution(state.resScale, async () => {
+        const w = renderer.domElement.width;
+        const h = renderer.domElement.height;
+
+        // Bitrate scaled to pixel count × fps. The old fixed 12 Mbps
+        // starved large/high-res exports — that's what produced the
+        // mosquito noise and block artifacts on the ornament edges.
+        // ~0.2 bits/pixel is generous for VP9 line-art-over-alpha; clamp
+        // to a sane range so 1× exports aren't wastefully huge and 4×
+        // exports don't ask for an absurd ceiling. (This reduces the
+        // compression artifacts; it can't undo VP9's 4:2:0 chroma
+        // subsampling — that softness is the format's floor.)
+        const bitrate = Math.min(
+          120_000_000,
+          Math.max(16_000_000, Math.round(w * h * fps * 0.2))
+        );
+
+        // 0 fps = manual-frame stream: a frame only enters the stream
+        // when we call track.requestFrame(). This decouples capture from
+        // wall-clock / rAF cadence so we can push exactly one
+        // deterministic frame per animation step.
+        const stream = renderer.domElement.captureStream(0);
+        const track  = stream.getVideoTracks()[0];
+        const chunks = [];
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate });
+        rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+        const finished = new Promise((resolve) => {
+          rec.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            downloadBlob(blob, `wmf_${Date.now()}.webm`);
+            resolve();
+          };
+        });
+
+        rec.start();
+        const captureStartReal = performance.now();
+
+        for (let i = 0; i < totalFrames; i++) {
+          // Frame i covers t = i/N · loopDur; frame N would equal frame 0
+          // again, so we stop at N-1. Same analytical stepping as the PNG
+          // sequence (shared loopCursor / loopCursorVel), so the two
+          // exports are frame-for-frame identical.
+          const t = (i / totalFrames) * loopDur;
+          const c = loopCursor(t, loopDur);
+          const v = loopCursorVel(t, loopDur);
+
+          sharedUniforms.u_time.value = t;
+          sharedUniforms.u_mouse.value.set(c.x, 1 - c.y);
+          sharedUniforms.u_mouseVel.value.set(v.vx, v.vy);
+
+          renderer.render(scene, camera);
+          track.requestFrame();
+
+          // Pace to wall-clock so MediaRecorder timestamps the frames
+          // evenly at the target fps (a manual stream times frames by
+          // real arrival). The visual content is deterministic either
+          // way; this just gives the file a correct duration/cadence.
+          const targetReal = captureStartReal + (i + 1) * frameMs;
+          const waitMs = targetReal - performance.now();
+          if (waitMs > 0) await new Promise(r => setTimeout(r, waitMs));
+        }
+
+        // Let the final requested frame register before stopping, then
+        // wait for the encoder to flush (onstop) before leaving
+        // withResolution so the resolution stays locked through encode.
+        await new Promise(r => setTimeout(r, frameMs));
+        rec.stop();
+        await finished;
       });
-
-      const ctx = getRecordingCtx();
-      const wasAuto = state.autoDrift;
-      state.autoDrift = true;
-      ctx.resetIdle();
-      ctx.startCapture();
-
-      recordingEl.classList.add('on');
-      btnWebm.disabled = true;
-      rec.start();
-      // Stop slightly before tBase reaches loopDur so we don't capture
-      // a frame that has just wrapped back to t≈0 (which would land
-      // inside the file mid-stream and replay as a jump cut, not a
-      // seamless loop). One frame's worth of safety margin is plenty —
-      // the player will loop the file as if those few ms didn't exist,
-      // and the shader state at the last captured frame is one Δ-step
-      // before t=0, which is exactly what a clean loop needs.
-      const safetyMarginMs = 1000 / Math.max(state.fps, 1);
-      const recordMs = Math.max(100, state.loopDuration * 1000 - safetyMarginMs);
-      await new Promise(r => setTimeout(r, recordMs));
-      rec.stop();
+    } catch (err) {
+      console.error('WebM export failed:', err);
+      alert('WebM export failed: ' + (err.message || err));
+    } finally {
+      sharedUniforms.u_loopMode.value     = wasLoopMode;
+      sharedUniforms.u_loopDuration.value = wasLoopDur;
+      state.sequencing = false;
       recordingEl.classList.remove('on');
       btnWebm.disabled = false;
-      state.autoDrift = wasAuto;
-      ctx.endCapture();
-
-      await finished;
-    });
+    }
   }
   btnWebm.addEventListener('click', exportWebM);
 
@@ -253,26 +316,10 @@ export function initExport({ state, renderer, scene, camera, getRecordingCtx, sh
   // exact. By stepping time ourselves we get mathematically perfect
   // frames at exactly i/N * loopDuration.
   //
-  // CURSOR + VEL MATH — must match autoPathLooping in main.js. The
-  // duplication is intentional: that function isn't exported, and
-  // we want a clear paper-trail of "the export sequence steps cursor
-  // analytically to keep loop closure exact." If autoPathLooping
-  // changes there, this needs to change too.
-  function loopCursor(t, loopDur) {
-    const phase = (t / loopDur) * Math.PI * 2;
-    return {
-      x: 0.5 + Math.sin(phase) * 0.30,
-      y: 0.5 + Math.cos(phase) * 0.24,
-    };
-  }
-  function loopCursorVel(t, loopDur) {
-    const phase = (t / loopDur) * Math.PI * 2;
-    const angularRate = (Math.PI * 2) / loopDur;
-    const dxdt =  0.30 * Math.cos(phase) * angularRate;
-    const dydt = -0.24 * Math.sin(phase) * angularRate;
-    const perFrame = 1 / 60;
-    return { vx: dxdt * perFrame, vy: -dydt * perFrame };
-  }
+  // CURSOR + VEL MATH — shared with main.js's render loop and the WebM
+  // exporter via js/util/loop-path.js (loopCursor / loopCursorVel). All
+  // three loop-capture consumers step the cursor analytically from the
+  // same source so every loop export closes exactly.
 
   async function exportPngSequence() {
     const loopDur = state.loopDuration || 4.0;

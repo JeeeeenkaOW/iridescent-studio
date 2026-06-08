@@ -19,6 +19,7 @@ import { sobelNormalMap } from './pipeline/normals-sobel.js';
 import { sculptedNormalMap } from './pipeline/normals-sdf.js';
 import { bloomMap } from './pipeline/bloom.js';
 import { DEFAULT_SVG } from './default-svg.js';
+import { loopCursor, loopCursorVel } from './util/loop-path.js';
 import { initUpload } from './controls/upload.js';
 import { initBackground } from './controls/background.js';
 import { initNormals } from './controls/normals.js';
@@ -274,16 +275,10 @@ function autoPath(t) {
   return { x, y };
 }
 
-// Recording auto-drift: a perfect circle that closes exactly at
-// loopDuration. Used while capturing video so the export is a true
-// seamless loop. Radius is wider than interactive drift because the
-// recorded motion needs to be visually obvious.
-function autoPathLooping(t, loopDuration) {
-  const phase = (t / loopDuration) * Math.PI * 2;
-  const x = 0.5 + Math.sin(phase) * 0.30;
-  const y = 0.5 + Math.cos(phase) * 0.24;
-  return { x, y };
-}
+// Recording auto-drift (the perfect circle that closes exactly at
+// loopDuration) now lives in js/util/loop-path.js as loopCursor /
+// loopCursorVel, shared with both exporters. See the loop-time-domain
+// branch in loop() below.
 
 // =========================================================
 // RENDER LOOP
@@ -364,22 +359,17 @@ function loop() {
     //
     // Cursor input is intentionally ignored here — preview-loop is "watch
     // the loop play" mode. To regain interactive control, toggle it off.
-    const auto = autoPathLooping(t, loopDur);
+    const auto = loopCursor(t, loopDur);
     mouseSmooth.x = auto.x;
     mouseSmooth.y = auto.y;
     mousePrev.x = auto.x;
     mousePrev.y = auto.y;
-    // Analytical tangent of the circle at phase = (t/loopDur)*2π:
-    //   x = 0.5 + 0.30 * sin(phase)  → dx/dt =  0.30 * cos(phase) * 2π/loopDur
-    //   y = 0.5 + 0.24 * cos(phase)  → dy/dt = -0.24 * sin(phase) * 2π/loopDur
-    // Scale by a small frame-time factor so the velocity magnitude is in
-    // the same ballpark as the interactive mode.
-    const phase = (t / loopDur) * Math.PI * 2;
-    const angularRate = (Math.PI * 2) / loopDur;
-    const dxdt =  0.30 * Math.cos(phase) * angularRate;
-    const dydt = -0.24 * Math.sin(phase) * angularRate;
-    const perFrame = 1 / 60;
-    sharedUniforms.u_mouseVel.value.set(dxdt * perFrame, -dydt * perFrame);
+    // Analytical circle tangent (shared with both exporters) — computing
+    // velocity from position deltas would give garbage on frame 0 and
+    // create a first-frame jump that breaks the loop for any effect that
+    // uses u_mouseVel (the metaball tail).
+    const v = loopCursorVel(t, loopDur);
+    sharedUniforms.u_mouseVel.value.set(v.vx, v.vy);
   } else {
     // Interactive mode: blend between cursor and quasi-Lissajous drift.
     const auto = autoPath(t);
