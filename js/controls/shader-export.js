@@ -29,16 +29,18 @@
 //
 import { listEffects } from '../effects/index.js';
 
-// ---- WebP encode quality per map. Normals are the most sensitive to
-// banding, so they get the highest quality; albedo/bloom are smoother
-// and compress harder without visible loss. If a future export ever
-// shows banding in the lighting, nudge NORMAL_Q up toward 1.0. ----
-const ALBEDO_Q = 0.9;
-const NORMAL_Q = 0.95;
+// ---- Texture encoding. The albedo is baked LOSSLESS (PNG): the shader
+// derives the silhouette alpha from it (mask = max(albedo.rgb)), and
+// lossy compression of that maximum-contrast black→ornament edge shows
+// up as block/ringing artifacts — a "pixelated trim" around the shape.
+// Lossless keeps the cutout clean. Normals are banding-sensitive so they
+// get max-quality WebP; bloom and bg are soft and compress hard without
+// visible loss. ----
+const NORMAL_Q = 1.0;
 const BLOOM_Q  = 0.9;
 const BG_Q     = 0.85;
 
-function canvasToWebP(tex, q) {
+function canvasToDataURL(tex, mime, q) {
   if (!tex || !tex.image) return null;
   const c = tex.image;
   let canvas = c;
@@ -48,10 +50,10 @@ function canvasToWebP(tex, q) {
     canvas.height = c.height;
     canvas.getContext('2d').drawImage(c, 0, 0);
   }
-  const webp = canvas.toDataURL('image/webp', q);
-  // Safari < 16 etc. may ignore webp and return png — that's fine, the
-  // runtime just decodes whatever data URL it's handed.
-  return webp;
+  // PNG ignores q and is lossless; WebP uses q. Safari < 16 etc. may
+  // ignore webp and return png — fine, the runtime decodes whatever data
+  // URL it's handed.
+  return canvas.toDataURL(mime, q);
 }
 
 // THREE-shaped shim injected into the exported file. No backticks and
@@ -208,7 +210,12 @@ const ENGINE_JS = [
   "      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);",
   "      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);",
   "      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);",
-  "      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ONE_PX);",
+  "      // 1x1 transparent placeholder until the real image decodes.",
+  "      // ONE_PX is a Uint8Array, so this MUST use the 9-arg form (with",
+  "      // width/height/border) — the 6-arg form only accepts a",
+  "      // TexImageSource (ImageData/img/canvas) and throws 'Overload",
+  "      // resolution failed' on a typed array, which blanked the embed.",
+  "      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ONE_PX);",
   "    }",
   "    return tex;",
   "  }",
@@ -348,10 +355,10 @@ function buildEmbeddedHTML(ctx) {
     throw new Error(`Shader "${shader.id}" is missing serializeForExport — cannot export.`);
   }
 
-  const albedoURL = canvasToWebP(uniforms.u_albedo.value, ALBEDO_Q);
-  const normalURL = canvasToWebP(uniforms.u_normal.value, NORMAL_Q);
-  const bloomURL  = canvasToWebP(uniforms.u_bloom.value,  BLOOM_Q);
-  const bgURL     = canvasToWebP(uniforms.u_bgTex.value,  BG_Q);
+  const albedoURL = canvasToDataURL(uniforms.u_albedo.value, 'image/png');
+  const normalURL = canvasToDataURL(uniforms.u_normal.value, 'image/webp', NORMAL_Q);
+  const bloomURL  = canvasToDataURL(uniforms.u_bloom.value,  'image/webp', BLOOM_Q);
+  const bgURL     = canvasToDataURL(uniforms.u_bgTex.value,  'image/webp', BG_Q);
 
   // Resting pose: whatever the studio is showing at export time. u_mouse
   // is already in shader space (Y pre-flipped), so it carries over 1:1.
