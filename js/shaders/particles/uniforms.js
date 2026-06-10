@@ -46,6 +46,15 @@ export function createUniforms(shared) {
     // controls module.
     u_particleSvg:      { value: makeBlankTexture() },
     u_hasParticleSvg:   { value: 0.0 },
+    // Sprite-sheet sampler (shape 3). Same blank-placeholder pattern
+    // as u_particleSvg; the controls module installs a real
+    // NEAREST-filtered CanvasTexture once the user uploads a sheet.
+    u_spriteSheet:      { value: makeBlankTexture() },
+    u_hasSpriteSheet:   { value: 0.0 },
+    u_spriteGrid:       { value: new THREE.Vector2(defaults.material.spriteCols, defaults.material.spriteRows) },
+    u_spriteColorMode:  { value: defaults.material.spriteColorMode },
+    u_spriteAssign:     { value: defaults.material.spriteAssign },
+    u_spriteFPS:        { value: defaults.material.spriteFPS },
     // Motion modes (independent strengths)
     u_motionDrift:      { value: defaults.material.motionDrift },
     u_motionRise:       { value: defaults.material.motionRise },

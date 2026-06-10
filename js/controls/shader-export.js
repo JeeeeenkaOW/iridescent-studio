@@ -70,6 +70,10 @@ const THREE_SHIM = [
   '};',
   'function hexToVec3(hex){ var m=/^#?([0-9a-f]{6})$/i.exec((hex||"").trim()); if(!m) return THREE.Vector3(1,1,1); var n=parseInt(m[1],16); return THREE.Vector3(((n>>16)&255)/255, ((n>>8)&255)/255, (n&255)/255); }',
   'function imgTex(url){ return { __img:true, url:url }; }',
+  // NEAREST-filtered variant — used for sprite sheets so pixel art
+  // stays sharp in the embed. The engine's _makeTexture respects the
+  // nearest flag when setting filter params.
+  'function imgTexN(url){ return { __img:true, url:url, nearest:true }; }',
 ].join('\n');
 
 // The raw-WebGL runtime + custom element. Static — references the
@@ -199,8 +203,11 @@ const ENGINE_JS = [
   "    const tex = gl.createTexture();",
   "    gl.activeTexture(gl.TEXTURE0 + unit);",
   "    gl.bindTexture(gl.TEXTURE_2D, tex);",
-  "    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);",
-  "    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);",
+  "    // Sprite sheets ship with nearest:true (imgTexN) so pixel art",
+  "    // stays sharp; everything else is bilinear as before.",
+  "    const filt = src.nearest ? gl.NEAREST : gl.LINEAR;",
+  "    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);",
+  "    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);",
   "    if(src.__data){",
   "      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);",
   "      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapMode(gl, src.wrapS));",

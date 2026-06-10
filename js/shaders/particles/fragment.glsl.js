@@ -57,6 +57,17 @@ const materialUniforms = /* glsl */ `
   // when shape=Custom but no SVG has been uploaded yet.
   uniform sampler2D u_particleSvg;
   uniform float u_hasParticleSvg;
+  // Sprite-sheet shape support (shape 3). u_spriteGrid is (cols, rows).
+  // u_spriteColorMode: 0 = silhouette, 1 = full color.
+  // u_spriteAssign: 0 = random-stable per particle, 1 = animated.
+  // u_spriteFPS: frame rate for animated mode (loop-safe — see
+  // particles.glsl.js). u_hasSpriteSheet gates the circle fallback.
+  uniform sampler2D u_spriteSheet;
+  uniform float u_hasSpriteSheet;
+  uniform vec2  u_spriteGrid;
+  uniform float u_spriteColorMode;
+  uniform float u_spriteAssign;
+  uniform float u_spriteFPS;
   // Four independent motion modes — can be combined.
   uniform float u_motionDrift;
   uniform float u_motionRise;

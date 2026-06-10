@@ -3,7 +3,7 @@
 // =========================================================
 // Renders the source SVG as a field of discrete dots. Four
 // independent motion modes (Drift / Rise / Twinkle / Scatter) can
-// be combined. Three shapes (Circle / Diamond / Custom SVG).
+// be combined. Four shapes (Circle / Square / Custom SVG / Sprites).
 // Same lighting + effects integration as Solid/Glass.
 //
 import { vertexShader }       from './vertex.glsl.js';
@@ -34,6 +34,19 @@ function serializeForExport(snapshot) {
     : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
   const hasParticleSvg = hasCustomSvg ? 1.0 : 0.0;
 
+  // Sprite-sheet export: same pattern. When shape=Sprites AND a sheet
+  // is loaded, bake the cached PNG dataURL; the exported runtime
+  // uploads it with NEAREST filtering (imgTexN) so pixel art stays
+  // sharp in the embed exactly like the studio.
+  const hasSheet =
+    mat.shape === 3 &&
+    typeof mat.spriteSheetDataURL === 'string' &&
+    mat.spriteSheetDataURL.length > 0;
+  const spriteSheetURL = hasSheet
+    ? mat.spriteSheetDataURL
+    : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
+  const hasSpriteSheet = hasSheet ? 1.0 : 0.0;
+
   const constants = `
 const BASE_COLOR_HEX     = ${JSON.stringify(mat.baseColor ?? defaults.material.baseColor)};
 const PARTICLE_DENSITY   = ${mat.density   ?? defaults.material.density};
@@ -43,6 +56,13 @@ const PARTICLE_SOFTNESS  = ${mat.softness  ?? defaults.material.softness};
 const PARTICLE_SHAPE     = ${mat.shape     ?? defaults.material.shape};
 const PARTICLE_SVG_URL   = ${JSON.stringify(particleSvgURL)};
 const HAS_PARTICLE_SVG   = ${hasParticleSvg};
+const SPRITE_SHEET_URL   = ${JSON.stringify(spriteSheetURL)};
+const HAS_SPRITE_SHEET   = ${hasSpriteSheet};
+const SPRITE_COLS        = ${mat.spriteCols      ?? defaults.material.spriteCols};
+const SPRITE_ROWS        = ${mat.spriteRows      ?? defaults.material.spriteRows};
+const SPRITE_COLOR_MODE  = ${mat.spriteColorMode ?? defaults.material.spriteColorMode};
+const SPRITE_ASSIGN      = ${mat.spriteAssign    ?? defaults.material.spriteAssign};
+const SPRITE_FPS         = ${mat.spriteFPS       ?? defaults.material.spriteFPS};
 const MOTION_DRIFT       = ${mat.motionDrift   ?? defaults.material.motionDrift};
 const MOTION_RISE        = ${mat.motionRise    ?? defaults.material.motionRise};
 const MOTION_TWINKLE     = ${mat.motionTwinkle ?? defaults.material.motionTwinkle};
@@ -67,8 +87,14 @@ const HALO_BASE_INT      = 0.32;
     u_particleJitter:    { value: PARTICLE_JITTER },
     u_particleSoftness:  { value: PARTICLE_SOFTNESS },
     u_particleShape:    { value: PARTICLE_SHAPE },
-    u_particleSvg:       { value: (await loadTexture(PARTICLE_SVG_URL)) },
+    u_particleSvg:       { value: imgTex(PARTICLE_SVG_URL) },
     u_hasParticleSvg:    { value: HAS_PARTICLE_SVG },
+    u_spriteSheet:       { value: imgTexN(SPRITE_SHEET_URL) },
+    u_hasSpriteSheet:    { value: HAS_SPRITE_SHEET },
+    u_spriteGrid:        { value: THREE.Vector2(SPRITE_COLS, SPRITE_ROWS) },
+    u_spriteColorMode:   { value: SPRITE_COLOR_MODE },
+    u_spriteAssign:      { value: SPRITE_ASSIGN },
+    u_spriteFPS:         { value: SPRITE_FPS },
     u_motionDrift:       { value: MOTION_DRIFT },
     u_motionRise:        { value: MOTION_RISE },
     u_motionTwinkle:     { value: MOTION_TWINKLE },

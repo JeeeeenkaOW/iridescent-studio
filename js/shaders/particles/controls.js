@@ -12,12 +12,19 @@
 //
 // SHAPES (single-select):
 //   0 = circle   — SDF
-//   1 = diamond  — SDF
+//   1 = square   — SDF (Chebyshev), crisp pixel look
 //   2 = custom   — silhouette of user-uploaded SVG, rasterized into
 //                  u_particleSvg and sampled in the fragment shader.
 //                  Clicking the "Custom" button opens a file picker;
 //                  clicking it again (when an SVG is already loaded)
 //                  re-opens the picker so the user can swap shapes.
+//   3 = sprites  — user-uploaded sprite sheet (PNG/WebP). The sheet
+//                  is uploaded as a NEAREST-filtered texture so pixel
+//                  art stays sharp. Sub-controls (visible only when
+//                  this shape is active): grid cols × rows, color
+//                  mode (silhouette / full color), assignment mode
+//                  (random-stable / animated) and FPS for animated.
+//                  Same always-open-picker behaviour as Custom.
 //
 import * as THREE from 'three';
 import { defaults } from './defaults.js';
@@ -25,8 +32,9 @@ import { hexToVec3 } from '../../util/color.js';
 
 const SHAPES = [
   { id: 0, label: 'Circle'  },
-  { id: 1, label: 'Diamond' },
+  { id: 1, label: 'Square'  },
   { id: 2, label: 'Custom'  },
+  { id: 3, label: 'Sprites' },
 ];
 
 // Rasterize an SVG document (as text) to a square Canvas, then return
@@ -101,6 +109,55 @@ async function rasterizeSvgToTexture(svgText) {
   return tex;
 }
 
+// Load a sprite-sheet image file into a NEAREST-filtered CanvasTexture.
+// NEAREST is the whole point — pixel art must stay sharp when a sprite
+// cell is magnified to particle size; bilinear turns it to mush.
+//
+// The image is drawn to a canvas at native resolution (capped at
+// SPRITE_SHEET_MAX per side, decimated with smoothing OFF so a capped
+// sheet still reads as pixels, not blur). The canvas also gives us a
+// synchronous PNG dataURL for snapshots and the HTML exporter — cached
+// once at load time since sheets can be large.
+const SPRITE_SHEET_MAX = 2048;
+
+async function loadSpriteSheetTexture(src) {
+  // src: File or dataURL string.
+  const url = typeof src === 'string' ? src : URL.createObjectURL(src);
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error('Failed to load sprite sheet image'));
+    img.src = url;
+  });
+  if (typeof src !== 'string') URL.revokeObjectURL(url);
+
+  const iw = img.naturalWidth  || 1;
+  const ih = img.naturalHeight || 1;
+  const scale = Math.min(1, SPRITE_SHEET_MAX / Math.max(iw, ih));
+  const w = Math.max(1, Math.round(iw * scale));
+  const h = Math.max(1, Math.round(ih * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+
+  const dataURL = canvas.toDataURL('image/png');
+  return { tex, dataURL };
+}
+
 export function initParticlesControls({ host, uniforms, history }) {
   const d = defaults;
 
@@ -120,12 +177,42 @@ export function initParticlesControls({ host, uniforms, history }) {
 
       <div class="range-row">
         <div class="range-label"><span>Shape</span><span class="range-value" data-pc-custom-name></span></div>
-        <div class="segmented cols-3">
+        <div class="segmented cols-4">
           ${SHAPES.map(s => `
             <button class="seg-btn ${s.id === d.material.shape ? 'active' : ''}" data-pc-shape="${s.id}">${s.label}</button>
           `).join('')}
         </div>
         <input type="file" data-pc-svg-input accept=".svg,image/svg+xml" style="display:none">
+        <input type="file" data-pc-sheet-input accept="image/png,image/webp,image/gif,image/jpeg" style="display:none">
+      </div>
+
+      <div data-pc-sprite-opts style="display:none">
+        <div class="range-row">
+          <div class="range-label"><span>Sheet columns</span><span class="range-value" data-pc-scols-val>${d.material.spriteCols}</span></div>
+          <input type="range" data-pc-scols min="1" max="16" step="1" value="${d.material.spriteCols}">
+        </div>
+        <div class="range-row">
+          <div class="range-label"><span>Sheet rows</span><span class="range-value" data-pc-srows-val>${d.material.spriteRows}</span></div>
+          <input type="range" data-pc-srows min="1" max="16" step="1" value="${d.material.spriteRows}">
+        </div>
+        <div class="range-row">
+          <div class="range-label"><span>Sprite color</span></div>
+          <div class="segmented cols-2">
+            <button class="seg-btn ${d.material.spriteColorMode < 0.5 ? 'active' : ''}" data-pc-scolor="0">Silhouette</button>
+            <button class="seg-btn ${d.material.spriteColorMode > 0.5 ? 'active' : ''}" data-pc-scolor="1">Full color</button>
+          </div>
+        </div>
+        <div class="range-row">
+          <div class="range-label"><span>Sprite mode</span></div>
+          <div class="segmented cols-2">
+            <button class="seg-btn ${d.material.spriteAssign < 0.5 ? 'active' : ''}" data-pc-sassign="0">Random</button>
+            <button class="seg-btn ${d.material.spriteAssign > 0.5 ? 'active' : ''}" data-pc-sassign="1">Animated</button>
+          </div>
+        </div>
+        <div class="range-row" data-pc-sfps-row style="display:none">
+          <div class="range-label"><span>Frame rate</span><span class="range-value" data-pc-sfps-val>${d.material.spriteFPS} fps</span></div>
+          <input type="range" data-pc-sfps min="1" max="30" step="1" value="${d.material.spriteFPS}">
+        </div>
       </div>
 
       <div class="range-row">
@@ -194,12 +281,30 @@ export function initParticlesControls({ host, uniforms, history }) {
   const shapeBtns = host.querySelectorAll('[data-pc-shape]');
   const svgInput   = host.querySelector('[data-pc-svg-input]');
   const customName = host.querySelector('[data-pc-custom-name]');
+  const sheetInput  = host.querySelector('[data-pc-sheet-input]');
+  const spriteOpts  = host.querySelector('[data-pc-sprite-opts]');
+  const scols       = host.querySelector('[data-pc-scols]');
+  const scolsV      = host.querySelector('[data-pc-scols-val]');
+  const srows       = host.querySelector('[data-pc-srows]');
+  const srowsV      = host.querySelector('[data-pc-srows-val]');
+  const scolorBtns  = host.querySelectorAll('[data-pc-scolor]');
+  const sassignBtns = host.querySelectorAll('[data-pc-sassign]');
+  const sfpsRow     = host.querySelector('[data-pc-sfps-row]');
+  const sfps        = host.querySelector('[data-pc-sfps]');
+  const sfpsV       = host.querySelector('[data-pc-sfps-val]');
 
   let shape = d.material.shape;
   // Track the loaded SVG so we can restore session state across
   // history snapshots and preset switches.
   let customSvgText = null;
   let customSvgName = null;
+  // Sprite-sheet state. dataURL is cached at load time (sheets can be
+  // big — re-encoding per snapshot would be wasteful) and is the
+  // restore + export source of truth.
+  let spriteSheetDataURL = null;
+  let spriteSheetName    = null;
+  let spriteColorMode = d.material.spriteColorMode;
+  let spriteAssign    = d.material.spriteAssign;
 
   // Dispose the previous CanvasTexture before installing a new one,
   // to avoid GPU leaks when the user swaps SVGs repeatedly.
@@ -212,11 +317,49 @@ export function initParticlesControls({ host, uniforms, history }) {
     uniforms.u_hasParticleSvg.value = 1.0;
   }
 
+  // Same dispose-then-install pattern for the sprite sheet.
+  function setSpriteTexture(tex) {
+    const prev = uniforms.u_spriteSheet.value;
+    if (prev && typeof prev.dispose === 'function') {
+      prev.dispose();
+    }
+    uniforms.u_spriteSheet.value = tex;
+    uniforms.u_hasSpriteSheet.value = 1.0;
+  }
+
   function refreshCustomNameLabel() {
     if (shape === 2 && customSvgName) {
       customName.textContent = customSvgName;
+    } else if (shape === 3 && spriteSheetName) {
+      customName.textContent = spriteSheetName;
     } else {
       customName.textContent = '';
+    }
+  }
+
+  // Sprite sub-controls only make sense when the Sprites shape is
+  // active; the FPS row only when assignment is Animated.
+  function refreshSpriteOptsVisibility() {
+    spriteOpts.style.display = shape === 3 ? '' : 'none';
+    sfpsRow.style.display = spriteAssign > 0.5 ? '' : 'none';
+  }
+
+  async function loadSheetFile(file) {
+    if (!file) return false;
+    if (!/^image\//.test(file.type)) {
+      alert('Please choose an image file (PNG/WebP) for the sprite sheet.');
+      return false;
+    }
+    try {
+      const { tex, dataURL } = await loadSpriteSheetTexture(file);
+      setSpriteTexture(tex);
+      spriteSheetDataURL = dataURL;
+      spriteSheetName = file.name;
+      return true;
+    } catch (err) {
+      console.error('Failed to load sprite sheet:', err);
+      alert('Could not load that image. Try another file.');
+      return false;
     }
   }
 
@@ -257,13 +400,78 @@ export function initParticlesControls({ host, uniforms, history }) {
         return;
       }
 
+      // Sprites button: same always-open-picker behaviour as Custom.
+      if (newShape === 3) {
+        sheetInput.value = '';
+        sheetInput.click();
+        return;
+      }
+
       shape = newShape;
       shapeBtns.forEach(b => b.classList.toggle('active', b === btn));
       uniforms.u_particleShape.value = shape;
       refreshCustomNameLabel();
+      refreshSpriteOptsVisibility();
       history?.push();
     });
   });
+
+  sheetInput.addEventListener('change', async () => {
+    const file = sheetInput.files && sheetInput.files[0];
+    if (!file) return;
+    const ok = await loadSheetFile(file);
+    if (!ok) return;
+    shape = 3;
+    shapeBtns.forEach(b =>
+      b.classList.toggle('active', parseInt(b.dataset.pcShape, 10) === shape)
+    );
+    uniforms.u_particleShape.value = shape;
+    refreshCustomNameLabel();
+    refreshSpriteOptsVisibility();
+    history?.push();
+  });
+
+  scolorBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      spriteColorMode = parseInt(btn.dataset.pcScolor, 10);
+      scolorBtns.forEach(b => b.classList.toggle('active', b === btn));
+      uniforms.u_spriteColorMode.value = spriteColorMode;
+      history?.push();
+    });
+  });
+
+  sassignBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      spriteAssign = parseInt(btn.dataset.pcSassign, 10);
+      sassignBtns.forEach(b => b.classList.toggle('active', b === btn));
+      uniforms.u_spriteAssign.value = spriteAssign;
+      refreshSpriteOptsVisibility();
+      history?.push();
+    });
+  });
+
+  // Grid sliders write directly into the vec2 uniform components.
+  scols.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    scolsV.textContent = String(v);
+    uniforms.u_spriteGrid.value.x = v;
+  });
+  scols.addEventListener('change', () => history?.push());
+  srows.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    srowsV.textContent = String(v);
+    uniforms.u_spriteGrid.value.y = v;
+  });
+  srows.addEventListener('change', () => history?.push());
+  sfps.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    sfpsV.textContent = v + ' fps';
+    uniforms.u_spriteFPS.value = v;
+  });
+  sfps.addEventListener('change', () => history?.push());
+
+  // Initial visibility (defaults may already be Sprites via restore).
+  refreshSpriteOptsVisibility();
 
   svgInput.addEventListener('change', async () => {
     const file = svgInput.files && svgInput.files[0];
@@ -332,6 +540,16 @@ export function initParticlesControls({ host, uniforms, history }) {
           customSvgText: customSvgText,
           customSvgName: customSvgName,
           customSvgDataURL,
+          // Sprite-sheet state. dataURL was cached at load time, so
+          // this stays synchronous. Grid/mode values come from the
+          // live inputs to match the slider-snapshot pattern above.
+          spriteSheetDataURL: spriteSheetDataURL,
+          spriteSheetName:    spriteSheetName,
+          spriteCols:      parseInt(scols.value, 10),
+          spriteRows:      parseInt(srows.value, 10),
+          spriteColorMode: spriteColorMode,
+          spriteAssign:    spriteAssign,
+          spriteFPS:       parseInt(sfps.value, 10),
           motionDrift:   parseInt(mdr.value, 10) / 100,
           motionRise:    parseInt(mri.value, 10) / 100,
           motionTwinkle: parseInt(mtw.value, 10) / 100,
@@ -379,12 +597,51 @@ export function initParticlesControls({ host, uniforms, history }) {
         }
       }
 
+      // Restore sprite-sheet state if present — same before-shape
+      // ordering so the circle fallback never flickers in.
+      if (typeof m.spriteSheetDataURL === 'string' && m.spriteSheetDataURL.length > 0) {
+        try {
+          const { tex, dataURL } = await loadSpriteSheetTexture(m.spriteSheetDataURL);
+          setSpriteTexture(tex);
+          spriteSheetDataURL = dataURL;
+          spriteSheetName = m.spriteSheetName || 'sprites.png';
+        } catch (err) {
+          console.error('Failed to restore sprite sheet:', err);
+        }
+      }
+      if (typeof m.spriteCols === 'number') {
+        scols.value = String(m.spriteCols);
+        scolsV.textContent = String(m.spriteCols);
+        uniforms.u_spriteGrid.value.x = m.spriteCols;
+      }
+      if (typeof m.spriteRows === 'number') {
+        srows.value = String(m.spriteRows);
+        srowsV.textContent = String(m.spriteRows);
+        uniforms.u_spriteGrid.value.y = m.spriteRows;
+      }
+      if (typeof m.spriteColorMode === 'number') {
+        spriteColorMode = m.spriteColorMode;
+        scolorBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.pcScolor, 10) === spriteColorMode));
+        uniforms.u_spriteColorMode.value = spriteColorMode;
+      }
+      if (typeof m.spriteAssign === 'number') {
+        spriteAssign = m.spriteAssign;
+        sassignBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.pcSassign, 10) === spriteAssign));
+        uniforms.u_spriteAssign.value = spriteAssign;
+      }
+      if (typeof m.spriteFPS === 'number') {
+        sfps.value = String(m.spriteFPS);
+        sfpsV.textContent = m.spriteFPS + ' fps';
+        uniforms.u_spriteFPS.value = m.spriteFPS;
+      }
+
       if (typeof m.shape === 'number') {
         shape = m.shape;
         shapeBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.pcShape, 10) === shape));
         uniforms.u_particleShape.value = shape;
       }
       refreshCustomNameLabel();
+      refreshSpriteOptsVisibility();
     },
   };
 }

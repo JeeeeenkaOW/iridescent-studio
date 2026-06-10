@@ -12,7 +12,9 @@
 //   - scatter — particles push radially outward from centre
 //
 // SHAPES (single-select):
-//   0 = circle, 1 = diamond, 2 = custom SVG (silhouette)
+//   0 = circle, 1 = square (pixel), 2 = custom SVG (silhouette),
+//   3 = sprite sheet (random-stable or animated, silhouette or
+//       full-color, grid set by the user)
 //
 export const defaults = {
   material: {
@@ -21,6 +23,14 @@ export const defaults = {
     jitter:      0.5,
     softness:    0.15,
     shape:       0,
+    // Sprite-sheet shape (shape 3) defaults. Full color + random-
+    // stable assignment is the pixel-art look the feature was asked
+    // for; FPS only matters when assignment is switched to animated.
+    spriteCols:      4,
+    spriteRows:      4,
+    spriteColorMode: 1,   // 0 = silhouette, 1 = full color
+    spriteAssign:    0,   // 0 = random-stable, 1 = animated
+    spriteFPS:       8,
     // Default motion: mild drift only. User can combine any of these.
     motionDrift:   0.4,
     motionRise:    0.0,

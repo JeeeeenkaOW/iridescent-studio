@@ -22,6 +22,11 @@ export const compositeBlock = /* glsl */ `
     // Base tint × albedo at the particle's centre. u_baseColor
     // lets the user globally tint the particles.
     vec3 base = u_baseColor * particleAlbedo;
+    // Full-color sprite mode (shape 3, color mode 1): the sprite's
+    // own RGB replaces the material-derived body color. The mix is
+    // captured per-fragment in particles.glsl.js, so this is exact
+    // pixel color, lit by the same ambient/diffuse pipeline below.
+    base = mix(base, particleSprite, particleSpriteMix);
 
     // Per-particle iridescent body tint. Each dot's iriT lands on the
     // shared palette; we mix that hue INTO base so different dots
@@ -33,7 +38,12 @@ export const compositeBlock = /* glsl */ `
     // effect off cleanly restores the original look regardless of the
     // hueShift slider position. Uses iridescencePalette() from the
     // iridescence effect's helpers (soft coupling — see fragment header).
-    float hueAmt = u_particleHueShift * clamp(u_iriIntensity, 0.0, 1.0);
+    //
+    // In full-color sprite mode the hue shift applies at HALF strength
+    // so the iridescence plays over the pixel art without erasing the
+    // sprite's own palette.
+    float hueAmt = u_particleHueShift * clamp(u_iriIntensity, 0.0, 1.0)
+                 * (1.0 - particleSpriteMix * 0.5);
     if (hueAmt > 0.001) {
       vec3 dotHue = iridescencePalette(iriT);
       // Preserve albedo luminance so light/dark regions of the SVG

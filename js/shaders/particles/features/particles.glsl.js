@@ -20,13 +20,27 @@
 //
 // SHAPES (single-select via u_particleShape):
 //   0 = circle  — soft round dots (default), SDF-based
-//   1 = diamond — rotated squares, SDF-based
+//   1 = square  — axis-aligned squares (Chebyshev SDF). Softness is
+//                 applied at reduced scale so squares read as crisp
+//                 "pixels" even at the default softness setting.
 //   2 = custom  — user-uploaded SVG silhouette sampled from u_particleSvg.
 //                 If no SVG has been uploaded (u_hasParticleSvg == 0),
 //                 falls back to circle so the preview never breaks.
+//   3 = sprites — user-uploaded sprite sheet sampled from u_spriteSheet.
+//                 Grid layout comes from u_spriteGrid (cols, rows).
+//                 u_spriteAssign: 0 = each particle picks one stable
+//                 random sprite; 1 = particles animate through the
+//                 sheet frames at u_spriteFPS (loop-safe in loop mode:
+//                 the frame counter completes an integer number of
+//                 full sheet cycles per loop). u_spriteColorMode:
+//                 0 = silhouette (alpha is a mask, material colors the
+//                 particle, same as custom SVG); 1 = full color (the
+//                 sprite's own RGB becomes the particle body color).
+//                 Falls back to circle when u_hasSpriteSheet == 0.
 //
 // Variables this block declares (consumed by the rest of the shader):
-//   particleMask, particleAlbedo, particleN, particleBloom, particleCenter
+//   particleMask, particleAlbedo, particleN, particleBloom,
+//   particleCenter, particleSprite, particleSpriteMix
 //
 export const particlesBlock = /* glsl */ `
     float gridDensity = u_particleDensity;
@@ -45,6 +59,12 @@ export const particlesBlock = /* glsl */ `
     // so the iridescence palette gives each dot a crisp distinct hue
     // rather than the smooth fbm gradient across cells.
     float particleHue    = 0.0;
+    // Per-fragment sprite color capture (shape 3, full-color mode).
+    // particleSpriteMix gates the composite mix: 0 = material-colored
+    // body (default for all other shapes + silhouette mode), 1 = the
+    // sprite's own RGB is the body color.
+    vec3  particleSprite    = vec3(0.0);
+    float particleSpriteMix = 0.0;
     float bestCoverage   = 0.0;
 
     for (int dy = -1; dy <= 1; dy++) {
@@ -103,19 +123,28 @@ export const particlesBlock = /* glsl */ `
 
         // SHAPE — switch dot-coverage function by u_particleShape.
         //   0 circle:  cov = smoothstep(radius, radius-soft, length)
-        //   1 diamond: cov = smoothstep over |x|+|y|  (Manhattan)
+        //   1 square:  cov = smoothstep over max(|x|,|y|) (Chebyshev)
         //   2 custom:  sample u_particleSvg alpha at local coords.
-        //              Falls back to circle if no SVG uploaded yet.
+        //   3 sprites: sample one cell of u_spriteSheet at local coords.
+        //   2 and 3 fall back to circle when nothing is uploaded yet.
         float cov = 0.0;
+        // Per-neighbor sprite candidates. Reset each iteration; only
+        // promoted to particleSprite/particleSpriteMix if this
+        // neighbor wins the coverage contest below.
+        vec3  candSprite    = vec3(0.0);
+        float candSpriteMix = 0.0;
         if (u_particleShape < 0.5) {
           // Circle — Euclidean distance
           cov = 1.0 - smoothstep(radius - soft, radius, dist);
         } else if (u_particleShape < 1.5) {
-          // Diamond — Manhattan distance
+          // Square — Chebyshev distance. Softness is scaled down
+          // (x0.3) so squares stay hard-edged and read as crisp
+          // pixels at the default softness; at softness 0 this is an
+          // exact step. The pixel-art look depends on this edge.
           vec2 absd = abs(d) / cellSize;
-          float manhattan = absd.x + absd.y;
-          cov = 1.0 - smoothstep(radius - soft, radius, manhattan);
-        } else {
+          float cheb = max(absd.x, absd.y);
+          cov = 1.0 - smoothstep(radius - soft * 0.3, radius, cheb);
+        } else if (u_particleShape < 2.5) {
           // Custom SVG silhouette. We sample the user's rasterized
           // SVG texture at a local UV centred on the particle. The
           // SVG occupies a square of side (2 * radius) in cell units
@@ -145,6 +174,69 @@ export const particlesBlock = /* glsl */ `
               float lo = clamp(0.5 - soft * 0.6, 0.0, 0.95);
               float hi = clamp(0.5 + soft * 0.6, 0.05, 1.0);
               cov = smoothstep(lo, hi, a);
+            }
+          } else {
+            // Fallback to circle.
+            cov = 1.0 - smoothstep(radius - soft, radius, dist);
+          }
+        } else {
+          // Sprite sheet. Same local-UV construction as custom SVG —
+          // the particle's bounding box maps to ONE CELL of the sheet
+          // instead of the whole texture.
+          //
+          // Cell selection (idx, reading order: left-to-right then
+          // top-to-bottom as the artist sees the sheet):
+          //   - base index: stable per-particle hash, so in random
+          //     mode each particle keeps its sprite forever.
+          //   - animated advance: floor(time * fps) added on top, so
+          //     every particle cycles the sheet but starts at its own
+          //     offset (the field never blinks in unison).
+          //   - loop mode: the frame counter is derived from loop
+          //     phase and completes an integer number of full sheet
+          //     cycles per loop, so WebM exports close seamlessly.
+          //
+          // Row math: the texture is uploaded Y-flipped (same
+          // convention as the custom SVG path), so image row r
+          // counted from the TOP of the sheet lives in the
+          // (rows - 1 - r) band of sampler space.
+          if (u_hasSpriteSheet > 0.5) {
+            vec2 localUV = (d / cellSize) / (2.0 * radius) + 0.5;
+            if (localUV.x >= 0.0 && localUV.x <= 1.0 &&
+                localUV.y >= 0.0 && localUV.y <= 1.0) {
+              localUV.y = 1.0 - localUV.y;
+              float cols  = max(u_spriteGrid.x, 1.0);
+              float rows  = max(u_spriteGrid.y, 1.0);
+              float total = cols * rows;
+              // Stable per-particle sprite pick.
+              float idxBase = floor(hash(nbr + vec2(5.7, 9.3)) * total);
+              // Animated frame advance (0 in random mode).
+              float frameAdv = 0.0;
+              if (u_spriteAssign > 0.5) {
+                float fps = max(u_spriteFPS, 0.01);
+                if (u_loopMode > 0.5) {
+                  float cycles = max(1.0, floor(u_loopDuration * fps / total + 0.5));
+                  float phase = fract(u_time / max(u_loopDuration, 0.001));
+                  frameAdv = floor(phase * cycles * total);
+                } else {
+                  frameAdv = floor(u_time * fps);
+                }
+              }
+              float idx = mod(idxBase + frameAdv, total);
+              float sc = mod(idx, cols);
+              float sr = floor(idx / cols);
+              // Inset clamp keeps NEAREST sampling off the exact cell
+              // border so neighbouring sprites never bleed in.
+              vec2 fc = clamp(localUV, 0.002, 0.998);
+              vec2 sheetUV = vec2((sc + fc.x) / cols,
+                                  (rows - 1.0 - sr + fc.y) / rows);
+              vec4 sp = texture2D(u_spriteSheet, sheetUV);
+              float lo = clamp(0.5 - soft * 0.6, 0.0, 0.95);
+              float hi = clamp(0.5 + soft * 0.6, 0.05, 1.0);
+              cov = smoothstep(lo, hi, sp.a);
+              if (u_spriteColorMode > 0.5) {
+                candSprite    = sp.rgb;
+                candSpriteMix = 1.0;
+              }
             }
           } else {
             // Fallback to circle.
@@ -181,6 +273,8 @@ export const particlesBlock = /* glsl */ `
           particleN      = normalize(texture2D(u_normal, sampleAt).rgb * 2.0 - 1.0);
           particleBloom  = texture2D(u_bloom, sampleAt).r;
           particleCenter = center;
+          particleSprite    = candSprite;
+          particleSpriteMix = candSpriteMix;
           // h1 + h3 mixed gives a well-distributed hue per cell.
           // fract keeps it in [0,1] which is what the palette wants.
           particleHue    = fract(h1 * 0.61803 + h3 * 0.31831);
