@@ -109,20 +109,48 @@ async function rasterizeSvgToTexture(svgText) {
   return tex;
 }
 
-// Load a sprite-sheet image file into a NEAREST-filtered CanvasTexture.
-// NEAREST is the whole point — pixel art must stay sharp when a sprite
-// cell is magnified to particle size; bilinear turns it to mush.
+// Load a sprite-sheet file into a CanvasTexture.
 //
-// The image is drawn to a canvas at native resolution (capped at
+// RASTER sheets (PNG/WebP/...): NEAREST-filtered — pixel art must stay
+// sharp when a sprite cell is magnified to particle size; bilinear
+// turns it to mush. Drawn at native resolution (capped at
 // SPRITE_SHEET_MAX per side, decimated with smoothing OFF so a capped
-// sheet still reads as pixels, not blur). The canvas also gives us a
-// synchronous PNG dataURL for snapshots and the HTML exporter — cached
-// once at load time since sheets can be large.
-const SPRITE_SHEET_MAX = 2048;
+// sheet still reads as pixels, not blur).
+//
+// SVG sheets: rasterized WITH their own colors kept (unlike the
+// Custom shape, which forces a white silhouette) and UPSCALED — the
+// vector is free resolution, so we scale until the short side reaches
+// ~SPRITE_SVG_MIN_SIDE (capped at SPRITE_SVG_MAX_SIDE on the long
+// side) to get decent per-cell detail out of thin strips. SVG sheets
+// are LINEAR-filtered: a high-res rasterized vector sampled with
+// NEAREST at small particle sizes shimmers during motion.
+//
+// Returns { tex, dataURL, smooth } — smooth records the filter choice
+// so snapshot/restore and the HTML exporter reproduce it exactly.
+const SPRITE_SHEET_MAX    = 2048;
+const SPRITE_SVG_MIN_SIDE = 1024;
+const SPRITE_SVG_MAX_SIDE = 4096;
 
-async function loadSpriteSheetTexture(src) {
-  // src: File or dataURL string.
-  const url = typeof src === 'string' ? src : URL.createObjectURL(src);
+async function loadSpriteSheetTexture(src, isSvgHint) {
+  // src: File or dataURL string. isSvgHint forces the SVG path when
+  // restoring isn't applicable (restore always gets a PNG dataURL —
+  // the smooth flag is restored separately from the snapshot).
+  let url, isSvg = !!isSvgHint;
+  if (typeof src === 'string') {
+    url = src;
+    isSvg = isSvg || src.startsWith('data:image/svg');
+  } else {
+    isSvg = isSvg ||
+      src.type === 'image/svg+xml' ||
+      /\.svg$/i.test(src.name || '');
+    // SVGs load via a blob with an explicit svg mime so the <img>
+    // decoder treats them as such regardless of File metadata.
+    const blob = isSvg
+      ? new Blob([await src.text()], { type: 'image/svg+xml' })
+      : src;
+    url = URL.createObjectURL(blob);
+  }
+
   const img = new Image();
   img.crossOrigin = 'anonymous';
   await new Promise((resolve, reject) => {
@@ -132,9 +160,17 @@ async function loadSpriteSheetTexture(src) {
   });
   if (typeof src !== 'string') URL.revokeObjectURL(url);
 
-  const iw = img.naturalWidth  || 1;
-  const ih = img.naturalHeight || 1;
-  const scale = Math.min(1, SPRITE_SHEET_MAX / Math.max(iw, ih));
+  // Some SVGs (viewBox-only) report 0 natural size — fall back square.
+  const iw = img.naturalWidth  || (isSvg ? 1024 : 1);
+  const ih = img.naturalHeight || (isSvg ? 1024 : 1);
+
+  let scale;
+  if (isSvg) {
+    const up = Math.max(1, SPRITE_SVG_MIN_SIDE / Math.min(iw, ih));
+    scale = Math.min(up, SPRITE_SVG_MAX_SIDE / Math.max(iw, ih));
+  } else {
+    scale = Math.min(1, SPRITE_SHEET_MAX / Math.max(iw, ih));
+  }
   const w = Math.max(1, Math.round(iw * scale));
   const h = Math.max(1, Math.round(ih * scale));
 
@@ -142,20 +178,23 @@ async function loadSpriteSheetTexture(src) {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
+  // Smoothing ON for vector upscale (clean AA edges), OFF for raster
+  // decimation (keep pixels pixels).
+  ctx.imageSmoothingEnabled = isSvg;
   ctx.clearRect(0, 0, w, h);
   ctx.drawImage(img, 0, 0, w, h);
 
+  const smooth = isSvg;
   const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.NearestFilter;
-  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter;
+  tex.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.wrapS = THREE.ClampToEdgeWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.needsUpdate = true;
 
   const dataURL = canvas.toDataURL('image/png');
-  return { tex, dataURL };
+  return { tex, dataURL, smooth };
 }
 
 export function initParticlesControls({ host, uniforms, history }) {
@@ -183,7 +222,7 @@ export function initParticlesControls({ host, uniforms, history }) {
           `).join('')}
         </div>
         <input type="file" data-pc-svg-input accept=".svg,image/svg+xml" style="display:none">
-        <input type="file" data-pc-sheet-input accept="image/png,image/webp,image/gif,image/jpeg" style="display:none">
+        <input type="file" data-pc-sheet-input accept="image/png,image/webp,image/gif,image/jpeg,.svg,image/svg+xml" style="display:none">
       </div>
 
       <div data-pc-sprite-opts style="display:none">
@@ -303,6 +342,7 @@ export function initParticlesControls({ host, uniforms, history }) {
   // restore + export source of truth.
   let spriteSheetDataURL = null;
   let spriteSheetName    = null;
+  let spriteSheetSmooth  = false; // true = SVG-sourced, LINEAR-filtered
   let spriteColorMode = d.material.spriteColorMode;
   let spriteAssign    = d.material.spriteAssign;
 
@@ -346,15 +386,17 @@ export function initParticlesControls({ host, uniforms, history }) {
 
   async function loadSheetFile(file) {
     if (!file) return false;
-    if (!/^image\//.test(file.type)) {
-      alert('Please choose an image file (PNG/WebP) for the sprite sheet.');
+    const isImage = /^image\//.test(file.type) || /\.svg$/i.test(file.name || '');
+    if (!isImage) {
+      alert('Please choose an image file (PNG/WebP/SVG) for the sprite sheet.');
       return false;
     }
     try {
-      const { tex, dataURL } = await loadSpriteSheetTexture(file);
+      const { tex, dataURL, smooth } = await loadSpriteSheetTexture(file);
       setSpriteTexture(tex);
       spriteSheetDataURL = dataURL;
       spriteSheetName = file.name;
+      spriteSheetSmooth = smooth;
       return true;
     } catch (err) {
       console.error('Failed to load sprite sheet:', err);
@@ -545,6 +587,7 @@ export function initParticlesControls({ host, uniforms, history }) {
           // live inputs to match the slider-snapshot pattern above.
           spriteSheetDataURL: spriteSheetDataURL,
           spriteSheetName:    spriteSheetName,
+          spriteSheetSmooth:  spriteSheetSmooth,
           spriteCols:      parseInt(scols.value, 10),
           spriteRows:      parseInt(srows.value, 10),
           spriteColorMode: spriteColorMode,
@@ -602,6 +645,14 @@ export function initParticlesControls({ host, uniforms, history }) {
       if (typeof m.spriteSheetDataURL === 'string' && m.spriteSheetDataURL.length > 0) {
         try {
           const { tex, dataURL } = await loadSpriteSheetTexture(m.spriteSheetDataURL);
+          // The cached dataURL is always PNG (already rasterized), so
+          // the loader can't infer the filter — re-apply it from the
+          // snapshot flag.
+          spriteSheetSmooth = !!m.spriteSheetSmooth;
+          const f = spriteSheetSmooth ? THREE.LinearFilter : THREE.NearestFilter;
+          tex.minFilter = f;
+          tex.magFilter = f;
+          tex.needsUpdate = true;
           setSpriteTexture(tex);
           spriteSheetDataURL = dataURL;
           spriteSheetName = m.spriteSheetName || 'sprites.png';

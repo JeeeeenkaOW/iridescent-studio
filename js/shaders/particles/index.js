@@ -35,9 +35,10 @@ function serializeForExport(snapshot) {
   const hasParticleSvg = hasCustomSvg ? 1.0 : 0.0;
 
   // Sprite-sheet export: same pattern. When shape=Sprites AND a sheet
-  // is loaded, bake the cached PNG dataURL; the exported runtime
-  // uploads it with NEAREST filtering (imgTexN) so pixel art stays
-  // sharp in the embed exactly like the studio.
+  // is loaded, bake the cached PNG dataURL. Raster sheets upload with
+  // NEAREST filtering (imgTexN) so pixel art stays sharp; SVG-sourced
+  // sheets (spriteSheetSmooth) upload LINEAR (imgTex) to match the
+  // studio's anti-aliased vector rendering.
   const hasSheet =
     mat.shape === 3 &&
     typeof mat.spriteSheetDataURL === 'string' &&
@@ -63,6 +64,7 @@ const SPRITE_ROWS        = ${mat.spriteRows      ?? defaults.material.spriteRows
 const SPRITE_COLOR_MODE  = ${mat.spriteColorMode ?? defaults.material.spriteColorMode};
 const SPRITE_ASSIGN      = ${mat.spriteAssign    ?? defaults.material.spriteAssign};
 const SPRITE_FPS         = ${mat.spriteFPS       ?? defaults.material.spriteFPS};
+const SPRITE_SMOOTH      = ${mat.spriteSheetSmooth ? 1 : 0};
 const MOTION_DRIFT       = ${mat.motionDrift   ?? defaults.material.motionDrift};
 const MOTION_RISE        = ${mat.motionRise    ?? defaults.material.motionRise};
 const MOTION_TWINKLE     = ${mat.motionTwinkle ?? defaults.material.motionTwinkle};
@@ -89,7 +91,7 @@ const HALO_BASE_INT      = 0.32;
     u_particleShape:    { value: PARTICLE_SHAPE },
     u_particleSvg:       { value: imgTex(PARTICLE_SVG_URL) },
     u_hasParticleSvg:    { value: HAS_PARTICLE_SVG },
-    u_spriteSheet:       { value: imgTexN(SPRITE_SHEET_URL) },
+    u_spriteSheet:       { value: (SPRITE_SMOOTH ? imgTex : imgTexN)(SPRITE_SHEET_URL) },
     u_hasSpriteSheet:    { value: HAS_SPRITE_SHEET },
     u_spriteGrid:        { value: THREE.Vector2(SPRITE_COLS, SPRITE_ROWS) },
     u_spriteColorMode:   { value: SPRITE_COLOR_MODE },
