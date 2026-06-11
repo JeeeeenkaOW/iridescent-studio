@@ -194,7 +194,75 @@ async function loadSpriteSheetTexture(src, isSvgHint) {
   tex.needsUpdate = true;
 
   const dataURL = canvas.toDataURL('image/png');
-  return { tex, dataURL, smooth, width: w, height: h };
+  const grid = detectSheetGrid(ctx, w, h);
+  return { tex, dataURL, smooth, width: w, height: h, grid };
+}
+
+// Auto-detect the sheet's cols x rows from its alpha channel.
+//
+// Method: for each candidate count c in 2..32 (per axis), check that
+// EVERY internal cell boundary (x = i*w/c) falls on a near-empty
+// alpha column (within a small window). The finest grid whose
+// boundaries are all clear wins. This is robust to gaps INSIDE a
+// sprite (a glyph's internal whitespace doesn't align with all c-1
+// boundaries unless the grid is real) and to anti-aliased gutters
+// (threshold is relative, not exact-zero).
+//
+// Fallback for gutterless sheets (fully opaque pixel art): if no
+// candidate validates on either axis, assume square cells when one
+// dimension cleanly divides the other (e.g. a 1024x128 strip = 8x1).
+//
+// Returns { cols, rows } — a SUGGESTION the UI applies to the grid
+// sliders; manual override always stays available.
+function detectSheetGrid(ctx, w, h) {
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const colSum = new Float64Array(w);
+  const rowSum = new Float64Array(h);
+  for (let y = 0; y < h; y++) {
+    const base = y * w * 4;
+    for (let x = 0; x < w; x++) {
+      const a = data[base + x * 4 + 3];
+      colSum[x] += a;
+      rowSum[y] += a;
+    }
+  }
+
+  function finestValid(sums, len) {
+    // Mean alpha of non-empty lines — the reference for "near-empty".
+    let total = 0, nonEmpty = 0;
+    for (let i = 0; i < len; i++) {
+      total += sums[i];
+      if (sums[i] > 0) nonEmpty++;
+    }
+    if (nonEmpty === 0) return 1;
+    const meanContent = total / nonEmpty;
+    const thresh = meanContent * 0.01;
+
+    for (let c = 32; c >= 2; c--) {
+      const win = Math.max(1, Math.round((len / c) * 0.02));
+      let ok = true;
+      for (let i = 1; i < c && ok; i++) {
+        const b = Math.round((i * len) / c);
+        let m = Infinity;
+        for (let k = Math.max(0, b - win); k <= Math.min(len - 1, b + win); k++) {
+          m = Math.min(m, sums[k]);
+        }
+        if (m > thresh) ok = false;
+      }
+      if (ok) return c;
+    }
+    return 1;
+  }
+
+  let cols = finestValid(colSum, w);
+  let rows = finestValid(rowSum, h);
+
+  // Gutterless fallback: square-cell strips.
+  if (cols === 1 && rows === 1) {
+    if (w > h && w % h === 0) cols = Math.min(32, w / h);
+    else if (h > w && h % w === 0) rows = Math.min(32, h / w);
+  }
+  return { cols, rows };
 }
 
 export function initParticlesControls({ host, uniforms, history }) {
@@ -228,11 +296,11 @@ export function initParticlesControls({ host, uniforms, history }) {
       <div data-pc-sprite-opts style="display:none">
         <div class="range-row">
           <div class="range-label"><span>Sheet columns</span><span class="range-value" data-pc-scols-val>${d.material.spriteCols}</span></div>
-          <input type="range" data-pc-scols min="1" max="16" step="1" value="${d.material.spriteCols}">
+          <input type="range" data-pc-scols min="1" max="32" step="1" value="${d.material.spriteCols}">
         </div>
         <div class="range-row">
           <div class="range-label"><span>Sheet rows</span><span class="range-value" data-pc-srows-val>${d.material.spriteRows}</span></div>
-          <input type="range" data-pc-srows min="1" max="16" step="1" value="${d.material.spriteRows}">
+          <input type="range" data-pc-srows min="1" max="32" step="1" value="${d.material.spriteRows}">
         </div>
         <div class="range-row">
           <div class="range-label"><span>Sprite scale</span><span class="range-value" data-pc-sscale-val>${Math.round(d.material.spriteScale * 100)}%</span></div>
@@ -401,7 +469,7 @@ export function initParticlesControls({ host, uniforms, history }) {
       return false;
     }
     try {
-      const { tex, dataURL, smooth, width, height } = await loadSpriteSheetTexture(file);
+      const { tex, dataURL, smooth, width, height, grid } = await loadSpriteSheetTexture(file);
       setSpriteTexture(tex);
       spriteSheetDataURL = dataURL;
       spriteSheetName = file.name;
@@ -409,6 +477,16 @@ export function initParticlesControls({ host, uniforms, history }) {
       spriteSheetW = width;
       spriteSheetH = height;
       uniforms.u_spriteSheetSize.value.set(width, height);
+      // Apply the auto-detected grid to the sliders + uniform. Only
+      // on a user-initiated upload — restore applies the snapshot's
+      // explicit values instead. Sliders remain manual overrides.
+      if (grid) {
+        scols.value = String(grid.cols);
+        scolsV.textContent = String(grid.cols);
+        srows.value = String(grid.rows);
+        srowsV.textContent = String(grid.rows);
+        uniforms.u_spriteGrid.value.set(grid.cols, grid.rows);
+      }
       return true;
     } catch (err) {
       console.error('Failed to load sprite sheet:', err);

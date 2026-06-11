@@ -178,9 +178,14 @@ export const particlesBlock = /* glsl */ `
             // Outside the bounding box → no coverage.
             if (localUV.x >= 0.0 && localUV.x <= 1.0 &&
                 localUV.y >= 0.0 && localUV.y <= 1.0) {
-              // Flip Y because texture origin differs from UV origin
+              // NOTE (orientation): no Y flip here. v_uv.y is 1 at
+              // the top of the screen and canvas textures upload with
+              // flipY=true, so sampling at localUV directly renders
+              // upright — exactly like the albedo path. A 1-y flip
+              // lived here from 19_6 to 20_13 and rendered custom
+              // SVGs (and sprites) vertically flipped; invisible with
+              // symmetric shapes, exposed by glyph sheets.
               // for our rasterized canvas (CanvasTexture is top-left).
-              localUV.y = 1.0 - localUV.y;
               float a = texture2D(u_particleSvg, localUV).a;
               // Soft edge: feather the alpha. soft is in radius units
               // (~[0,0.5]); convert to an alpha threshold range.
@@ -208,10 +213,10 @@ export const particlesBlock = /* glsl */ `
           //     phase and completes an integer number of full sheet
           //     cycles per loop, so WebM exports close seamlessly.
           //
-          // Row math: the texture is uploaded Y-flipped (same
-          // convention as the custom SVG path), so image row r
-          // counted from the TOP of the sheet lives in the
-          // (rows - 1 - r) band of sampler space.
+          // Row math: flipY=true uploads put the image's TOP row at
+          // v=1, so image row r counted from the top spans
+          // v in [(rows-1-r)/rows, (rows-r)/rows] — hence the
+          // (rows - 1 - r + localUV.y) numerator below.
           if (u_hasSpriteSheet > 0.5) {
             // Sprite-only size: u_spriteScale multiplies the box on
             // top of the shared Size slider. Half-extent clamped to
@@ -237,7 +242,6 @@ export const particlesBlock = /* glsl */ `
             }
             if (localUV.x >= 0.0 && localUV.x <= 1.0 &&
                 localUV.y >= 0.0 && localUV.y <= 1.0) {
-              localUV.y = 1.0 - localUV.y;
               float cols  = max(u_spriteGrid.x, 1.0);
               float rows  = max(u_spriteGrid.y, 1.0);
               float total = cols * rows;
