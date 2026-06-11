@@ -303,8 +303,8 @@ export function initParticlesControls({ host, uniforms, history }) {
           <input type="range" data-pc-srows min="1" max="32" step="1" value="${d.material.spriteRows}">
         </div>
         <div class="range-row">
-          <div class="range-label"><span>Sprite scale</span><span class="range-value" data-pc-sscale-val>${Math.round(d.material.spriteScale * 100)}%</span></div>
-          <input type="range" data-pc-sscale min="25" max="250" step="1" value="${Math.round(d.material.spriteScale * 100)}">
+          <div class="range-label"><span>Sprite size</span><span class="range-value" data-pc-sscale-val>${Math.round(d.material.spriteScale * 100)}%</span></div>
+          <input type="range" data-pc-sscale min="10" max="400" step="1" value="${Math.round(d.material.spriteScale * 100)}">
         </div>
         <div class="range-row">
           <div class="range-label"><span>Sprite color</span></div>
@@ -332,7 +332,7 @@ export function initParticlesControls({ host, uniforms, history }) {
         <input type="range" data-pc-den min="20" max="150" step="1" value="${d.material.density}">
       </div>
 
-      <div class="range-row">
+      <div class="range-row" data-pc-size-row>
         <div class="range-label"><span>Size</span><span class="range-value" data-pc-siz-val>${Math.round(d.material.size * 100)}%</span></div>
         <input type="range" data-pc-siz min="10" max="90" step="1" value="${Math.round(d.material.size * 100)}">
       </div>
@@ -406,6 +406,7 @@ export function initParticlesControls({ host, uniforms, history }) {
   const sfpsV       = host.querySelector('[data-pc-sfps-val]');
   const sscale      = host.querySelector('[data-pc-sscale]');
   const sscaleV     = host.querySelector('[data-pc-sscale-val]');
+  const sizeRow     = host.querySelector('[data-pc-size-row]');
 
   let shape = d.material.shape;
   // Track the loaded SVG so we can restore session state across
@@ -458,6 +459,9 @@ export function initParticlesControls({ host, uniforms, history }) {
   // active; the FPS row only when assignment is Animated.
   function refreshSpriteOptsVisibility() {
     spriteOpts.style.display = shape === 3 ? '' : 'none';
+    // The shared Size slider has no effect on sprites (Sprite size is
+    // the single authority there) — hide it to avoid two size knobs.
+    sizeRow.style.display = shape === 3 ? 'none' : '';
     sfpsRow.style.display = spriteAssign > 0 ? '' : 'none';
   }
 

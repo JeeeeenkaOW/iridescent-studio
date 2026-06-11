@@ -76,7 +76,7 @@ export const particlesBlock = /* glsl */ `
     // coherent skip, so every other configuration executes the same
     // 3x3 work as before.
     bool wideScan = (u_particleShape > 2.5)
-                 && (u_particleSize * u_spriteScale > 1.0);
+                 && (u_spriteScale * 0.5 > 1.0);
     for (int dy = -2; dy <= 2; dy++) {
       for (int dx = -2; dx <= 2; dx++) {
         float fdx = float(dx);
@@ -218,10 +218,12 @@ export const particlesBlock = /* glsl */ `
           // v in [(rows-1-r)/rows, (rows-r)/rows] — hence the
           // (rows - 1 - r + localUV.y) numerator below.
           if (u_hasSpriteSheet > 0.5) {
-            // Sprite-only size: u_spriteScale multiplies the box on
-            // top of the shared Size slider. Half-extent clamped to
-            // 2.0 cells so the 5x5 scan always covers the box.
-            float sradius = min(radius * u_spriteScale, 2.0);
+            // Sprite-only size: u_spriteScale is the SINGLE size
+            // authority for sprites (the shared Size slider is hidden
+            // and ignored for this shape). 1.0 = a one-cell box
+            // (half-extent 0.5 cells); clamped to 2.0 cells so the
+            // 5x5 scan always covers the box.
+            float sradius = min(u_spriteScale * 0.5, 2.0);
             vec2 localUV = (d / cellSize) / (2.0 * sradius) + 0.5;
             // Contain-fit: preserve the CELL's aspect ratio inside the
             // square particle box. A wide cell (aspect > 1) spans the

@@ -72,10 +72,10 @@ const materialUniforms = /* glsl */ `
   // non-square cells render contain-fit (undistorted) in the square
   // particle box instead of being squished to fill it.
   uniform vec2  u_spriteSheetSize;
-  // Sprite scale — multiplier on top of u_particleSize, sprite shape
-  // only. Lets sprites grow well past the shared Size slider's 90%
-  // cap (clamped to 2.0 cells half-extent in the shader; the cell
-  // scan widens to 5x5 for large sprites to avoid clipping).
+  // Sprite size — the SINGLE size control for the sprite shape
+  // (u_particleSize is ignored there; its slider is hidden in the
+  // UI). 1.0 = one-cell box, clamped to a 2.0-cell half-extent; the
+  // cell scan widens to 5x5 for large sprites to avoid clipping.
   uniform float u_spriteScale;
   uniform float u_spriteColorMode;
   uniform float u_spriteAssign;
