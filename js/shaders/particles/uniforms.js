@@ -52,6 +52,8 @@ export function createUniforms(shared) {
     u_spriteSheet:      { value: makeBlankTexture() },
     u_hasSpriteSheet:   { value: 0.0 },
     u_spriteGrid:       { value: new THREE.Vector2(defaults.material.spriteCols, defaults.material.spriteRows) },
+    u_spriteSheetSize:  { value: new THREE.Vector2(1, 1) },
+    u_spriteScale:      { value: defaults.material.spriteScale },
     u_spriteColorMode:  { value: defaults.material.spriteColorMode },
     u_spriteAssign:     { value: defaults.material.spriteAssign },
     u_spriteFPS:        { value: defaults.material.spriteFPS },

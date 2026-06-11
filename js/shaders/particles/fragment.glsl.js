@@ -59,12 +59,24 @@ const materialUniforms = /* glsl */ `
   uniform float u_hasParticleSvg;
   // Sprite-sheet shape support (shape 3). u_spriteGrid is (cols, rows).
   // u_spriteColorMode: 0 = silhouette, 1 = full color.
-  // u_spriteAssign: 0 = random-stable per particle, 1 = animated.
+  // u_spriteAssign: 0 = random-stable per particle, 1 = animated
+  // (cycle the whole sheet), 2 = animated rows (each particle picks a
+  // random ROW — one animation type — and cycles its columns; the
+  // standard rows-are-animations sheet convention).
   // u_spriteFPS: frame rate for animated mode (loop-safe — see
   // particles.glsl.js). u_hasSpriteSheet gates the circle fallback.
   uniform sampler2D u_spriteSheet;
   uniform float u_hasSpriteSheet;
   uniform vec2  u_spriteGrid;
+  // Sheet pixel dimensions — used to derive cell aspect ratio so
+  // non-square cells render contain-fit (undistorted) in the square
+  // particle box instead of being squished to fill it.
+  uniform vec2  u_spriteSheetSize;
+  // Sprite scale — multiplier on top of u_particleSize, sprite shape
+  // only. Lets sprites grow well past the shared Size slider's 90%
+  // cap (clamped to 2.0 cells half-extent in the shader; the cell
+  // scan widens to 5x5 for large sprites to avoid clipping).
+  uniform float u_spriteScale;
   uniform float u_spriteColorMode;
   uniform float u_spriteAssign;
   uniform float u_spriteFPS;

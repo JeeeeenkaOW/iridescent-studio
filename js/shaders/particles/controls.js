@@ -194,7 +194,7 @@ async function loadSpriteSheetTexture(src, isSvgHint) {
   tex.needsUpdate = true;
 
   const dataURL = canvas.toDataURL('image/png');
-  return { tex, dataURL, smooth };
+  return { tex, dataURL, smooth, width: w, height: h };
 }
 
 export function initParticlesControls({ host, uniforms, history }) {
@@ -235,6 +235,10 @@ export function initParticlesControls({ host, uniforms, history }) {
           <input type="range" data-pc-srows min="1" max="16" step="1" value="${d.material.spriteRows}">
         </div>
         <div class="range-row">
+          <div class="range-label"><span>Sprite scale</span><span class="range-value" data-pc-sscale-val>${Math.round(d.material.spriteScale * 100)}%</span></div>
+          <input type="range" data-pc-sscale min="25" max="250" step="1" value="${Math.round(d.material.spriteScale * 100)}">
+        </div>
+        <div class="range-row">
           <div class="range-label"><span>Sprite color</span></div>
           <div class="segmented cols-2">
             <button class="seg-btn ${d.material.spriteColorMode < 0.5 ? 'active' : ''}" data-pc-scolor="0">Silhouette</button>
@@ -243,9 +247,10 @@ export function initParticlesControls({ host, uniforms, history }) {
         </div>
         <div class="range-row">
           <div class="range-label"><span>Sprite mode</span></div>
-          <div class="segmented cols-2">
-            <button class="seg-btn ${d.material.spriteAssign < 0.5 ? 'active' : ''}" data-pc-sassign="0">Random</button>
-            <button class="seg-btn ${d.material.spriteAssign > 0.5 ? 'active' : ''}" data-pc-sassign="1">Animated</button>
+          <div class="segmented cols-3">
+            <button class="seg-btn ${d.material.spriteAssign === 0 ? 'active' : ''}" data-pc-sassign="0">Random</button>
+            <button class="seg-btn ${d.material.spriteAssign === 1 ? 'active' : ''}" data-pc-sassign="1">Animated</button>
+            <button class="seg-btn ${d.material.spriteAssign === 2 ? 'active' : ''}" data-pc-sassign="2">Anim rows</button>
           </div>
         </div>
         <div class="range-row" data-pc-sfps-row style="display:none">
@@ -331,6 +336,8 @@ export function initParticlesControls({ host, uniforms, history }) {
   const sfpsRow     = host.querySelector('[data-pc-sfps-row]');
   const sfps        = host.querySelector('[data-pc-sfps]');
   const sfpsV       = host.querySelector('[data-pc-sfps-val]');
+  const sscale      = host.querySelector('[data-pc-sscale]');
+  const sscaleV     = host.querySelector('[data-pc-sscale-val]');
 
   let shape = d.material.shape;
   // Track the loaded SVG so we can restore session state across
@@ -343,6 +350,8 @@ export function initParticlesControls({ host, uniforms, history }) {
   let spriteSheetDataURL = null;
   let spriteSheetName    = null;
   let spriteSheetSmooth  = false; // true = SVG-sourced, LINEAR-filtered
+  let spriteSheetW = 1;
+  let spriteSheetH = 1;
   let spriteColorMode = d.material.spriteColorMode;
   let spriteAssign    = d.material.spriteAssign;
 
@@ -381,7 +390,7 @@ export function initParticlesControls({ host, uniforms, history }) {
   // active; the FPS row only when assignment is Animated.
   function refreshSpriteOptsVisibility() {
     spriteOpts.style.display = shape === 3 ? '' : 'none';
-    sfpsRow.style.display = spriteAssign > 0.5 ? '' : 'none';
+    sfpsRow.style.display = spriteAssign > 0 ? '' : 'none';
   }
 
   async function loadSheetFile(file) {
@@ -392,11 +401,14 @@ export function initParticlesControls({ host, uniforms, history }) {
       return false;
     }
     try {
-      const { tex, dataURL, smooth } = await loadSpriteSheetTexture(file);
+      const { tex, dataURL, smooth, width, height } = await loadSpriteSheetTexture(file);
       setSpriteTexture(tex);
       spriteSheetDataURL = dataURL;
       spriteSheetName = file.name;
       spriteSheetSmooth = smooth;
+      spriteSheetW = width;
+      spriteSheetH = height;
+      uniforms.u_spriteSheetSize.value.set(width, height);
       return true;
     } catch (err) {
       console.error('Failed to load sprite sheet:', err);
@@ -511,6 +523,12 @@ export function initParticlesControls({ host, uniforms, history }) {
     uniforms.u_spriteFPS.value = v;
   });
   sfps.addEventListener('change', () => history?.push());
+  sscale.addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    sscaleV.textContent = v + '%';
+    uniforms.u_spriteScale.value = v / 100;
+  });
+  sscale.addEventListener('change', () => history?.push());
 
   // Initial visibility (defaults may already be Sprites via restore).
   refreshSpriteOptsVisibility();
@@ -588,11 +606,14 @@ export function initParticlesControls({ host, uniforms, history }) {
           spriteSheetDataURL: spriteSheetDataURL,
           spriteSheetName:    spriteSheetName,
           spriteSheetSmooth:  spriteSheetSmooth,
+          spriteSheetW:       spriteSheetW,
+          spriteSheetH:       spriteSheetH,
           spriteCols:      parseInt(scols.value, 10),
           spriteRows:      parseInt(srows.value, 10),
           spriteColorMode: spriteColorMode,
           spriteAssign:    spriteAssign,
           spriteFPS:       parseInt(sfps.value, 10),
+          spriteScale:     parseInt(sscale.value, 10) / 100,
           motionDrift:   parseInt(mdr.value, 10) / 100,
           motionRise:    parseInt(mri.value, 10) / 100,
           motionTwinkle: parseInt(mtw.value, 10) / 100,
@@ -644,7 +665,10 @@ export function initParticlesControls({ host, uniforms, history }) {
       // ordering so the circle fallback never flickers in.
       if (typeof m.spriteSheetDataURL === 'string' && m.spriteSheetDataURL.length > 0) {
         try {
-          const { tex, dataURL } = await loadSpriteSheetTexture(m.spriteSheetDataURL);
+          const { tex, dataURL, width, height } = await loadSpriteSheetTexture(m.spriteSheetDataURL);
+          spriteSheetW = width;
+          spriteSheetH = height;
+          uniforms.u_spriteSheetSize.value.set(width, height);
           // The cached dataURL is always PNG (already rasterized), so
           // the loader can't infer the filter — re-apply it from the
           // snapshot flag.
@@ -684,6 +708,12 @@ export function initParticlesControls({ host, uniforms, history }) {
         sfps.value = String(m.spriteFPS);
         sfpsV.textContent = m.spriteFPS + ' fps';
         uniforms.u_spriteFPS.value = m.spriteFPS;
+      }
+      if (typeof m.spriteScale === 'number') {
+        const pc = Math.round(m.spriteScale * 100);
+        sscale.value = String(pc);
+        sscaleV.textContent = pc + '%';
+        uniforms.u_spriteScale.value = m.spriteScale;
       }
 
       if (typeof m.shape === 'number') {

@@ -64,7 +64,10 @@ const SPRITE_ROWS        = ${mat.spriteRows      ?? defaults.material.spriteRows
 const SPRITE_COLOR_MODE  = ${mat.spriteColorMode ?? defaults.material.spriteColorMode};
 const SPRITE_ASSIGN      = ${mat.spriteAssign    ?? defaults.material.spriteAssign};
 const SPRITE_FPS         = ${mat.spriteFPS       ?? defaults.material.spriteFPS};
+const SPRITE_SCALE       = ${mat.spriteScale     ?? defaults.material.spriteScale};
 const SPRITE_SMOOTH      = ${mat.spriteSheetSmooth ? 1 : 0};
+const SPRITE_SHEET_W     = ${mat.spriteSheetW ?? 1};
+const SPRITE_SHEET_H     = ${mat.spriteSheetH ?? 1};
 const MOTION_DRIFT       = ${mat.motionDrift   ?? defaults.material.motionDrift};
 const MOTION_RISE        = ${mat.motionRise    ?? defaults.material.motionRise};
 const MOTION_TWINKLE     = ${mat.motionTwinkle ?? defaults.material.motionTwinkle};
@@ -94,9 +97,11 @@ const HALO_BASE_INT      = 0.32;
     u_spriteSheet:       { value: (SPRITE_SMOOTH ? imgTex : imgTexN)(SPRITE_SHEET_URL) },
     u_hasSpriteSheet:    { value: HAS_SPRITE_SHEET },
     u_spriteGrid:        { value: THREE.Vector2(SPRITE_COLS, SPRITE_ROWS) },
+    u_spriteSheetSize:   { value: THREE.Vector2(SPRITE_SHEET_W, SPRITE_SHEET_H) },
     u_spriteColorMode:   { value: SPRITE_COLOR_MODE },
     u_spriteAssign:      { value: SPRITE_ASSIGN },
     u_spriteFPS:         { value: SPRITE_FPS },
+    u_spriteScale:       { value: SPRITE_SCALE },
     u_motionDrift:       { value: MOTION_DRIFT },
     u_motionRise:        { value: MOTION_RISE },
     u_motionTwinkle:     { value: MOTION_TWINKLE },

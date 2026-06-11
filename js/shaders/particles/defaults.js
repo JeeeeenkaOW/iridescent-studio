@@ -29,7 +29,8 @@ export const defaults = {
     spriteCols:      4,
     spriteRows:      4,
     spriteColorMode: 1,   // 0 = silhouette, 1 = full color
-    spriteAssign:    0,   // 0 = random-stable, 1 = animated
+    spriteAssign:    0,   // 0 = random-stable, 1 = animated (whole sheet), 2 = animated rows
+    spriteScale:     1.0, // sprite-only size multiplier on top of Size
     spriteFPS:       8,
     // Default motion: mild drift only. User can combine any of these.
     motionDrift:   0.4,

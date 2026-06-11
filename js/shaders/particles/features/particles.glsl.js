@@ -30,9 +30,12 @@
 //                 Grid layout comes from u_spriteGrid (cols, rows).
 //                 u_spriteAssign: 0 = each particle picks one stable
 //                 random sprite; 1 = particles animate through the
-//                 sheet frames at u_spriteFPS (loop-safe in loop mode:
-//                 the frame counter completes an integer number of
-//                 full sheet cycles per loop). u_spriteColorMode:
+//                 whole sheet at u_spriteFPS; 2 = animated rows: each
+//                 particle picks one random ROW and cycles its columns
+//                 (rows-are-animations convention). Both animated
+//                 modes are loop-safe (integer number of full cycles
+//                 per loop). u_spriteScale multiplies the sprite's
+//                 bounding box on top of the Size slider. u_spriteColorMode:
 //                 0 = silhouette (alpha is a mask, material colors the
 //                 particle, same as custom SVG); 1 = full color (the
 //                 sprite's own RGB becomes the particle body color).
@@ -67,9 +70,19 @@ export const particlesBlock = /* glsl */ `
     float particleSpriteMix = 0.0;
     float bestCoverage   = 0.0;
 
-    for (int dy = -1; dy <= 1; dy++) {
-      for (int dx = -1; dx <= 1; dx++) {
-        vec2 nbr = cellId + vec2(float(dx), float(dy));
+    // 5x5 scan, but ring 2 only participates when the sprite's
+    // effective half-extent (Size x Sprite scale) plus max jitter
+    // could poke past the 1.5-cell reach of a 3x3 scan. Uniform-
+    // coherent skip, so every other configuration executes the same
+    // 3x3 work as before.
+    bool wideScan = (u_particleShape > 2.5)
+                 && (u_particleSize * u_spriteScale > 1.0);
+    for (int dy = -2; dy <= 2; dy++) {
+      for (int dx = -2; dx <= 2; dx++) {
+        float fdx = float(dx);
+        float fdy = float(dy);
+        if (!wideScan && (fdx * fdx > 1.5 || fdy * fdy > 1.5)) continue;
+        vec2 nbr = cellId + vec2(fdx, fdy);
 
         // Per-cell hashes for jitter + per-cell phase offsets.
         float h1 = hash(nbr + vec2(11.7, 23.1));
@@ -200,28 +213,69 @@ export const particlesBlock = /* glsl */ `
           // counted from the TOP of the sheet lives in the
           // (rows - 1 - r) band of sampler space.
           if (u_hasSpriteSheet > 0.5) {
-            vec2 localUV = (d / cellSize) / (2.0 * radius) + 0.5;
+            // Sprite-only size: u_spriteScale multiplies the box on
+            // top of the shared Size slider. Half-extent clamped to
+            // 2.0 cells so the 5x5 scan always covers the box.
+            float sradius = min(radius * u_spriteScale, 2.0);
+            vec2 localUV = (d / cellSize) / (2.0 * sradius) + 0.5;
+            // Contain-fit: preserve the CELL's aspect ratio inside the
+            // square particle box. A wide cell (aspect > 1) spans the
+            // box's full width and is centered vertically; a tall cell
+            // the inverse. Fragments in the letterbox bands fall
+            // outside [0,1] and are rejected by the bounds check below
+            // (cov stays 0 = transparent padding, no squish ever).
+            {
+              float cols0 = max(u_spriteGrid.x, 1.0);
+              float rows0 = max(u_spriteGrid.y, 1.0);
+              vec2 sheetPx = max(u_spriteSheetSize, vec2(1.0));
+              float cellAspect = (sheetPx.x / cols0) / (sheetPx.y / rows0);
+              if (cellAspect > 1.0) {
+                localUV.y = (localUV.y - 0.5) * cellAspect + 0.5;
+              } else if (cellAspect < 1.0) {
+                localUV.x = (localUV.x - 0.5) / cellAspect + 0.5;
+              }
+            }
             if (localUV.x >= 0.0 && localUV.x <= 1.0 &&
                 localUV.y >= 0.0 && localUV.y <= 1.0) {
               localUV.y = 1.0 - localUV.y;
               float cols  = max(u_spriteGrid.x, 1.0);
               float rows  = max(u_spriteGrid.y, 1.0);
               float total = cols * rows;
-              // Stable per-particle sprite pick.
-              float idxBase = floor(hash(nbr + vec2(5.7, 9.3)) * total);
-              // Animated frame advance (0 in random mode).
-              float frameAdv = 0.0;
-              if (u_spriteAssign > 0.5) {
+              // Stable per-particle pick.
+              float pick = hash(nbr + vec2(5.7, 9.3));
+              float idx;
+              if (u_spriteAssign > 1.5) {
+                // ANIMATED ROWS — each particle picks one random ROW
+                // (one animation type) and cycles that row's COLUMNS.
+                // Standard rows-are-animations sheet convention.
+                float row = min(floor(pick * rows), rows - 1.0);
+                float colBase = floor(hash(nbr + vec2(3.3, 8.8)) * cols);
                 float fps = max(u_spriteFPS, 0.01);
+                float frameAdv;
                 if (u_loopMode > 0.5) {
-                  float cycles = max(1.0, floor(u_loopDuration * fps / total + 0.5));
+                  float cycles = max(1.0, floor(u_loopDuration * fps / cols + 0.5));
                   float phase = fract(u_time / max(u_loopDuration, 0.001));
-                  frameAdv = floor(phase * cycles * total);
+                  frameAdv = floor(phase * cycles * cols);
                 } else {
                   frameAdv = floor(u_time * fps);
                 }
+                idx = row * cols + mod(colBase + frameAdv, cols);
+              } else {
+                float idxBase = floor(pick * total);
+                // Animated frame advance (0 in random mode).
+                float frameAdv = 0.0;
+                if (u_spriteAssign > 0.5) {
+                  float fps = max(u_spriteFPS, 0.01);
+                  if (u_loopMode > 0.5) {
+                    float cycles = max(1.0, floor(u_loopDuration * fps / total + 0.5));
+                    float phase = fract(u_time / max(u_loopDuration, 0.001));
+                    frameAdv = floor(phase * cycles * total);
+                  } else {
+                    frameAdv = floor(u_time * fps);
+                  }
+                }
+                idx = mod(idxBase + frameAdv, total);
               }
-              float idx = mod(idxBase + frameAdv, total);
               float sc = mod(idx, cols);
               float sr = floor(idx / cols);
               // Inset clamp keeps NEAREST sampling off the exact cell
