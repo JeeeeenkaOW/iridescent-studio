@@ -18,6 +18,7 @@ const F0_COLOR_HEX      = ${JSON.stringify(mat.f0Color ?? defaults.material.f0Co
 const ROUGHNESS         = ${mat.roughness ?? defaults.material.roughness};
 const REFRACTION        = ${typeof mat.refraction === 'number' ? mat.refraction : defaults.material.refraction};
 const REFRACTION_MIX    = ${mat.refractionMix ?? defaults.material.refractionMix};
+const FROST             = ${mat.frost ?? defaults.material.frost};
 const SSS_COLOR_HEX     = ${JSON.stringify(mat.sssColor ?? defaults.material.sssColor)};
 const SSS_STRENGTH      = ${mat.sssStrength ?? defaults.material.sssStrength};
 const FRESNEL           = ${mat.fresnel ?? defaults.material.fresnel};
@@ -43,6 +44,7 @@ const HALO_BASE_INT     = 0.32;
     u_roughness:         { value: ROUGHNESS },
     u_refraction:        { value: REFRACTION },
     u_refractionMix:     { value: REFRACTION_MIX },
+    u_frost:             { value: FROST },
     u_sssColor:          { value: hexToVec3(SSS_COLOR_HEX) },
     u_sssStrength:       { value: SSS_STRENGTH },
     u_fresnel:           { value: FRESNEL },

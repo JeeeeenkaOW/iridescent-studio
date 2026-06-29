@@ -34,6 +34,8 @@ import { initProject } from './controls/project.js';
 import { initHistory } from './controls/history.js';
 import { initCollapsibles } from './controls/collapsibles.js';
 import { initTabs } from './controls/tabs.js';
+import { initInspectorTabs } from './controls/inspector-tabs.js';
+import { initPresets } from './controls/presets.js';
 
 // =========================================================
 // STATE
@@ -50,6 +52,8 @@ const state = {
     gradient: { from: '#000000', to: '#202020', angle: 180 },
     imageBlob: null,
     imageName: '',
+    videoBlob: null,
+    videoName: '',
   },
   normals: 'edge',
   strength: 4.0,
@@ -72,6 +76,12 @@ const state = {
   // uses resScale only).
   fps: 30,
   resScale: 1,        // 1, 2, or 4 — multiplier on viewport size
+  // Bottom-bar transport. `paused` halts the animation clock (the
+  // time-driven noise / drift); `scrubTime` is the current position
+  // within the loop in seconds, driven by the scrubber and reflected
+  // back to it each frame while playing.
+  paused: false,
+  scrubTime: 0,
 };
 
 // =========================================================
@@ -278,7 +288,7 @@ viewport.addEventListener('pointermove', (e) => {
   const rect = viewport.getBoundingClientRect();
   mouseRaw.x = (e.clientX - rect.left) / rect.width;
   mouseRaw.y = (e.clientY - rect.top) / rect.height;
-  lastUserMoveAt = (performance.now() - startTime) / 1000;
+  lastUserMoveAt = animTime;
 });
 
 const IDLE_DELAY = 1.6;
@@ -303,24 +313,41 @@ function autoPath(t) {
 const startTime = performance.now();
 let captureStart = null;
 
+// Animation clock. Advances by real delta each frame while playing
+// (not paused, not capturing). This replaces reading wall-clock
+// (now - startTime) directly so the bottom-bar Pause can actually
+// halt time, and the scrubber can set an arbitrary position.
+let animTime = 0;
+let lastFrameMs = null;
+
+// Transport UI handles, populated during control wiring below. The
+// render loop reflects the current loop position back into the
+// scrubber + time code each frame (unless the user is dragging it).
+let transport = null;      // { scrub, tcCur, tcTot }
+let scrubbing = false;     // true while the user drags the scrubber
+
+function fmtTime(sec) {
+  const s = Math.max(0, Math.floor(sec));
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function syncTransportUI(t, loopDur) {
+  if (!transport) return;
+  const phase = loopDur > 0 ? ((t % loopDur) / loopDur) : 0;
+  if (!scrubbing && transport.scrub) transport.scrub.value = String(Math.round(phase * 1000));
+  if (transport.tcCur) transport.tcCur.textContent = fmtTime(t % loopDur);
+  if (transport.tcTot) transport.tcTot.textContent = fmtTime(loopDur);
+}
+
 function loop() {
   // PNG sequence export drives uniforms + render manually frame-by-frame.
-  // If the rAF loop runs in between sequence frames, it'll overwrite the
-  // uniforms we just set. Skip the rAF render entirely while sequencing —
-  // the sequence exporter is the sole renderer.
   if (state.sequencing) {
     requestAnimationFrame(loop);
     return;
   }
 
-  // Freeze pose short-circuit. When the user has locked the pose for
-  // export, bypass cursor/drift/time logic entirely and pin uniforms
-  // to the snapshot. Click-to-place updates state.freezePos in real
-  // time so the user can still move the highlight around — they just
-  // can't be surprised by drift mid-export. Note: this overrides
-  // capturing/previewLoop on purpose. If a user starts a WebM while
-  // frozen, they'll record a still — which is a clear, predictable
-  // outcome (turn freeze off first if you want motion).
+  // Freeze pose short-circuit (export pose lock) — unchanged.
   if (state.freeze) {
     mouseSmooth.x = state.freezePos.x;
     mouseSmooth.y = state.freezePos.y;
@@ -332,65 +359,53 @@ function loop() {
     sharedUniforms.u_loopMode.value = 0.0;
     sharedUniforms.u_loopDuration.value = state.loopDuration || 4.0;
     renderer.render(scene, camera);
+    lastFrameMs = performance.now();
     requestAnimationFrame(loop);
     return;
   }
 
   const now = performance.now();
+  const dt = lastFrameMs ? Math.min((now - lastFrameMs) / 1000, 0.1) : 0;
+  lastFrameMs = now;
+
   const capturing = captureStart !== null;
-  // "Loop time domain" = anything that needs periodic time + circular
-  // cursor path. Capture is the original case; previewLoop opts in to
-  // the same behaviour during interactive editing so the user can see
-  // their loop close before they hit record.
+  const loopDur = state.loopDuration || 4.0;
+
+  // Advance the animation clock only while playing. Capture has its
+  // own anchored clock; pause holds animTime; scrubbing writes it.
+  if (!state.paused && !capturing) {
+    animTime += dt;
+  }
+
+  // "Loop time domain" = circular cursor + periodic noise. Capture and
+  // preview-loop opt in. A paused scrub is shown in whatever domain the
+  // editor is currently in.
   const loopTimeDomain = capturing || state.previewLoop;
 
-  // In loop-time-domain, wrap t modulo loopDuration. This is THE key to
-  // a seamless loop: by construction, state at t=loopDuration is
-  // identical to state at t=0 (every shader noise field driven by
-  // loopTime/loopTime2D, the auto-path, and u_time itself all wrap
-  // exactly at that period). Whichever frame the recorder captures
-  // last (it's always slightly less than loopDuration due to frame
-  // pacing), that frame's state is one Δ-step before t=0, so the
-  // last→first frame transition on replay is just one normal step.
-  //
-  // tBase: when actively recording, anchor to captureStart so the
-  // exported video starts at t=0. Otherwise anchor to startTime — which
-  // means flipping preview-loop on mid-session enters at the current
-  // wall-clock phase. That's fine; the loop is still seamless because
-  // wrapping is modular.
-  const loopDur = state.loopDuration || 4.0;
-  const tBase = capturing
-    ? (now - captureStart) / 1000
-    : (now - startTime) / 1000;
-  const t = loopTimeDomain ? (tBase % loopDur) : tBase;
+  let t;
+  if (capturing) {
+    t = ((now - captureStart) / 1000) % loopDur;
+  } else if (state.paused) {
+    t = Math.min(state.scrubTime, loopDur);
+  } else {
+    t = loopTimeDomain ? (animTime % loopDur) : animTime;
+    state.scrubTime = t % loopDur;
+  }
 
-  if (loopTimeDomain) {
-    // Loop preview / capture: snap the cursor directly to a perfect circle
-    // and compute velocity analytically (the circle's tangent at this
-    // phase). Computing velocity from position deltas would give garbage
-    // on frame 0 (no prior position) and create a first-frame jump that
-    // breaks the loop visually for any effect that uses u_mouseVel (the
-    // metaball tail). For preview-loop this matters less but the analytical
-    // form is consistent and avoids surprising jumps when preview-loop is
-    // toggled on.
-    //
-    // Cursor input is intentionally ignored here — preview-loop is "watch
-    // the loop play" mode. To regain interactive control, toggle it off.
+  if (loopTimeDomain || (state.paused && state.previewLoop)) {
+    // Loop preview / capture / loop-scrub: snap cursor to the perfect
+    // circle and compute velocity analytically.
     const auto = loopCursor(t, loopDur);
     mouseSmooth.x = auto.x;
     mouseSmooth.y = auto.y;
     mousePrev.x = auto.x;
     mousePrev.y = auto.y;
-    // Analytical circle tangent (shared with both exporters) — computing
-    // velocity from position deltas would give garbage on frame 0 and
-    // create a first-frame jump that breaks the loop for any effect that
-    // uses u_mouseVel (the metaball tail).
     const v = loopCursorVel(t, loopDur);
     sharedUniforms.u_mouseVel.value.set(v.vx, v.vy);
-  } else {
+  } else if (!state.paused) {
     // Interactive mode: blend between cursor and quasi-Lissajous drift.
-    const auto = autoPath(t);
-    const idleFor = t - lastUserMoveAt;
+    const auto = autoPath(animTime);
+    const idleFor = animTime - lastUserMoveAt;
     const driftEnabled = state.autoDrift;
     const targetBlend = !driftEnabled ? 0.0 :
       (idleFor < IDLE_DELAY ? 0.0 : Math.min(1.0, (idleFor - IDLE_DELAY) / BLEND_TIME));
@@ -400,22 +415,20 @@ function loop() {
     const lerpAmt = 0.075;
     mouseSmooth.x += (targetX - mouseSmooth.x) * lerpAmt;
     mouseSmooth.y += (targetY - mouseSmooth.y) * lerpAmt;
-
     const vx = mouseSmooth.x - mousePrev.x;
     const vy = mouseSmooth.y - mousePrev.y;
     mousePrev.x = mouseSmooth.x;
     mousePrev.y = mouseSmooth.y;
     sharedUniforms.u_mouseVel.value.set(vx, -vy);
   }
+  // (paused && !previewLoop): hold mouseSmooth/vel as-is — frozen pose.
 
   sharedUniforms.u_time.value = t;
   sharedUniforms.u_mouse.value.set(mouseSmooth.x, 1 - mouseSmooth.y);
-  // u_loopMode = 1 in any loop-time-domain so shader noise (loopTime,
-  // loopTime2D) returns periodic values. Capture mode used to set this
-  // via getRecordingCtx; we now drive it from here so preview-loop
-  // benefits from the same shader periodicity without duplicating logic.
-  sharedUniforms.u_loopMode.value = loopTimeDomain ? 1.0 : 0.0;
+  sharedUniforms.u_loopMode.value = (loopTimeDomain || (state.paused && state.previewLoop)) ? 1.0 : 0.0;
   sharedUniforms.u_loopDuration.value = loopDur;
+
+  syncTransportUI(t, loopDur);
 
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
@@ -610,6 +623,84 @@ initCollapsibles();
 
 // Mobile tab bar. No-op on desktop (the bar is hidden via media query).
 initTabs();
+
+// Inspector tabs (Material / Lighting / Effects) in the right column.
+initInspectorTabs();
+
+// ---------------------------------------------------------
+// BOTTOM-BAR TRANSPORT — play/pause, scrubber, time code
+// ---------------------------------------------------------
+// Loop + Auto-drift buttons are wired by motion.js (they carry the
+// ids #ctl-preview-loop / #ctl-auto-drift). Here we own Play/Pause and
+// the loop scrubber, plus the toast used by Presets.
+function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 1600);
+}
+
+const playBtn  = document.getElementById('play');
+const playIcon = document.getElementById('playIcon');
+const scrubEl  = document.getElementById('scrubber');
+const PLAY_PATH  = '<path d="M8 5v14l11-7z"/>';
+const PAUSE_PATH = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+
+function paintPlay() {
+  if (playIcon) playIcon.innerHTML = state.paused ? PLAY_PATH : PAUSE_PATH;
+}
+if (playBtn) {
+  paintPlay();
+  playBtn.addEventListener('click', () => {
+    state.paused = !state.paused;
+    // Resuming from a scrub: continue advancing from the scrubbed
+    // position by seeding the animation clock to it.
+    if (!state.paused) animTime = state.scrubTime;
+    paintPlay();
+  });
+}
+
+if (scrubEl) {
+  transport = {
+    scrub: scrubEl,
+    tcCur: document.getElementById('tc-cur'),
+    tcTot: document.getElementById('tc-tot'),
+  };
+  const applyScrub = () => {
+    const loopDur = state.loopDuration || 4.0;
+    state.scrubTime = (parseInt(scrubEl.value, 10) / 1000) * loopDur;
+    state.paused = true;
+    paintPlay();
+  };
+  scrubEl.addEventListener('pointerdown', () => { scrubbing = true; });
+  scrubEl.addEventListener('input', applyScrub);
+  window.addEventListener('pointerup', () => { scrubbing = false; });
+}
+
+// Export popover (anchored to the bottom-bar Export button).
+const exportBtn = document.getElementById('export-btn');
+const exportPop = document.getElementById('export-pop');
+if (exportBtn && exportPop) {
+  exportBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    exportPop.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.export-wrap')) exportPop.classList.remove('open');
+  });
+}
+
+// Presets — uses the same captureState/applyState as undo + project.
+initPresets({
+  host:    document.getElementById('presets'),
+  saveBtn: document.getElementById('btn-save-preset'),
+  captureState,
+  applyState,
+  history,
+  toast,
+});
 
 // =========================================================
 // BOOT

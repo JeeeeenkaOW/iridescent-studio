@@ -34,6 +34,7 @@ export function createUniforms(shared) {
     u_roughness:    { value: defaults.material.roughness },
     u_refraction:   { value: defaults.material.refraction },
     u_refractionMix:{ value: defaults.material.refractionMix },
+    u_frost:        { value: defaults.material.frost },
     u_sssColor:     { value: hexToVec3(defaults.material.sssColor) },
     u_sssStrength:  { value: defaults.material.sssStrength },
     u_fresnel:      { value: defaults.material.fresnel },

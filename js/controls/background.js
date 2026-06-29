@@ -34,6 +34,29 @@ export function initBackground({ state, uniforms, viewport, history }) {
   // Cached HTMLImageElement for the loaded background image, if any.
   let bgImage = null;
 
+  // Background video. Drawn frame-by-frame into the bg canvas while
+  // mode === 'video' via an internal rAF pump (the main render loop
+  // doesn't redraw the bg every frame, so we drive it here). The video
+  // loops independently of the export loop — for a seamless WebM the
+  // source clip should itself be a clean loop.
+  const bgVideo = document.createElement('video');
+  bgVideo.muted = true;
+  bgVideo.loop = true;
+  bgVideo.playsInline = true;
+  bgVideo.crossOrigin = 'anonymous';
+  let videoReady = false;
+  let videoPumpOn = false;
+  function pumpVideo() {
+    if (state.bg.mode !== 'video') { videoPumpOn = false; return; }
+    if (videoReady && bgVideo.readyState >= 2) redraw();
+    requestAnimationFrame(pumpVideo);
+  }
+  function startVideoPump() {
+    if (videoPumpOn) return;
+    videoPumpOn = true;
+    requestAnimationFrame(pumpVideo);
+  }
+
   // ---------- redraw ----------
   // Repaint the canvas based on state.bg. Called whenever any bg control
   // changes. Resizes the canvas to match the viewport aspect so the
@@ -90,6 +113,18 @@ export function initBackground({ state, uniforms, viewport, history }) {
         }
         ctx.drawImage(bgImage, dx, dy, dw, dh);
       }
+    } else if (state.bg.mode === 'video') {
+      // Cover-fit the current video frame (same math as image).
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+      if (videoReady && bgVideo.videoWidth) {
+        const ia = bgVideo.videoWidth / bgVideo.videoHeight;
+        const ca = w / h;
+        let dw, dh, dx, dy;
+        if (ia > ca) { dh = h; dw = h * ia; dx = (w - dw) / 2; dy = 0; }
+        else         { dw = w; dh = w / ia; dx = 0; dy = (h - dh) / 2; }
+        ctx.drawImage(bgVideo, dx, dy, dw, dh);
+      }
     }
 
     texture.needsUpdate = true;
@@ -104,6 +139,7 @@ export function initBackground({ state, uniforms, viewport, history }) {
     solid:    document.getElementById('bg-panel-solid'),
     gradient: document.getElementById('bg-panel-gradient'),
     image:    document.getElementById('bg-panel-image'),
+    video:    document.getElementById('bg-panel-video'),
   };
   function showPanel(mode) {
     for (const k of Object.keys(panels)) {
@@ -116,6 +152,7 @@ export function initBackground({ state, uniforms, viewport, history }) {
       btn.classList.add('active');
       state.bg.mode = btn.dataset.bg;
       showPanel(state.bg.mode);
+      if (state.bg.mode === 'video') { bgVideo.play().catch(()=>{}); startVideoPump(); }
       redraw();
       history?.push();
     });
@@ -229,6 +266,61 @@ export function initBackground({ state, uniforms, viewport, history }) {
     if (state.bg.mode === 'image') redraw();
   });
 
+  // ---- Video upload ----
+  const vidDrop = document.getElementById('bg-vid-drop');
+  const vidInput = document.getElementById('bg-vid-input');
+  const vidCurrent = document.getElementById('bg-vid-current');
+  const vidCurrentName = document.getElementById('bg-vid-current-name');
+  const vidClear = document.getElementById('bg-vid-clear');
+
+  function setVidUI(name) {
+    if (!vidCurrent) return;
+    if (name) { vidCurrent.style.display = 'flex'; vidCurrentName.textContent = name; }
+    else      { vidCurrent.style.display = 'none'; vidCurrentName.textContent = ''; }
+  }
+
+  async function handleVideoFile(file) {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    const ok = ['video/mp4','video/webm','video/quicktime'].includes(file.type)
+      || /\.(mp4|webm|mov)$/.test(name);
+    if (!ok) { alert('Background video must be MP4, WebM, or MOV.'); return; }
+    state.bg.videoBlob = file;
+    state.bg.videoName = file.name;
+    setVidUI(file.name);
+    videoReady = false;
+    const url = URL.createObjectURL(file);
+    bgVideo.src = url;
+    await new Promise((res) => {
+      bgVideo.onloadeddata = res;
+      bgVideo.onerror = res;
+    });
+    videoReady = true;
+    bgVideo.play().catch(()=>{});
+    if (state.bg.mode === 'video') { startVideoPump(); redraw(); }
+  }
+
+  if (vidDrop) {
+    vidDrop.addEventListener('dragover', (e) => { e.preventDefault(); vidDrop.classList.add('drag-over'); });
+    vidDrop.addEventListener('dragleave', () => vidDrop.classList.remove('drag-over'));
+    vidDrop.addEventListener('drop', (e) => {
+      e.preventDefault(); vidDrop.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) handleVideoFile(e.dataTransfer.files[0]);
+    });
+    vidInput.addEventListener('change', () => { if (vidInput.files[0]) handleVideoFile(vidInput.files[0]); });
+    vidClear.addEventListener('click', () => {
+      state.bg.videoBlob = null;
+      state.bg.videoName = '';
+      videoReady = false;
+      bgVideo.pause();
+      bgVideo.removeAttribute('src');
+      bgVideo.load();
+      vidInput.value = '';
+      setVidUI('');
+      if (state.bg.mode === 'video') redraw();
+    });
+  }
+
   // Initial paint.
   redraw();
 
@@ -266,6 +358,7 @@ export function initBackground({ state, uniforms, viewport, history }) {
       state.bg.mode = snap.mode;
       tabs.forEach(b => b.classList.toggle('active', b.dataset.bg === state.bg.mode));
       showPanel(state.bg.mode);
+      if (state.bg.mode === 'video') { bgVideo.play().catch(()=>{}); startVideoPump(); }
       needsRedraw = true;
     }
     if (snap.solid && snap.solid !== state.bg.solid) {

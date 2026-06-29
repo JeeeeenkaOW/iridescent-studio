@@ -51,6 +51,16 @@ export function initSolidControls({ host, uniforms, history }) {
         <input type="range" data-sc-mix min="0" max="100" step="1" value="${Math.round(d.material.refractionMix * 100)}">
       </div>
 
+      <div class="range-row">
+        <div class="range-label"><span>Refraction</span><span class="range-value" data-sc-refract-val>${Math.round((d.material.refraction / 0.20) * 100)}%</span></div>
+        <input type="range" data-sc-refract min="0" max="100" step="1" value="${Math.round((d.material.refraction / 0.20) * 100)}">
+      </div>
+
+      <div class="range-row">
+        <div class="range-label"><span>Frost</span><span class="range-value" data-sc-frost-val>${Math.round(d.material.frost * 100)}%</span></div>
+        <input type="range" data-sc-frost min="0" max="100" step="1" value="${Math.round(d.material.frost * 100)}">
+      </div>
+
       <div class="color-row">
         <span class="color-row-label">Inner glow</span>
         <div class="color-row-control">
@@ -88,6 +98,10 @@ export function initSolidControls({ host, uniforms, history }) {
   const roughV  = host.querySelector('[data-sc-rough-val]');
   const mix     = host.querySelector('[data-sc-mix]');
   const mixV    = host.querySelector('[data-sc-mix-val]');
+  const refract = host.querySelector('[data-sc-refract]');
+  const refractV= host.querySelector('[data-sc-refract-val]');
+  const frost   = host.querySelector('[data-sc-frost]');
+  const frostV  = host.querySelector('[data-sc-frost-val]');
   const sss     = host.querySelector('[data-sc-sss]');
   const sssHex  = host.querySelector('[data-sc-sss-hex]');
   const ss      = host.querySelector('[data-sc-ss]');
@@ -100,15 +114,12 @@ export function initSolidControls({ host, uniforms, history }) {
 
   let blobEnabled = !!d.material.blobEnabled;
 
-  // Transparency drives both uniforms — at 0 the body is opaque, at
-  // 100% the bg shows through with full refraction offset.
+  // Transparency now drives ONLY the bg leak (u_refractionMix). The
+  // distortion (u_refraction) and frosting (u_frost) are independent
+  // knobs below, so the unified material can reproduce the old Glass
+  // shader's separate Transparency / Refraction / Frost controls.
   function setTransparency(pct) {
-    const mixVal = pct / 100;
-    uniforms.u_refractionMix.value = mixVal;
-    // Refraction offset peaks at 0.18 in shader UV space (a touch less
-    // than the standalone slider's 0.20 — 0.18 keeps edges from going
-    // off the bg texture).
-    uniforms.u_refraction.value = mixVal * 0.18;
+    uniforms.u_refractionMix.value = pct / 100;
   }
 
   // ---- Color wiring ----
@@ -144,6 +155,22 @@ export function initSolidControls({ host, uniforms, history }) {
     setTransparency(pct);
   });
   mix.addEventListener('change', () => history?.push());
+
+  // Refraction — slider 0..100% maps to u_refraction 0..0.20.
+  refract.addEventListener('input', (e) => {
+    const pct = parseInt(e.target.value, 10);
+    refractV.textContent = pct + '%';
+    uniforms.u_refraction.value = (pct / 100) * 0.20;
+  });
+  refract.addEventListener('change', () => history?.push());
+
+  // Frost — slider 0..100% maps to u_frost 0..1.
+  frost.addEventListener('input', (e) => {
+    const pct = parseInt(e.target.value, 10);
+    frostV.textContent = pct + '%';
+    uniforms.u_frost.value = pct / 100;
+  });
+  frost.addEventListener('change', () => history?.push());
 
   ss.addEventListener('input', (e) => {
     const v = parseInt(e.target.value, 10) / 100;
@@ -185,17 +212,19 @@ export function initSolidControls({ host, uniforms, history }) {
 
   return {
     snapshot() {
-      const mixPct = parseInt(mix.value, 10);
+      const mixPct     = parseInt(mix.value, 10);
+      const refractPct = parseInt(refract.value, 10);
       return {
         material: {
           baseColor:        base.value,
           f0Color:          f0.value,
           roughness:        parseInt(rough.value, 10) / 100,
-          // refraction is derived from the Transparency slider (single
-          // knob drives both u_refractionMix and u_refraction) so the
-          // exported HTML reproduces what the user is seeing.
-          refraction:       (mixPct / 100) * 0.18,
+          // Refraction and Transparency are now independent knobs.
+          // Store the refraction slider pct so restore is exact.
+          refraction:       (refractPct / 100) * 0.20,
+          refractionSlider: refractPct,
           refractionMix:    mixPct / 100,
+          frost:            parseInt(frost.value, 10) / 100,
           sssColor:         sss.value,
           sssStrength:      parseInt(ss.value, 10) / 100,
           fresnel:          parseInt(fres.value, 10) / 100,
@@ -230,6 +259,24 @@ export function initSolidControls({ host, uniforms, history }) {
         mix.value = String(pct);
         mixV.textContent = pct + '%';
         setTransparency(pct);
+      }
+      if (typeof m.refraction === 'number') {
+        // Prefer the stored slider pct (no rounding loss); else derive
+        // from the 0..0.20 refraction value. Legacy solid snapshots that
+        // coupled refraction to transparency restore at their stored
+        // value too, so the look is preserved.
+        const pct = typeof m.refractionSlider === 'number'
+          ? m.refractionSlider
+          : Math.round((m.refraction / 0.20) * 100);
+        refract.value = String(pct);
+        refractV.textContent = pct + '%';
+        uniforms.u_refraction.value = m.refraction;
+      }
+      if (typeof m.frost === 'number') {
+        const pct = Math.round(m.frost * 100);
+        frost.value = String(pct);
+        frostV.textContent = pct + '%';
+        uniforms.u_frost.value = m.frost;
       }
       if (typeof m.sssColor === 'string') {
         sss.value = m.sssColor;

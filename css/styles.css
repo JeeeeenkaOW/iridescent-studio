@@ -1,271 +1,173 @@
-:root {
-  --font-brand: 'Montserrat', sans-serif;
-  --font-body:  'Lato', sans-serif;
-  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700;
-  --fs-300:12px; --fs-350:14px; --fs-400:16px; --fs-800:32px;
-  --lh-600:24px; --lh-1000:40px;
+/* ── tokens ── */
+:root{
+  --font-brand:'Montserrat',sans-serif; --font-body:'Lato',sans-serif;
+  --fw-reg:400;--fw-med:500;--fw-semi:600;--fw-bold:700;
+  --fs-300:12px;--fs-350:14px;--fs-400:16px;
   --ls-up:1.2px;
-  --sp-100:4px;  --sp-200:8px;  --sp-300:12px; --sp-400:16px;
-  --sp-600:24px; --sp-800:32px; --sp-1000:40px; --sp-1200:48px; --sp-2000:80px;
-
-  --bg:#000; --s1:#101010; --s2:#202020; --s3:#303030; --s4:#404040;
-
-  --ow:#D34037; --ow-h:#F05C48; --ow-f:rgba(211,64,55,0.20);
-
-  --on1:rgba(255,255,255,0.10); --on1h:rgba(255,255,255,0.16);
-
-  --tp:#FFF; --t1:#DFDFDF; --t2:#BFBFBF; --t3:#9F9F9F;
-  --terr:#FF6464;
-
-  --b1:#DFDFDF; --b2:#9F9F9F; --b3:#606060; --b4:#303030;
+  --sp-100:4px;--sp-200:8px;--sp-300:12px;--sp-400:16px;--sp-600:24px;--sp-800:32px;
+  --bg:#000;--s1:#101010;--s2:#202020;--s3:#303030;--s4:#404040;
+  --ow:#D34037;--ow-h:#F05C48;
+  --tp:#FFF;--t1:#DFDFDF;--t2:#BFBFBF;--t3:#9F9F9F;--terr:#FF6464;
+  --b1:#DFDFDF;--b2:#9F9F9F;--b3:#606060;--b4:#303030;
 }
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:var(--font-body);font-size:var(--fs-400);line-height:var(--lh-600);color:var(--t1);background:var(--bg);display:flex;flex-direction:column;min-height:100vh}
+body{font-family:var(--font-body);font-size:var(--fs-400);line-height:24px;color:var(--t1);background:var(--bg);overflow:hidden}
+button{cursor:pointer;color:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--s3)}
+:focus-visible{outline:2px solid var(--ow);outline-offset:-1px}
+.icon{width:16px;height:16px;display:block;flex:none}
 
-/* ============ NAV ============ */
-.nav{height:80px;background:var(--bg);border-bottom:1px solid var(--b4);display:flex;align-items:center;padding:0 var(--sp-800);gap:var(--sp-600);flex-shrink:0}
+/* ── app shell ── */
+.app{height:100vh;display:grid;grid-template-rows:80px 1fr auto;
+  grid-template-columns:296px 1fr 336px;
+  grid-template-areas:"nav nav nav" "rail view inspect" "bottom bottom bottom"}
+
+/* ── NAV ── */
+.nav{grid-area:nav;height:80px;background:var(--bg);border-bottom:1px solid var(--b4);
+  display:flex;align-items:center;padding:0 var(--sp-800);gap:var(--sp-600)}
 .nav-logo{display:flex;align-items:center;text-decoration:none}
 .nav-div{width:1px;height:20px;background:var(--b4)}
 .nav-sec{font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3)}
 .nav-tag{margin-left:auto;display:inline-flex;align-items:center;height:24px;padding:0 var(--sp-300);background:var(--s3);border:1px solid var(--b4);font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3)}
 
-/* ============ PAGE ============ */
-.page{flex:1;padding:var(--sp-600);max-width:1600px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:stretch}
+/* ── columns ── */
+.rail,.inspect{background:var(--s1);overflow-y:auto;overflow-x:hidden}
+.rail{grid-area:rail;border-right:1px solid var(--b4);padding:var(--sp-300)}
+.inspect{grid-area:inspect;border-left:1px solid var(--b4);display:flex;flex-direction:column}
 
-/* ============ TOOL LAYOUT ============ */
-.tool{width:100%;display:grid;grid-template-columns:1fr 340px;gap:var(--sp-400);align-items:stretch;flex:1;min-height:calc(100vh - 180px)}
-
-.sidebar{background:var(--s1);border:1px solid var(--b4);border-radius:5px;padding:var(--sp-300);display:flex;flex-direction:column;gap:var(--sp-300);max-height:calc(100vh - 120px);overflow-y:auto;position:sticky;top:var(--sp-400)}
-.sidebar::-webkit-scrollbar{width:8px}
-.sidebar::-webkit-scrollbar-track{background:var(--s1)}
-.sidebar::-webkit-scrollbar-thumb{background:var(--s3);border-radius:0}
-
-/* ============ MOBILE LAYOUT (≤1000px) ============
-   The viewport stays pinned to the top of the screen (sticky) so the
-   rendered ornament is always visible; the grouped Input/Look/Output
-   sidebar reflows below it and scrolls normally. The mobile tab bar
-   was removed in v20.1 — the workflow zones now carry the structure on
-   every screen size, so there's a single source of truth for ordering
-   and no separate phone-only navigation to keep in sync. */
-@media (max-width: 1000px){
-  .page{padding:var(--sp-300)}
-
-  .tool{
-    grid-template-columns:1fr;
-    grid-template-rows:auto auto auto;
-    min-height:auto;
-    gap:var(--sp-300);
-  }
-
-  /* Viewport sticks to top of the screen so the rendered ornament
-     is always visible no matter how far the user has scrolled into
-     the controls below. */
-  .viewport{
-    position:sticky;
-    top:0;
-    z-index:5;
-    min-height:0;
-    /* Fixed-aspect viewport on mobile — about 45% of the visible
-       window height. Anything smaller is hard to see; anything
-       bigger leaves no room for controls. */
-    height:45vh;
-    border-radius:0;
-    border-left:none;
-    border-right:none;
-    margin:0 calc(-1 * var(--sp-300));
-  }
-
-
-  /* Sidebar: no longer sticky, no max-height, no scrollbar — flows
-     normally below the tab bar. The sticky viewport + tab bar above
-     are what keep the preview in view; the sidebar just scrolls
-     under them. */
-  .sidebar{
-    position:static;
-    max-height:none;
-    overflow:visible;
-    background:transparent;
-    border:none;
-    padding:0;
-    gap:var(--sp-300);
-  }
-
-  /* Hide the giant sidebar header on mobile — wastes space. The nav
-     bar at the top already says what this is. */
-  .sidebar-header{display:none}
-
-}
-
-.sidebar-header{display:flex;flex-direction:column;gap:var(--sp-200);padding-bottom:var(--sp-400);border-bottom:1px solid var(--b4)}
-.sidebar-eyebrow{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--ow)}
-.sidebar-title{font-family:var(--font-brand);font-size:20px;font-weight:var(--fw-bold);line-height:1.15;color:var(--tp)}
-.sidebar-desc{font-size:12px;line-height:1.5;color:var(--t3)}
-
-.section{display:flex;flex-direction:column;gap:var(--sp-200)}
-.section-title{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);margin-bottom:var(--sp-100)}
-
-/* ============ WORKFLOW ZONES ============ */
-/* The sidebar reads top-to-bottom as Input -> Look -> Output. Each
-   zone groups its sections under an accent label and is split from the
-   next by a hairline rule, so a first-time user sees the workflow at a
-   glance instead of a flat stack of identical panels. */
+/* ── project bar ── */
 .project-bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-200);padding-bottom:var(--sp-300);border-bottom:1px solid var(--b4)}
-.zone{display:flex;flex-direction:column;gap:var(--sp-300)}
-.zone + .zone{padding-top:var(--sp-300);border-top:1px solid var(--b4)}
-.zone-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--ow)}
 
-/* ============ COLLAPSIBLE SECTIONS ============ */
-/* `.section.collapsible` turns a section into an accordion. The
-   section-title becomes a clickable header with a chevron; the
-   .collapsible-body holds the controls and animates on toggle.
-   v8 tightened: smaller chevron, less header padding, consistent
-   8px gap between body items so every section feels the same. */
-.section.collapsible > .section-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:0;padding:6px 0;transition:color .12s}
-.section.collapsible > .section-title:hover{color:var(--tp)}
-.section.collapsible > .section-title::after{content:'';width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform .15s;flex-shrink:0;margin-left:8px}
-.section.collapsible.collapsed > .section-title::after{transform:rotate(-45deg) translate(1px,1px)}
-.section.collapsible > .collapsible-body{display:flex;flex-direction:column;gap:10px;overflow:hidden;padding-top:var(--sp-200)}
-.section.collapsible.collapsed > .collapsible-body{display:none}
+/* ── sections + collapsibles ── */
+.section{display:flex;flex-direction:column;gap:var(--sp-200);padding:var(--sp-300) 0;border-bottom:1px solid var(--b4)}
+.section:last-child{border-bottom:0}
+.section-title{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);margin-bottom:var(--sp-100)}
+.section.collapsible>.section-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:0;padding:2px 0;transition:color .12s}
+.section.collapsible>.section-title:hover{color:var(--tp)}
+.section.collapsible>.section-title::after{content:'';width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform .15s;flex-shrink:0;margin-left:8px}
+.section.collapsible.collapsed>.section-title::after{transform:rotate(-45deg) translate(1px,1px)}
+.section.collapsible>.collapsible-body{display:flex;flex-direction:column;gap:10px;overflow:hidden;padding-top:var(--sp-200)}
+.section.collapsible.collapsed>.collapsible-body{display:none}
 
-/* ============ VIEWPORT ============ */
-.viewport{background:var(--s1);border:1px solid var(--b4);border-radius:5px;position:relative;overflow:hidden;min-height:600px}
-.viewport canvas{display:block;width:100%;height:100%}
-
-/* ============ DROP ZONE ============ */
+/* ── drop zone ── */
 .drop-zone{position:relative;background:var(--s2);border:1px dashed var(--b3);border-radius:5px;padding:var(--sp-400);display:flex;flex-direction:column;align-items:center;gap:var(--sp-200);cursor:pointer;transition:border-color .15s,background .15s}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--ow);background:var(--s3)}
-.drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.drop-icon{width:32px;height:32px;background:var(--s3);border:1px solid var(--b4);border-radius:5px;display:flex;align-items:center;justify-content:center}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{width:32px;height:32px;background:var(--s3);border:1px solid var(--b4);border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--t3)}
 .drop-title{font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-semi);color:var(--tp);letter-spacing:var(--ls-up);text-transform:uppercase}
 .drop-sub{font-size:11px;color:var(--t3)}
-.drop-link{color:var(--ow);text-decoration:underline;cursor:pointer}
+.drop-link{color:var(--ow);text-decoration:underline}
+.drop-zone-sm{padding:var(--sp-300)}
+.drop-zone-sm .drop-icon{width:24px;height:24px}
+.drop-zone-sm .drop-title{font-size:11px}
 .drop-current{display:flex;align-items:center;gap:var(--sp-200);padding:var(--sp-200);background:var(--s2);border:1px solid var(--b4);font-size:11px;color:var(--t2);font-family:var(--font-brand);letter-spacing:.5px}
 .drop-current-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.drop-current-clear{background:transparent;border:none;color:var(--t3);cursor:pointer;padding:2px 6px;font-size:14px;line-height:1}
+.drop-current-clear{background:transparent;border:none;color:var(--t3);padding:2px 6px;font-size:14px;line-height:1}
 .drop-current-clear:hover{color:var(--terr)}
 
-/* ============ SEGMENTED ============ */
-.segmented{display:grid;gap:1px;background:var(--b4);border:1px solid var(--b4);border-radius:0}
+/* ── bg panel ── */
+.bg-panel{display:flex;flex-direction:column;gap:var(--sp-200)}
+
+/* ── segmented ── */
+.segmented{display:grid;gap:1px;background:var(--b4);border:1px solid var(--b4)}
 .segmented.cols-2{grid-template-columns:repeat(2,1fr)}
 .segmented.cols-3{grid-template-columns:repeat(3,1fr)}
 .segmented.cols-4{grid-template-columns:repeat(4,1fr)}
-.seg-btn{background:var(--s2);border:none;padding:8px 4px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);cursor:pointer;transition:background .12s,color .12s}
+.seg-btn{background:var(--s2);border:none;padding:8px 4px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);transition:background .12s,color .12s}
 .seg-btn:hover{background:var(--s3);color:var(--tp)}
 .seg-btn.active{background:var(--ow);color:#FFF}
 
-/* ============ RANGE ROW ============ */
-/* Compact stacked label+slider. Each range-row has its own internal
-   gap (label → track). Between range-rows the parent container
-   provides the outer gap. Thumb is small + simple (no border or ring)
-   so it doesn't visually bleed into adjacent rows; the track is the
-   same 4px height as before but with rounded ends. */
+/* ── range row ── */
 .range-row{display:flex;flex-direction:column;gap:6px;padding:2px 0}
 .range-label{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 .range-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums}
-.range-row input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:14px;background:transparent;outline:none;display:block;margin:0;padding:0;cursor:pointer}
-.range-row input[type="range"]::-webkit-slider-runnable-track{height:4px;background:var(--s3);border-radius:2px}
-.range-row input[type="range"]::-moz-range-track{height:4px;background:var(--s3);border-radius:2px;border:none}
-.range-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;background:var(--ow);cursor:pointer;border-radius:50%;border:none;margin-top:-4px}
-.range-row input[type="range"]::-moz-range-thumb{width:12px;height:12px;background:var(--ow);cursor:pointer;border-radius:50%;border:none}
-.range-row input[type="range"]:hover::-webkit-slider-thumb{background:var(--ow-h)}
-.range-row input[type="range"]:hover::-moz-range-thumb{background:var(--ow-h)}
-.range-row input[type="range"]:disabled{opacity:.4;cursor:not-allowed}
-.range-row input[type="range"]:disabled::-webkit-slider-thumb{cursor:not-allowed}
+.range-row input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;background:transparent;outline:none;display:block;cursor:pointer}
+.range-row input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--s3);border-radius:2px}
+.range-row input[type=range]::-moz-range-track{height:4px;background:var(--s3);border-radius:2px;border:none}
+.range-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;background:var(--ow);border-radius:50%;border:none;margin-top:-4px}
+.range-row input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--ow);border-radius:50%;border:none}
+.range-row input[type=range]:hover::-webkit-slider-thumb{background:var(--ow-h)}
+.range-row input[type=range]:hover::-moz-range-thumb{background:var(--ow-h)}
+.range-row input[type=range]:disabled{opacity:.4;cursor:not-allowed}
+.range-row input[type=range]:disabled::-webkit-slider-thumb{cursor:not-allowed}
 
-/* ============ TOGGLE ROW ============ */
+/* ── toggle ── */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;padding:2px 0}
-.toggle-row label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);cursor:pointer}
-.toggle{position:relative;width:30px;height:16px;background:var(--s3);border:1px solid var(--b4);border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0}
+.toggle-row label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
+.toggle{position:relative;width:30px;height:16px;background:var(--s3);border:1px solid var(--b4);border-radius:8px;transition:background .15s,border-color .15s;flex-shrink:0;cursor:pointer}
 .toggle::after{content:'';position:absolute;top:1px;left:1px;width:12px;height:12px;background:var(--t3);border-radius:50%;transition:transform .15s,background .15s}
 .toggle.on{background:var(--ow);border-color:var(--ow)}
 .toggle.on::after{transform:translateX(14px);background:#FFF}
 .toggle:hover{border-color:var(--b2)}
 .toggle.on:hover{background:var(--ow-h);border-color:var(--ow-h)}
 
-/* ============ BUTTONS ============ */
-.btn-p{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-200);padding:var(--sp-300) var(--sp-400);background:var(--ow);border:none;border-radius:0;font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:#FFF;cursor:pointer;transition:background .15s;white-space:nowrap;width:100%}
+/* ── buttons ── */
+.btn-p{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-200);padding:var(--sp-300) var(--sp-400);background:var(--ow);border:none;font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:#FFF;transition:background .15s;white-space:nowrap;width:100%}
 .btn-p:hover{background:var(--ow-h)}
 .btn-p:disabled{opacity:.4;cursor:not-allowed}
-.btn-s{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-200);padding:var(--sp-300) var(--sp-400);background:transparent;border:1px solid var(--b2);border-radius:0;font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--tp);cursor:pointer;transition:background .15s,border-color .15s,color .15s;white-space:nowrap;width:100%}
+.btn-s{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-200);padding:var(--sp-300) var(--sp-400);background:transparent;border:1px solid var(--b2);font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--tp);transition:.15s;white-space:nowrap;width:100%}
 .btn-s:hover{background:var(--ow-h);border-color:transparent;color:#FFF}
+.btn-s:disabled{opacity:.4;cursor:not-allowed}
 .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-200)}
 
-/* ============ RECORDING STATE ============ */
+/* ── color row ── */
+.color-row{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-200);padding:6px var(--sp-300);background:var(--s2);border:1px solid var(--b4);min-height:32px}
+.color-row-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
+.color-row-control{display:flex;align-items:center;gap:var(--sp-200)}
+.color-row-hex{font-family:var(--font-brand);font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+input[type=color]{-webkit-appearance:none;appearance:none;width:28px;height:20px;padding:0;border:1px solid var(--b3);background:transparent;cursor:pointer}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none}
+input[type=color]::-moz-color-swatch{border:none}
+
+/* ── sub-section divider / notes / badges ── */
+.subdiv{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);padding-top:8px;border-top:1px solid var(--b4);margin-top:2px;display:flex;align-items:center;gap:8px}
+.subdiv.first{border-top:0;padding-top:0;margin-top:0}
+.note{font-size:11px;line-height:1.5;color:var(--t3);background:var(--s2);border:1px solid var(--b4);padding:9px 10px;display:flex;gap:7px}
+.note .sp{color:var(--ow)}
+.hint{font-size:11px;line-height:1.45;color:var(--t3);transition:opacity .15s ease}
+
+/* ── presets gallery ── */
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-200)}
+.preset{position:relative;background:var(--s2);border:1px solid var(--b4);text-align:left;padding:0;overflow:hidden;transition:border-color .12s}
+.preset:hover{border-color:var(--b3)}
+.preset.active{border-color:var(--ow)}
+.preset .pv{display:block;height:44px}
+.preset .pn{display:block;padding:6px 8px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);color:var(--t1);text-transform:uppercase;letter-spacing:.5px}
+.pv-silver{background:linear-gradient(120deg,#e8eaec,#a9b0b8 50%,#6e7682)}
+.pv-obsidian{background:linear-gradient(120deg,#2a2a2e,#0c0c10 60%,#1a1a22)}
+.pv-pearl{background:linear-gradient(120deg,#f0e9f5,#cdd6ea 50%,#e7d6e0)}
+.pv-embers{background:linear-gradient(120deg,#ffd16b,#ff5a36 55%,#5a0f06)}
+.pv-user{background:linear-gradient(120deg,#3a3a3a,#1a1a1a)}
+.preset-del{position:absolute;top:4px;right:4px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border:none;color:var(--t2);font-size:13px;line-height:1;border-radius:0}
+.preset-del:hover{background:var(--ow);color:#fff}
+
+/* ── viewport ── */
+.view{grid-area:view;margin:var(--sp-300);background:var(--s1);border:1px solid var(--b4);border-radius:5px;position:relative;overflow:hidden}
+.view canvas{display:block;width:100%;height:100%}
 .recording{position:absolute;top:var(--sp-300);left:var(--sp-300);font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:#FFF;background:var(--ow);padding:4px 10px;display:none;align-items:center;gap:8px;z-index:5}
 .recording.on{display:flex}
 .recording::before{content:'';width:8px;height:8px;background:#FFF;border-radius:50%;animation:rec-pulse .8s ease-in-out infinite}
 @keyframes rec-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* ============ COLOR ROW (for color pickers in sections) ============ */
-.color-row{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-200);padding:6px var(--sp-300);background:var(--s2);border:1px solid var(--b4);min-height:32px}
-.color-row-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
-.color-row-control{display:flex;align-items:center;gap:var(--sp-200)}
-.color-row-hex{font-family:var(--font-brand);font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;letter-spacing:.5px}
-input[type="color"]{-webkit-appearance:none;appearance:none;width:28px;height:20px;padding:0;border:1px solid var(--b3);background:transparent;cursor:pointer}
-input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
-input[type="color"]::-webkit-color-swatch{border:none}
-input[type="color"]::-moz-color-swatch{border:none}
+/* ── inspector tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--b4);flex:none;background:var(--s1)}
+.tab{flex:1;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:16px 6px 13px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:.8px;text-transform:uppercase;color:var(--t3)}
+.tab:hover{color:var(--t1)}
+.tab.active{color:#fff;border-bottom-color:var(--ow)}
+.tabscroll{flex:1;overflow-y:auto}
+.pane{display:none;padding:var(--sp-400);flex-direction:column;gap:var(--sp-300)}
+.pane.active{display:flex}
+.lbl-mini{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);margin-bottom:6px}
 
-/* ============ BG PANEL ============ */
-.bg-panel{display:flex;flex-direction:column;gap:var(--sp-200)}
-.drop-zone-sm{padding:var(--sp-300)}
-.drop-zone-sm .drop-title{font-size:11px}
-.drop-zone-sm .drop-icon{width:24px;height:24px}
-
-/* ============ DIVIDER ============ */
-.div{height:1px;background:var(--b4);margin:var(--sp-100) 0}
-
-/* Export panel: visual separator between the loop slider and the
-   action buttons. Without this they sit too close — the slider's
-   thumb almost touches the PNG/WebM buttons. */
-.export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100) 0}
-.hint{font-size:11px;line-height:1.45;color:var(--t3);margin:4px 0 var(--sp-100) 0;transition:opacity 0.15s ease}
-
-/* Plain section label, no toggle/value on the right — used for the
-   resolution picker label. Matches range-label typography so it
-   reads as part of the same control family. */
-.ctl-label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:4px}
-/* Resolution label has a small dimension preview on the right. Same
-   flex pattern as .range-label so the two read as a family. The
-   right-hand value uses tabular-nums so the digits don't jitter as
-   the viewport resizes. */
-.resolution-label{display:flex;justify-content:space-between;align-items:center}
-.ctl-label-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
-
-/* PNG sequence progress UI. Inline (no modal) — slots between the
-   sequence button and the Shader HTML button. */
-.seq-progress{display:flex;flex-direction:column;gap:4px;margin:2px 0}
-.seq-progress-bar{height:4px;background:var(--s3);border:1px solid var(--b4);overflow:hidden}
-.seq-progress-fill{height:100%;background:var(--ow);width:0%;transition:width .1s linear}
-.seq-progress-label{font-size:10px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
-
-/* ============ SHADER CONTROLS HOST ============ */
+/* ── shader controls host ── */
 #shader-controls{display:flex;flex-direction:column;gap:10px}
+.pc-motion-divider{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);padding-top:6px;border-top:1px solid var(--b4);margin-top:4px}
 
-/* Sub-section heading inside a material's controls panel (e.g. the
-   "Motion" group inside Particles). Visually separates a logical
-   grouping without forcing a new collapsible section. */
-.pc-motion-divider{
-  font-family:var(--font-brand);
-  font-size:11px;
-  font-weight:var(--fw-semi);
-  letter-spacing:var(--ls-up);
-  text-transform:uppercase;
-  color:var(--t3);
-  padding-top:6px;
-  border-top:1px solid var(--b4);
-  margin-top:4px;
-}
-
-/* ============ EFFECTS PANEL ============ */
-/* Each effect is a card with a header (name + toggle). When the
-   effect is OFF, the body is hidden — keeps the panel tight and
-   matches the user's mental model: "I'm not using this, don't show
-   me its controls." When the effect is ON, the body slides into
-   view with its sliders. The .effect-card.off class is toggled by
-   controls/effects.js when the user clicks the on/off toggle. */
+/* ── effect cards ── */
 .effects-list{display:flex;flex-direction:column;gap:var(--sp-200)}
 .effect-card{background:var(--s2);border:1px solid var(--b4);display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s}
 .effect-card:not(.off){border-color:var(--b3)}
@@ -277,62 +179,54 @@ input[type="color"]::-moz-color-swatch{border:none}
 .effect-body{padding:var(--sp-300);display:flex;flex-direction:column;gap:var(--sp-300)}
 .effect-body:empty{display:none}
 .effect-card.off .effect-body{display:none}
-.effect-body input[type="range"]:disabled{opacity:.35;cursor:not-allowed}
+.effect-body input[type=range]:disabled{opacity:.35;cursor:not-allowed}
 
-/* ============ FOOTER ============ */
-footer{margin-top:auto;border-top:1px solid var(--b4);padding:var(--sp-400) var(--sp-800);display:flex;align-items:center;gap:var(--sp-800)}
-.rune{flex:1;font-family:var(--font-brand);font-weight:var(--fw-bold);font-size:11px;letter-spacing:.08em;color:var(--ow);opacity:.45;white-space:nowrap;overflow:hidden;line-height:1}
-.ftag{font-family:var(--font-brand);font-size:var(--fs-300);font-weight:var(--fw-med);color:var(--t3);opacity:.5;white-space:nowrap}
+/* ── export popover labels / sequence progress ── */
+.ctl-label{font-size:11px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:4px}
+.resolution-label{display:flex;justify-content:space-between;align-items:center}
+.ctl-label-value{color:var(--t3);font-weight:var(--fw-med);font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
+.seq-progress{display:flex;flex-direction:column;gap:4px;margin:2px 0}
+.seq-progress-bar{height:4px;background:var(--s3);border:1px solid var(--b4);overflow:hidden}
+.seq-progress-fill{height:100%;background:var(--ow);width:0%;transition:width .1s linear}
+.seq-progress-label{font-size:10px;font-family:var(--font-brand);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 
-/* ========================================================
-   Iridescence gradient editor (custom mode)
-   ========================================================
-   Sits inside the Iridescence effect card. Visible only when the user
-   picks "Custom gradient" from the mode toggle. The strip is a tall
-   clickable bar showing the current LUT — clicking adds a stop at the
-   clicked position with the color sampled from the LUT. Pins sit
-   below in their own row; they're absolutely positioned along the
-   width with the same coordinate system as the strip, so a pin at
-   left:50% lines up under the middle of the strip exactly. */
+/* ── bottom bar ── */
+.bottom{grid-area:bottom;background:var(--s1);border-top:1px solid var(--b4);display:flex;align-items:center;gap:var(--sp-300);padding:10px var(--sp-400)}
+.pbtn{width:36px;height:36px;background:var(--s3);border:1px solid var(--b4);color:var(--tp);display:flex;align-items:center;justify-content:center}
+.pbtn:hover{background:var(--s4)}
+.bbtn{height:30px;padding:0 11px;background:transparent;border:1px solid transparent;color:var(--t2);display:inline-flex;align-items:center;gap:7px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase}
+.bbtn:hover{background:var(--s3);color:var(--tp)}
+.bbtn.on{color:var(--ow)}
+.scrub{flex:1;display:flex;align-items:center;gap:var(--sp-300);min-width:80px}
+.scrub .range-row{flex:1;padding:0}
+.tc{font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tc b{color:var(--t1)}
+.export-wrap{position:relative}
+.export-wrap .btn-p{width:auto;padding:9px 22px}
+.pop{position:absolute;bottom:calc(100% + 8px);right:0;width:266px;background:var(--s2);border:1px solid var(--b4);padding:var(--sp-400);display:none;flex-direction:column;gap:var(--sp-300);z-index:30;max-height:70vh;overflow-y:auto}
+.pop.open{display:flex}
+.exp-div{height:1px;background:var(--b4)}
+.export-divider{height:1px;background:var(--b4);margin:var(--sp-200) 0 var(--sp-100)}
+
+/* ── toast ── */
+.toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(8px);opacity:0;background:var(--s4);color:var(--tp);padding:9px 16px;font-family:var(--font-brand);font-size:12px;letter-spacing:.4px;text-transform:uppercase;pointer-events:none;transition:.2s;z-index:50}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── iridescence gradient editor (custom mode) ── */
 .iri-gradient{margin-top:var(--sp-100);display:flex;flex-direction:column;gap:6px}
 .iri-strip{height:32px;width:100%;border:1px solid var(--b4);cursor:crosshair;position:relative}
 .iri-pins{position:relative;height:18px;margin-top:-4px}
-.iri-pin{
-  position:absolute;top:0;
-  width:14px;height:14px;
-  border:2px solid #fff;
-  box-shadow:0 0 0 1px rgba(0,0,0,0.5);
-  transform:translateX(-50%);
-  cursor:grab;
-}
+.iri-pin{position:absolute;top:0;width:14px;height:14px;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.5);transform:translateX(-50%);cursor:grab}
 .iri-pin:active{cursor:grabbing}
-.iri-pin.selected{
-  outline:2px solid var(--ow);
-  outline-offset:1px;
-}
-.iri-stop-inspector{
-  display:flex;align-items:center;gap:6px;
-  padding:6px;background:var(--s2);border:1px solid var(--b4);
-}
-.iri-stop-inspector input[type="color"]{
-  width:28px;height:28px;border:1px solid var(--b4);background:none;cursor:pointer;padding:0;
-}
-.iri-hex-input{
-  flex:1;min-width:0;
-  background:var(--s3);border:1px solid var(--b4);color:var(--tp);
-  font-family:var(--font-mono, monospace);font-size:11px;
-  padding:4px 6px;text-transform:uppercase;
-}
+.iri-pin.selected{outline:2px solid var(--ow);outline-offset:1px}
+.iri-stop-inspector{display:flex;align-items:center;gap:6px;padding:6px;background:var(--s2);border:1px solid var(--b4)}
+.iri-stop-inspector input[type=color]{width:28px;height:28px;border:1px solid var(--b4);background:none;cursor:pointer;padding:0}
+.iri-hex-input{flex:1;min-width:0;background:var(--s3);border:1px solid var(--b4);color:var(--tp);font-family:monospace;font-size:11px;padding:4px 6px;text-transform:uppercase}
 .iri-hex-input:focus{outline:1px solid var(--ow);outline-offset:-1px}
-.iri-stop-pos{
-  color:var(--t3);font-size:11px;font-variant-numeric:tabular-nums;
-  min-width:34px;text-align:right;
-}
-.iri-stop-del{
-  background:var(--s3);border:1px solid var(--b4);color:var(--t2);
-  width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1;
-  display:flex;align-items:center;justify-content:center;
-}
+.iri-stop-pos{color:var(--t3);font-size:11px;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.iri-stop-del{background:var(--s3);border:1px solid var(--b4);color:var(--t2);width:24px;height:24px;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
 .iri-stop-del:hover:not(:disabled){background:var(--ow);color:#fff;border-color:var(--ow)}
-.iri-stop-del:disabled{opacity:0.4;cursor:not-allowed}
+.iri-stop-del:disabled{opacity:.4;cursor:not-allowed}
 .iri-hint{font-size:11px;color:var(--t3);line-height:1.4}
+
+@media (max-width:1180px){.app{grid-template-columns:264px 1fr 308px}}

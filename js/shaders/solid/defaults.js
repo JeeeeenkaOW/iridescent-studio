@@ -19,8 +19,9 @@ export const defaults = {
     f0Color:      '#E8DDC8',   // slightly warm silver F0 (metallic high)
 
     roughness:    0.0,         // 0 = smooth (Mercury-like)
-    refraction:   0.0,         // bg UV offset
-    refractionMix:0.0,         // 0 = opaque body
+    refraction:   0.0,         // bg UV offset — now an independent knob
+    refractionMix:0.0,         // 0 = opaque body (Transparency slider)
+    frost:        0.0,         // 0 = clear; high = frosted glass (N scatter + bg blur)
     sssColor:     '#FFE3CC',   // warm tint — only visible when sssStrength > 0
     sssStrength:  0.0,         // 0 = no inner glow
     fresnel:      0.0,         // 0 = no rim

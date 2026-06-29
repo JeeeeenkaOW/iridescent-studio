@@ -16,268 +16,252 @@
 </script>
 </head>
 <body>
+<div class="app">
 
-<nav class="nav">
-  <a class="nav-logo" href="#">
-    <svg width="124" height="40" viewBox="0 0 248 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M76.8287 39.6687L76.8273 39.6679C71.3368 36.5407 60.6412 30.4489 60.5989 30.2099C60.5716 30.0652 60.5439 29.9145 60.5152 29.7588L60.5147 29.7558C60.0825 27.4082 59.4392 23.9135 56.9302 22.0497C55.1652 20.75 45.6244 16.3373 41.2441 14.3113C39.9068 13.6928 39.0504 13.2967 39.0433 13.2796C36.1797 9.04344 33.6421 4.60465 31.4514 0C29.371 1.53247 27.6789 3.51304 26.5062 5.78831C25.3335 8.06358 24.7117 10.5725 24.6889 13.1207C17.0491 14.1923 9.87858 17.3697 4.01535 22.2816C19.221 18.8715 23.6006 22.0154 23.6006 22.0154C18.6223 22.8833 13.8253 24.5522 9.40426 26.9544C2.92265 30.4418 0 34.6293 0 34.6293C0 34.6293 14.7186 30.5106 26.0142 34.5176C20.7467 35.2449 15.8503 37.5875 12.0285 41.209C35.4404 44.0479 46.9862 63.933 51.8441 80C53.6302 51.4221 39.0915 40.5691 39.0915 40.5691C43.3131 40.8654 48.6231 44.0779 52.0196 48.8581C62.2477 47.7299 67.9987 50.7444 68.0933 50.8194C68.1085 50.8083 68.3424 50.7324 68.7384 50.6038C70.332 50.0864 74.5499 48.7168 77.7223 47.2862C77.3756 46.7751 75.9187 45.0013 75.0893 44.0092C75.2034 44.0178 78.3893 43.8331 79.9999 41.4839C80.0157 41.4839 78.7367 40.7554 76.8287 39.6687ZM47.7608 28.8099C48.5163 28.6112 53.0546 27.4178 54.4113 27.9208C55.7278 28.4061 55.7542 32.0739 55.7542 32.0739C55.7542 32.0739 52.7481 32.4862 47.662 28.8356L47.6881 28.8289L47.7584 28.8105L47.7608 28.8099Z" fill="white"/>
-      <path d="M232.82 32.2436H235.738V31.208C235.738 28.9864 236.372 27.1775 237.589 25.9223C238.808 24.6654 240.576 24 242.766 24C244.757 24 246.381 24.5565 247.777 25.5223L248 25.6766L246.016 28.9889L245.751 28.7846C244.96 28.1747 244.113 27.8428 243.058 27.8428C242.175 27.8428 241.478 28.1167 241 28.6274C240.518 29.141 240.223 29.9313 240.223 31.0288V32.2436H246.629V36.1222H240.223V51.5341H235.738V36.1222H231.793L232.82 32.2436Z" fill="white"/>
-      <path d="M228.961 24.4659H224.476V51.534H228.961V24.4659Z" fill="white"/>
-      <path d="M191.219 51.9283H192.38L200.444 32.2435H195.575L191.681 43.1306L186.916 32.136H185.724L181.063 43.1309L177.065 32.2435H172.163L180.152 51.9283H181.35L186.284 40.1763L191.219 51.9283Z" fill="white"/>
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M169.204 36.4441L169.519 36.465V31.9568H169.224C166.919 31.9568 164.197 32.5686 162.355 35.28L162.267 32.2435H157.936V51.534H162.421V42.2114C162.421 39.7491 163.348 38.2784 164.624 37.4349C165.919 36.5792 167.62 36.3389 169.204 36.4441Z" fill="white"/>
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M141.103 46.7093C140.206 45.9084 139.61 44.7261 139.394 43.1471H153.844V42.8565C153.844 42.6862 153.852 42.5233 153.862 42.3521L153.862 42.3489C153.871 42.1806 153.88 42.004 153.88 41.8171C153.88 38.6599 152.934 36.1371 151.285 34.401C149.634 32.6634 147.304 31.7418 144.595 31.7418C139.228 31.7418 134.764 35.6704 134.764 41.853C134.764 44.9972 135.767 47.54 137.538 49.2976C139.309 51.0552 141.819 52 144.777 52C148.158 52 150.79 51.0075 152.929 48.7162L153.103 48.5294L150.623 45.5821L150.394 45.8029C148.737 47.3995 147.1 48.0138 145.068 48.0138C143.393 48.0138 142.06 47.5632 141.103 46.7093ZM144.558 35.5487C145.943 35.5487 147.029 36.0067 147.809 36.796C148.534 37.5287 149.015 38.5671 149.209 39.842H139.493C140.08 37.2161 142.028 35.5487 144.558 35.5487Z" fill="white"/>
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M122.975 51.9283H124.106L134.007 32.2436H128.935L123.63 44.1105L118.254 32.2436H113.111L122.975 51.9283Z" fill="white"/>
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M200.718 41.8888C200.718 48.2307 205.526 52 210.913 52C216.375 52 221.108 48.1929 221.108 41.8888C221.108 35.4765 216.337 31.7418 210.949 31.7418C205.489 31.7418 200.718 35.5118 200.718 41.8888ZM216.514 41.853C216.514 45.7517 213.835 48.0138 210.913 48.0138C207.919 48.0138 205.312 45.7529 205.312 41.8888C205.312 37.9913 207.99 35.7279 210.949 35.7279C213.94 35.7279 216.514 37.9865 216.514 41.853Z" fill="white"/>
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M92 41.8888C92 48.2307 96.8085 52 102.195 52C107.657 52 112.391 48.1929 112.391 41.8888C112.391 35.4765 107.62 31.7418 102.232 31.7418C96.7713 31.7418 92 35.5118 92 41.8888ZM107.797 41.853C107.797 45.7517 105.117 48.0138 102.195 48.0138C99.2019 48.0138 96.594 45.7529 96.594 41.8888C96.594 37.9913 99.2724 35.7279 102.232 35.7279C105.223 35.7279 107.797 37.9865 107.797 41.853Z" fill="white"/>
-    </svg>
-  </a>
-  <div class="nav-div"></div>
-  <span class="nav-sec">Internal Tools</span>
-  <span class="nav-tag">✦ Internal only</span>
-</nav>
+  <!-- ───── NAV ───── -->
+  <nav class="nav">
+    <a class="nav-logo" href="#">
+      <svg width="124" height="40" viewBox="0 0 248 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Overwolf">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M76.8287 39.6687L76.8273 39.6679C71.3368 36.5407 60.6412 30.4489 60.5989 30.2099C60.5716 30.0652 60.5439 29.9145 60.5152 29.7588L60.5147 29.7558C60.0825 27.4082 59.4392 23.9135 56.9302 22.0497C55.1652 20.75 45.6244 16.3373 41.2441 14.3113C39.9068 13.6928 39.0504 13.2967 39.0433 13.2796C36.1797 9.04344 33.6421 4.60465 31.4514 0C29.371 1.53247 27.6789 3.51304 26.5062 5.78831C25.3335 8.06358 24.7117 10.5725 24.6889 13.1207C17.0491 14.1923 9.87858 17.3697 4.01535 22.2816C19.221 18.8715 23.6006 22.0154 23.6006 22.0154C18.6223 22.8833 13.8253 24.5522 9.40426 26.9544C2.92265 30.4418 0 34.6293 0 34.6293C0 34.6293 14.7186 30.5106 26.0142 34.5176C20.7467 35.2449 15.8503 37.5875 12.0285 41.209C35.4404 44.0479 46.9862 63.933 51.8441 80C53.6302 51.4221 39.0915 40.5691 39.0915 40.5691C43.3131 40.8654 48.6231 44.0779 52.0196 48.8581C62.2477 47.7299 67.9987 50.7444 68.0933 50.8194C68.1085 50.8083 68.3424 50.7324 68.7384 50.6038C70.332 50.0864 74.5499 48.7168 77.7223 47.2862C77.3756 46.7751 75.9187 45.0013 75.0893 44.0092C75.2034 44.0178 78.3893 43.8331 79.9999 41.4839C80.0157 41.4839 78.7367 40.7554 76.8287 39.6687ZM47.7608 28.8099C48.5163 28.6112 53.0546 27.4178 54.4113 27.9208C55.7278 28.4061 55.7542 32.0739 55.7542 32.0739C55.7542 32.0739 52.7481 32.4862 47.662 28.8356L47.6881 28.8289L47.7584 28.8105L47.7608 28.8099Z" fill="white"/>
+        <path d="M232.82 32.2436H235.738V31.208C235.738 28.9864 236.372 27.1775 237.589 25.9223C238.808 24.6654 240.576 24 242.766 24C244.757 24 246.381 24.5565 247.777 25.5223L248 25.6766L246.016 28.9889L245.751 28.7846C244.96 28.1747 244.113 27.8428 243.058 27.8428C242.175 27.8428 241.478 28.1167 241 28.6274C240.518 29.141 240.223 29.9313 240.223 31.0288V32.2436H246.629V36.1222H240.223V51.5341H235.738V36.1222H231.793L232.82 32.2436Z" fill="white"/>
+        <path d="M228.961 24.4659H224.476V51.534H228.961V24.4659Z" fill="white"/>
+        <path d="M191.219 51.9283H192.38L200.444 32.2435H195.575L191.681 43.1306L186.916 32.136H185.724L181.063 43.1309L177.065 32.2435H172.163L180.152 51.9283H181.35L186.284 40.1763L191.219 51.9283Z" fill="white"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M169.204 36.4441L169.519 36.465V31.9568H169.224C166.919 31.9568 164.197 32.5686 162.355 35.28L162.267 32.2435H157.936V51.534H162.421V42.2114C162.421 39.7491 163.348 38.2784 164.624 37.4349C165.919 36.5792 167.62 36.3389 169.204 36.4441Z" fill="white"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M141.103 46.7093C140.206 45.9084 139.61 44.7261 139.394 43.1471H153.844V42.8565C153.844 42.6862 153.852 42.5233 153.862 42.3521L153.862 42.3489C153.871 42.1806 153.88 42.004 153.88 41.8171C153.88 38.6599 152.934 36.1371 151.285 34.401C149.634 32.6634 147.304 31.7418 144.595 31.7418C139.228 31.7418 134.764 35.6704 134.764 41.853C134.764 44.9972 135.767 47.54 137.538 49.2976C139.309 51.0552 141.819 52 144.777 52C148.158 52 150.79 51.0075 152.929 48.7162L153.103 48.5294L150.623 45.5821L150.394 45.8029C148.737 47.3995 147.1 48.0138 145.068 48.0138C143.393 48.0138 142.06 47.5632 141.103 46.7093ZM144.558 35.5487C145.943 35.5487 147.029 36.0067 147.809 36.796C148.534 37.5287 149.015 38.5671 149.209 39.842H139.493C140.08 37.2161 142.028 35.5487 144.558 35.5487Z" fill="white"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M122.975 51.9283H124.106L134.007 32.2436H128.935L123.63 44.1105L118.254 32.2436H113.111L122.975 51.9283Z" fill="white"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M200.718 41.8888C200.718 48.2307 205.526 52 210.913 52C216.375 52 221.108 48.1929 221.108 41.8888C221.108 35.4765 216.337 31.7418 210.949 31.7418C205.489 31.7418 200.718 35.5118 200.718 41.8888ZM216.514 41.853C216.514 45.7517 213.835 48.0138 210.913 48.0138C207.919 48.0138 205.312 45.7529 205.312 41.8888C205.312 37.9913 207.99 35.7279 210.949 35.7279C213.94 35.7279 216.514 37.9865 216.514 41.853Z" fill="white"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M92 41.8888C92 48.2307 96.8085 52 102.195 52C107.657 52 112.391 48.1929 112.391 41.8888C112.391 35.4765 107.62 31.7418 102.232 31.7418C96.7713 31.7418 92 35.5118 92 41.8888ZM107.797 41.853C107.797 45.7517 105.117 48.0138 102.195 48.0138C99.2019 48.0138 96.594 45.7529 96.594 41.8888C96.594 37.9913 99.2724 35.7279 102.232 35.7279C105.223 35.7279 107.797 37.9865 107.797 41.853Z" fill="white"/>
+      </svg>
+    </a>
+    <div class="nav-div"></div>
+    <span class="nav-sec">Internal Tools</span>
+    <span class="nav-tag">✦ Internal only</span>
+  </nav>
 
-<main class="page">
-  <div class="tool">
+  <!-- ───── LEFT RAIL — Source / Presets / Background / Normals ───── -->
+  <aside class="rail">
 
-    <section class="viewport" id="viewport">
-      <div class="recording" id="recording">Recording</div>
-    </section>
+    <div class="project-bar">
+      <button class="btn-s" id="btn-save-config">Save config</button>
+      <button class="btn-s" id="btn-load-config">Load config</button>
+      <input type="file" id="config-file-input" accept=".json,application/json" style="display:none">
+    </div>
 
-    <aside class="sidebar">
-
-      <div class="sidebar-header">
-        <p class="sidebar-eyebrow">Design Tools</p>
-        <h1 class="sidebar-title">Web Material Forge</h1>
-        <p class="sidebar-desc">Drop an SVG or PNG. Albedo, normal, and bloom maps generate from the image; a fragment shader fakes a range of materials, ready for preview, image and video render.</p>
+    <!-- SOURCE -->
+    <div class="section">
+      <div class="section-title">Source vector</div>
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".svg,image/svg+xml,.png,image/png">
+        <div class="drop-icon">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="drop-title">Drop SVG or PNG</p>
+        <p class="drop-sub">or <span class="drop-link">browse files</span></p>
       </div>
-
-      <!-- PROJECT — compact utility bar pinned to the top of the sidebar.
-           Save/load the whole-tool config. Kept out of the workflow
-           zones below because it's a session-level action, not a step. -->
-      <div class="project-bar">
-        <button class="btn-s" id="btn-save-config">Save config</button>
-        <button class="btn-s" id="btn-load-config">Load config</button>
-        <input type="file" id="config-file-input" accept=".json,application/json" style="display:none">
+      <div class="drop-current" id="drop-current" style="display:none">
+        <span class="drop-current-name" id="drop-current-name"></span>
+        <button class="drop-current-clear" id="drop-current-clear" title="Reset to default">×</button>
       </div>
+    </div>
 
-      <!-- ============================ INPUT ============================
-           What goes IN: the source art, how its surface relief is read
-           (normals), and the stage it sits on (background). -->
-      <div class="zone" data-zone="input">
-        <div class="zone-label">Input</div>
+    <!-- PRESETS -->
+    <div class="section">
+      <div class="section-title">Presets</div>
+      <div class="presets" id="presets"></div>
+      <button class="btn-s" id="btn-save-preset" style="margin-top:10px">Save current as preset</button>
+      <div class="note" style="margin-top:10px"><span class="sp">✦</span><span>Built-ins set the material look; “Save current” captures everything — material, lighting, effects, background and motion.</span></div>
+    </div>
 
-        <!-- SOURCE VECTOR — entry point, always visible (not collapsible). -->
-        <div class="section">
-          <div class="section-title">Source vector</div>
-          <div class="drop-zone" id="drop-zone">
-            <input type="file" id="file-input" accept=".svg,image/svg+xml,.png,image/png">
+    <!-- BACKGROUND -->
+    <div class="section collapsible collapsed">
+      <div class="section-title" data-collapsible>Background</div>
+      <div class="collapsible-body">
+        <div class="segmented cols-4" id="seg-bg">
+          <button class="seg-btn active" data-bg="solid">Solid</button>
+          <button class="seg-btn" data-bg="gradient">Gradient</button>
+          <button class="seg-btn" data-bg="image">Image</button>
+          <button class="seg-btn" data-bg="video">Video</button>
+        </div>
+
+        <div class="bg-panel" id="bg-panel-solid">
+          <div class="color-row">
+            <span class="color-row-label">Color</span>
+            <div class="color-row-control">
+              <input type="color" id="bg-solid-color" value="#000000">
+              <span class="color-row-hex" id="bg-solid-hex">#000000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-panel" id="bg-panel-gradient" style="display:none">
+          <div class="color-row">
+            <span class="color-row-label">From</span>
+            <div class="color-row-control">
+              <input type="color" id="bg-grad-from" value="#000000">
+              <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
+            </div>
+          </div>
+          <div class="color-row">
+            <span class="color-row-label">To</span>
+            <div class="color-row-control">
+              <input type="color" id="bg-grad-to" value="#202020">
+              <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
+            </div>
+          </div>
+          <div class="range-row">
+            <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
+            <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
+          </div>
+        </div>
+
+        <div class="bg-panel" id="bg-panel-image" style="display:none">
+          <div class="drop-zone drop-zone-sm" id="bg-img-drop">
+            <input type="file" id="bg-img-input" accept="image/png,image/jpeg,image/webp,image/gif">
             <div class="drop-icon">
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M3 4h14v12H3zM3 13l4-4 3 3 3-4 4 5" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
-            <p class="drop-title">Drop SVG or PNG</p>
+            <p class="drop-title">Drop image</p>
             <p class="drop-sub">or <span class="drop-link">browse files</span></p>
           </div>
-          <div class="drop-current" id="drop-current" style="display:none">
-            <span class="drop-current-name" id="drop-current-name"></span>
-            <button class="drop-current-clear" id="drop-current-clear" title="Reset to default">×</button>
+          <div class="drop-current" id="bg-img-current" style="display:none">
+            <span class="drop-current-name" id="bg-img-current-name"></span>
+            <button class="drop-current-clear" id="bg-img-clear" title="Remove">×</button>
           </div>
         </div>
 
-        <!-- NORMALS — surface relief from the silhouette. Dial once. -->
-        <div class="section collapsible collapsed">
-          <div class="section-title" data-collapsible>Normals</div>
-          <div class="collapsible-body">
-            <div class="segmented cols-2" id="seg-normals">
-              <button class="seg-btn active" data-nm="edge">Edge (Sobel)</button>
-              <button class="seg-btn" data-nm="sculpted">Sculpted (SDF)</button>
+        <div class="bg-panel" id="bg-panel-video" style="display:none">
+          <div class="drop-zone drop-zone-sm" id="bg-vid-drop">
+            <input type="file" id="bg-vid-input" accept="video/mp4,video/webm,video/quicktime">
+            <div class="drop-icon">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M3 4h11v12H3zM14 8l4-2v8l-4-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
-            <div class="range-row">
-              <div class="range-label"><span>Strength</span><span class="range-value" id="val-strength">4.0</span></div>
-              <input type="range" id="ctl-strength" min="1" max="8" step="0.1" value="4">
-            </div>
+            <p class="drop-title">Drop video</p>
+            <p class="drop-sub">MP4 · WebM · MOV (loops)</p>
+          </div>
+          <div class="drop-current" id="bg-vid-current" style="display:none">
+            <span class="drop-current-name" id="bg-vid-current-name"></span>
+            <button class="drop-current-clear" id="bg-vid-clear" title="Remove">×</button>
           </div>
         </div>
-
-        <!-- BACKGROUND -->
-        <div class="section collapsible collapsed">
-          <div class="section-title" data-collapsible>Background</div>
-          <div class="collapsible-body">
-            <div class="segmented cols-3" id="seg-bg">
-              <button class="seg-btn active" data-bg="solid">Solid</button>
-              <button class="seg-btn" data-bg="gradient">Gradient</button>
-              <button class="seg-btn" data-bg="image">Image</button>
-            </div>
-
-            <div class="bg-panel" id="bg-panel-solid">
-              <div class="color-row">
-                <span class="color-row-label">Color</span>
-                <div class="color-row-control">
-                  <input type="color" id="bg-solid-color" value="#000000">
-                  <span class="color-row-hex" id="bg-solid-hex">#000000</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-panel" id="bg-panel-gradient" style="display:none">
-              <div class="color-row">
-                <span class="color-row-label">From</span>
-                <div class="color-row-control">
-                  <input type="color" id="bg-grad-from" value="#000000">
-                  <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
-                </div>
-              </div>
-              <div class="color-row">
-                <span class="color-row-label">To</span>
-                <div class="color-row-control">
-                  <input type="color" id="bg-grad-to" value="#202020">
-                  <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
-                </div>
-              </div>
-              <div class="range-row">
-                <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
-                <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
-              </div>
-            </div>
-
-            <div class="bg-panel" id="bg-panel-image" style="display:none">
-              <div class="drop-zone drop-zone-sm" id="bg-img-drop">
-                <input type="file" id="bg-img-input" accept="image/png,image/jpeg,image/webp,image/gif">
-                <div class="drop-icon">
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                    <path d="M10 2v11M10 2L6 6M10 2l4 4" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#9F9F9F" stroke-width="1.5" stroke-linecap="round"/>
-                  </svg>
-                </div>
-                <p class="drop-title">Drop image</p>
-                <p class="drop-sub">or <span class="drop-link">browse files</span></p>
-              </div>
-              <div class="drop-current" id="bg-img-current" style="display:none">
-                <span class="drop-current-name" id="bg-img-current-name"></span>
-                <button class="drop-current-clear" id="bg-img-clear" title="Remove">×</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
+    </div>
 
-      <!-- ============================ LOOK =============================
-           The creative core: pick a shader, dial its material, light it,
-           stack effects (iridescence / bloom / etc.). -->
-      <div class="zone" data-zone="look">
-        <div class="zone-label">Look</div>
+    <!-- NORMALS -->
+    <div class="section collapsible collapsed">
+      <div class="section-title" data-collapsible>Normals</div>
+      <div class="collapsible-body">
+        <div class="segmented cols-2" id="seg-normals">
+          <button class="seg-btn active" data-nm="edge">Edge (Sobel)</button>
+          <button class="seg-btn" data-nm="sculpted">Sculpted (SDF)</button>
+        </div>
+        <div class="range-row">
+          <div class="range-label"><span>Strength</span><span class="range-value" id="val-strength">4.0</span></div>
+          <input type="range" id="ctl-strength" min="1" max="8" step="0.1" value="4">
+        </div>
+      </div>
+    </div>
 
-        <!-- SHADER picker — segmented control, always visible. -->
-        <div class="section">
-          <div class="section-title">Shader</div>
+  </aside>
+
+  <!-- ───── VIEWPORT ───── -->
+  <main class="view" id="viewport">
+    <div class="recording" id="recording">Recording</div>
+  </main>
+
+  <!-- ───── INSPECTOR — Material / Lighting / Effects ───── -->
+  <aside class="inspect">
+    <nav class="tabs">
+      <button class="tab active" data-tab="material">Material</button>
+      <button class="tab" data-tab="light">Lighting</button>
+      <button class="tab" data-tab="fx">Effects</button>
+    </nav>
+    <div class="tabscroll">
+
+      <div class="pane active" data-pane="material">
+        <div>
+          <div class="lbl-mini">Material family</div>
           <div class="segmented" id="shader-picker"></div>
         </div>
-
-        <!-- MATERIAL -->
-        <div class="section collapsible">
-          <div class="section-title" data-collapsible>Material</div>
-          <div class="collapsible-body">
-            <div id="shader-controls"></div>
-          </div>
-        </div>
-
-        <!-- LIGHTING -->
-        <div class="section collapsible collapsed">
-          <div class="section-title" data-collapsible>Lighting</div>
-          <div class="collapsible-body">
-            <div id="lighting-host"></div>
-          </div>
-        </div>
-
-        <!-- EFFECTS -->
-        <div class="section collapsible" id="effects-section">
-          <div class="section-title" data-collapsible>Effects</div>
-          <div class="collapsible-body">
-            <div id="effects-host"></div>
-          </div>
-        </div>
-
+        <div id="shader-controls"></div>
       </div>
 
-      <!-- =========================== OUTPUT ============================
-           What comes OUT: idle/loop motion, and the export actions. -->
-      <div class="zone" data-zone="output">
-        <div class="zone-label">Output</div>
-
-        <!-- MOTION -->
-        <div class="section collapsible collapsed">
-          <div class="section-title" data-collapsible>Motion</div>
-          <div class="collapsible-body">
-            <div class="toggle-row">
-              <label for="ctl-auto-drift">Auto-drift when idle</label>
-              <div class="toggle on" id="ctl-auto-drift"></div>
-            </div>
-            <div class="toggle-row">
-              <label for="ctl-preview-loop">Preview as loop</label>
-              <div class="toggle" id="ctl-preview-loop"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- EXPORT -->
-        <div class="section collapsible">
-          <div class="section-title" data-collapsible>Export</div>
-          <div class="collapsible-body">
-            <div class="toggle-row">
-              <label for="ctl-freeze">Freeze pose for export</label>
-              <div class="toggle" id="ctl-freeze"></div>
-            </div>
-            <div class="hint" id="ctl-freeze-hint">Click the canvas to set the highlight position.</div>
-            <div class="export-divider"></div>
-            <div class="range-row">
-              <div class="range-label"><span>Loop duration</span><span class="range-value" id="val-loop">4.0s</span></div>
-              <input type="range" id="ctl-loop" min="1" max="10" step="0.5" value="4">
-            </div>
-            <div class="range-row">
-              <div class="range-label"><span>Framerate</span><span class="range-value" id="val-fps">30fps</span></div>
-              <input type="range" id="ctl-fps" min="12" max="60" step="1" value="30">
-            </div>
-            <div class="ctl-label resolution-label">
-              <span>Resolution</span>
-              <span class="ctl-label-value" id="val-res-dims">— × — px</span>
-            </div>
-            <div class="segmented cols-3" id="seg-res">
-              <button class="seg-btn active" data-res="1">1×</button>
-              <button class="seg-btn" data-res="2">2×</button>
-              <button class="seg-btn" data-res="4">4×</button>
-            </div>
-            <div class="export-divider"></div>
-            <div class="toggle-row">
-              <label for="ctl-export-transparent">Transparent background</label>
-              <div class="toggle" id="ctl-export-transparent"></div>
-            </div>
-            <div class="btn-row">
-              <button class="btn-s" id="btn-png">PNG</button>
-              <button class="btn-p" id="btn-webm">WebM</button>
-            </div>
-            <button class="btn-s" id="btn-png-sequence">PNG sequence (for AE)</button>
-            <div class="seq-progress" id="seq-progress" style="display:none">
-              <div class="seq-progress-bar"><div class="seq-progress-fill" id="seq-progress-fill"></div></div>
-              <div class="seq-progress-label" id="seq-progress-label">Preparing…</div>
-            </div>
-            <button class="btn-s" id="btn-shader-html">Embed for web (LP)</button>
-          </div>
-        </div>
-
+      <div class="pane" data-pane="light">
+        <div id="lighting-host"></div>
       </div>
 
-    </aside>
+      <div class="pane" data-pane="fx">
+        <div class="note"><span class="sp">✦</span><span>Effects stack on top of any material family. Toggle to enable.</span></div>
+        <div id="effects-host"></div>
+      </div>
 
-  </div>
-</main>
+    </div>
+  </aside>
 
-<footer>
-  <div class="rune">@init.quest~!&gt;[++new^entity&gt;]://unlock^path|/-~|{@•.|}x_~spawn-&lt;~~/|@^~/rise.protocol/&gt;&gt; @init.quest~!&gt;[++new^entity&gt;]://unlock^path|/-~|{@•.|}x_~spawn</div>
-  <span class="ftag">Internal Tool</span>
-</footer>
+  <!-- ───── BOTTOM TRANSPORT BAR ───── -->
+  <footer class="bottom">
+    <button class="pbtn" id="play" title="Play / pause">
+      <svg class="icon" id="playIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+    </button>
+    <button class="bbtn" id="ctl-preview-loop">Loop</button>
+    <button class="bbtn on" id="ctl-auto-drift">Auto-drift</button>
+    <div class="scrub">
+      <div class="range-row"><input type="range" id="scrubber" min="0" max="1000" value="0"></div>
+      <span class="tc"><b id="tc-cur">0:00</b> / <span id="tc-tot">0:04</span></span>
+    </div>
+    <div class="export-wrap">
+      <button class="btn-p" id="export-btn">Export</button>
+      <div class="pop" id="export-pop">
+        <div class="toggle-row">
+          <label for="ctl-freeze">Freeze pose for export</label>
+          <div class="toggle" id="ctl-freeze"></div>
+        </div>
+        <div class="hint" id="ctl-freeze-hint">Click the canvas to set the highlight position.</div>
+        <div class="exp-div"></div>
+        <div class="range-row">
+          <div class="range-label"><span>Loop duration</span><span class="range-value" id="val-loop">4.0s</span></div>
+          <input type="range" id="ctl-loop" min="1" max="10" step="0.5" value="4">
+        </div>
+        <div class="range-row">
+          <div class="range-label"><span>Framerate</span><span class="range-value" id="val-fps">30fps</span></div>
+          <input type="range" id="ctl-fps" min="12" max="60" step="1" value="30">
+        </div>
+        <div class="ctl-label resolution-label">
+          <span>Resolution</span>
+          <span class="ctl-label-value" id="val-res-dims">— × — px</span>
+        </div>
+        <div class="segmented cols-3" id="seg-res">
+          <button class="seg-btn active" data-res="1">1×</button>
+          <button class="seg-btn" data-res="2">2×</button>
+          <button class="seg-btn" data-res="4">4×</button>
+        </div>
+        <div class="exp-div"></div>
+        <div class="toggle-row">
+          <label for="ctl-export-transparent">Transparent background</label>
+          <div class="toggle" id="ctl-export-transparent"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-s" id="btn-png">PNG</button>
+          <button class="btn-p" id="btn-webm">WebM</button>
+        </div>
+        <button class="btn-s" id="btn-png-sequence">PNG sequence (for AE)</button>
+        <div class="seq-progress" id="seq-progress" style="display:none">
+          <div class="seq-progress-bar"><div class="seq-progress-fill" id="seq-progress-fill"></div></div>
+          <div class="seq-progress-label" id="seq-progress-label">Preparing…</div>
+        </div>
+        <button class="btn-s" id="btn-shader-html">Embed for web (LP)</button>
+      </div>
+    </div>
+  </footer>
+
+</div>
+<div class="toast" id="toast"></div>
 
 <script type="module" src="./js/main.js"></script>
 </body>

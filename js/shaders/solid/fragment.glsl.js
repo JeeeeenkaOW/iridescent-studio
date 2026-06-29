@@ -66,6 +66,7 @@ const materialUniforms = /* glsl */ `
   uniform float u_roughness;
   uniform float u_refraction;       // bg UV-offset magnitude
   uniform float u_refractionMix;    // bg → body blend (0 opaque, 1 full glass)
+  uniform float u_frost;            // 0 clear, 1 frosted (N scatter + bg blur)
   uniform vec3  u_sssColor;
   uniform float u_sssStrength;
   uniform float u_fresnel;
