@@ -71,8 +71,11 @@
     <div class="section">
       <div class="section-title">Presets</div>
       <div class="presets" id="presets"></div>
-      <button class="btn-s" id="btn-save-preset" style="margin-top:10px">Save current as preset</button>
-      <div class="note" style="margin-top:10px"><span class="sp">✦</span><span>Built-ins set the material look; “Save current” captures everything — material, lighting, effects, background and motion.</span></div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-s" id="btn-save-preset">Save current</button>
+        <button class="btn-s" id="btn-load-preset">Load preset</button>
+      </div>
+      <div class="note" style="margin-top:10px"><span class="sp">✦</span><span>Save stores a preset here and downloads a <b>.wmf.json</b> you can load in any session. Captures material, lighting, effects, background &amp; motion.</span></div>
     </div>
 
     <!-- BACKGROUND -->
@@ -80,40 +83,47 @@
       <div class="section-title" data-collapsible>Background</div>
       <div class="collapsible-body">
         <div class="segmented cols-4" id="seg-bg">
-          <button class="seg-btn active" data-bg="solid">Solid</button>
-          <button class="seg-btn" data-bg="gradient">Gradient</button>
+          <button class="seg-btn active" data-bg="transparent">None</button>
+          <button class="seg-btn" data-bg="color">Color</button>
           <button class="seg-btn" data-bg="image">Image</button>
           <button class="seg-btn" data-bg="video">Video</button>
         </div>
 
-        <div class="bg-panel" id="bg-panel-solid">
-          <div class="color-row">
+        <div class="bg-panel" id="bg-panel-transparent">
+          <div class="note"><span class="sp">✦</span><span>Transparent — the ornament exports with a cut-out alpha. The viewport shows a checkerboard to indicate transparency.</span></div>
+        </div>
+
+        <div class="bg-panel" id="bg-panel-color" style="display:none">
+          <div class="segmented cols-2" id="seg-colormode">
+            <button class="seg-btn active" data-colormode="solid">Solid</button>
+            <button class="seg-btn" data-colormode="gradient">Gradient</button>
+          </div>
+          <div class="color-row" id="bg-color-solid">
             <span class="color-row-label">Color</span>
             <div class="color-row-control">
               <input type="color" id="bg-solid-color" value="#000000">
               <span class="color-row-hex" id="bg-solid-hex">#000000</span>
             </div>
           </div>
-        </div>
-
-        <div class="bg-panel" id="bg-panel-gradient" style="display:none">
-          <div class="color-row">
-            <span class="color-row-label">From</span>
-            <div class="color-row-control">
-              <input type="color" id="bg-grad-from" value="#000000">
-              <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
+          <div id="bg-color-gradient" style="display:none;flex-direction:column;gap:var(--sp-200)">
+            <div class="color-row">
+              <span class="color-row-label">From</span>
+              <div class="color-row-control">
+                <input type="color" id="bg-grad-from" value="#000000">
+                <span class="color-row-hex" id="bg-grad-from-hex">#000000</span>
+              </div>
             </div>
-          </div>
-          <div class="color-row">
-            <span class="color-row-label">To</span>
-            <div class="color-row-control">
-              <input type="color" id="bg-grad-to" value="#202020">
-              <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
+            <div class="color-row">
+              <span class="color-row-label">To</span>
+              <div class="color-row-control">
+                <input type="color" id="bg-grad-to" value="#202020">
+                <span class="color-row-hex" id="bg-grad-to-hex">#202020</span>
+              </div>
             </div>
-          </div>
-          <div class="range-row">
-            <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
-            <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
+            <div class="range-row">
+              <div class="range-label"><span>Angle</span><span class="range-value" id="bg-grad-angle-val">180°</span></div>
+              <input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="180">
+            </div>
           </div>
         </div>
 
@@ -126,7 +136,7 @@
               </svg>
             </div>
             <p class="drop-title">Drop image</p>
-            <p class="drop-sub">or <span class="drop-link">browse files</span></p>
+            <p class="drop-sub">PNG · JPG · WebP · GIF</p>
           </div>
           <div class="drop-current" id="bg-img-current" style="display:none">
             <span class="drop-current-name" id="bg-img-current-name"></span>
@@ -204,20 +214,23 @@
     </div>
   </aside>
 
-  <!-- ───── BOTTOM TRANSPORT BAR ───── -->
+  <!-- ───── BOTTOM BAR ───── -->
   <footer class="bottom">
-    <button class="pbtn" id="play" title="Play / pause">
-      <svg class="icon" id="playIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-    </button>
-    <button class="bbtn" id="ctl-preview-loop">Loop</button>
-    <button class="bbtn on" id="ctl-auto-drift">Auto-drift</button>
-    <div class="scrub">
-      <div class="range-row"><input type="range" id="scrubber" min="0" max="1000" value="0"></div>
-      <span class="tc"><b id="tc-cur">0:00</b> / <span id="tc-tot">0:04</span></span>
-    </div>
+    <span class="bottom-hint">Hover the canvas to pose · auto-drift when idle</span>
     <div class="export-wrap">
       <button class="btn-p" id="export-btn">Export</button>
       <div class="pop" id="export-pop">
+        <div class="lbl-mini">Playback</div>
+        <div class="toggle-row">
+          <label>Auto-drift when idle</label>
+          <div class="toggle on" id="ctl-auto-drift"></div>
+        </div>
+        <div class="toggle-row">
+          <label>Preview loop in editor</label>
+          <div class="toggle" id="ctl-preview-loop"></div>
+        </div>
+        <div class="hint">Video &amp; PNG-sequence exports always loop seamlessly using the duration below.</div>
+        <div class="exp-div"></div>
         <div class="toggle-row">
           <label for="ctl-freeze">Freeze pose for export</label>
           <div class="toggle" id="ctl-freeze"></div>
@@ -241,11 +254,7 @@
           <button class="seg-btn" data-res="2">2×</button>
           <button class="seg-btn" data-res="4">4×</button>
         </div>
-        <div class="exp-div"></div>
-        <div class="toggle-row">
-          <label for="ctl-export-transparent">Transparent background</label>
-          <div class="toggle" id="ctl-export-transparent"></div>
-        </div>
+        <div class="hint">Transparent background is set in the left rail (Background → Transparent).</div>
         <div class="btn-row">
           <button class="btn-s" id="btn-png">PNG</button>
           <button class="btn-p" id="btn-webm">WebM</button>

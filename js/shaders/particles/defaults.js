@@ -20,7 +20,7 @@ export const defaults = {
   material: {
     density:     80,
     size:        0.40,
-    jitter:      0.5,
+    jitter:      0.0,
     softness:    0.15,
     shape:       0,
     // Sprite-sheet shape (shape 3) defaults. Full color + random-
@@ -33,7 +33,7 @@ export const defaults = {
     spriteScale:     1.0, // sprite size: 1.0 = one-cell box (sole size control for sprites)
     spriteFPS:       8,
     // Default motion: mild drift only. User can combine any of these.
-    motionDrift:   0.4,
+    motionDrift:   0.0,
     motionRise:    0.0,
     motionTwinkle: 0.0,
     motionScatter: 0.0,

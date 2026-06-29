@@ -33,8 +33,8 @@ import { hexToVec3 } from '../../util/color.js';
 const SHAPES = [
   { id: 0, label: 'Circle'  },
   { id: 1, label: 'Square'  },
-  { id: 2, label: 'Custom'  },
-  { id: 3, label: 'Sprites' },
+  { id: 2, label: 'Custom',  tip: 'Upload an SVG — its silhouette becomes the particle shape. Accepts: .svg' },
+  { id: 3, label: 'Sprites', tip: 'Upload a sprite sheet, then set the grid below. Accepts: PNG, WebP, GIF, JPEG, SVG' },
 ];
 
 // Rasterize an SVG document (as text) to a square Canvas, then return
@@ -286,7 +286,7 @@ export function initParticlesControls({ host, uniforms, history }) {
         <div class="range-label"><span>Shape</span><span class="range-value" data-pc-custom-name></span></div>
         <div class="segmented cols-4">
           ${SHAPES.map(s => `
-            <button class="seg-btn ${s.id === d.material.shape ? 'active' : ''}" data-pc-shape="${s.id}">${s.label}</button>
+            <button class="seg-btn ${s.id === d.material.shape ? 'active' : ''}" data-pc-shape="${s.id}"${s.tip ? ` title="${s.tip}"` : ''}>${s.label}</button>
           `).join('')}
         </div>
         <input type="file" data-pc-svg-input accept=".svg,image/svg+xml" style="display:none">

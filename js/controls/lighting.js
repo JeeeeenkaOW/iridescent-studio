@@ -77,6 +77,8 @@ export function initLighting({ host, uniforms, history, initialEnabled = false, 
       <label>Override material lighting</label>
       <div class="toggle ${enabled ? 'on' : ''}" data-lt-enable></div>
     </div>
+    <div class="hint" data-lt-hint>Turn this on to control diffuse, specular, shininess, light height, ambient, and light color. Off = the material's built-in lighting.</div>
+    <div data-lt-body style="display:flex;flex-direction:column;gap:var(--sp-300)">
     <div class="range-row">
       <div class="range-label"><span>Diffuse</span><span class="range-value" data-lt-dif-val>${Math.round(seed.diffuse * 100)}%</span></div>
       <input type="range" data-lt-dif min="0" max="100" step="1" value="${Math.round(seed.diffuse * 100)}">
@@ -103,6 +105,7 @@ export function initLighting({ host, uniforms, history, initialEnabled = false, 
         <input type="color" data-lt-col value="${seed.color}">
         <span class="color-row-hex" data-lt-col-hex>${seed.color.toUpperCase()}</span>
       </div>
+    </div>
     </div>
   `;
 
@@ -151,6 +154,10 @@ export function initLighting({ host, uniforms, history, initialEnabled = false, 
 
   function applyEnabledState() {
     [difIn, spcIn, shnIn, hgtIn, ambIn, colIn].forEach(el => el.disabled = !enabled);
+    const body = host.querySelector('[data-lt-body]');
+    const hint = host.querySelector('[data-lt-hint]');
+    if (body) body.style.display = enabled ? 'flex' : 'none';
+    if (hint) hint.style.display = enabled ? 'none' : 'block';
     if (enabled) write();
     else restorePreset();
   }

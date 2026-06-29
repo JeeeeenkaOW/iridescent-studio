@@ -72,51 +72,42 @@ export function initBackground({ state, uniforms, viewport, history }) {
       canvas.height = h;
     }
 
-    if (state.bg.mode === 'solid') {
-      ctx.fillStyle = state.bg.solid;
-      ctx.fillRect(0, 0, w, h);
-    } else if (state.bg.mode === 'gradient') {
-      const { from, to, angle } = state.bg.gradient;
-      // Angle 0 = top-to-bottom in CSS convention. Convert to canvas
-      // gradient endpoints across the rect.
-      const rad = (angle - 90) * Math.PI / 180;
-      const cx = w / 2, cy = h / 2;
-      const len = Math.max(w, h);
-      const x0 = cx - Math.cos(rad) * len / 2;
-      const y0 = cy - Math.sin(rad) * len / 2;
-      const x1 = cx + Math.cos(rad) * len / 2;
-      const y1 = cy + Math.sin(rad) * len / 2;
-      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
-      grad.addColorStop(0, from);
-      grad.addColorStop(1, to);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
+    if (state.bg.mode === 'transparent') {
+      // Transparent export: the bg texture isn't composited (the shader
+      // cuts alpha), so canvas content is moot — clear it. The editor
+      // viewport shows a CSS checkerboard behind the canvas instead.
+      ctx.clearRect(0, 0, w, h);
+    } else if (state.bg.mode === 'color') {
+      if ((state.bg.colorMode || 'solid') === 'gradient') {
+        const { from, to, angle } = state.bg.gradient;
+        // Angle 0 = top-to-bottom in CSS convention. Convert to canvas
+        // gradient endpoints across the rect.
+        const rad = (angle - 90) * Math.PI / 180;
+        const cx = w / 2, cy = h / 2;
+        const len = Math.max(w, h);
+        const grad = ctx.createLinearGradient(
+          cx - Math.cos(rad) * len / 2, cy - Math.sin(rad) * len / 2,
+          cx + Math.cos(rad) * len / 2, cy + Math.sin(rad) * len / 2);
+        grad.addColorStop(0, from);
+        grad.addColorStop(1, to);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        ctx.fillStyle = state.bg.solid;
+        ctx.fillRect(0, 0, w, h);
+      }
     } else if (state.bg.mode === 'image') {
-      // Fallback to solid black if no image loaded.
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, w, h);
       if (bgImage && bgImage.naturalWidth) {
         const ia = bgImage.naturalWidth / bgImage.naturalHeight;
         const ca = w / h;
         let dw, dh, dx, dy;
-        if (ia > ca) {
-          // image wider than canvas → fit height, crop sides
-          dh = h;
-          dw = h * ia;
-          dx = (w - dw) / 2;
-          dy = 0;
-        } else {
-          dw = w;
-          dh = w / ia;
-          dx = 0;
-          dy = (h - dh) / 2;
-        }
+        if (ia > ca) { dh = h; dw = h * ia; dx = (w - dw) / 2; dy = 0; }
+        else         { dw = w; dh = w / ia; dx = 0; dy = (h - dh) / 2; }
         ctx.drawImage(bgImage, dx, dy, dw, dh);
+      } else {
+        drawPlaceholder(w, h, 'No image — drop one in the Image panel');
       }
     } else if (state.bg.mode === 'video') {
-      // Cover-fit the current video frame (same math as image).
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, w, h);
       if (videoReady && bgVideo.videoWidth) {
         const ia = bgVideo.videoWidth / bgVideo.videoHeight;
         const ca = w / h;
@@ -124,10 +115,41 @@ export function initBackground({ state, uniforms, viewport, history }) {
         if (ia > ca) { dh = h; dw = h * ia; dx = (w - dw) / 2; dy = 0; }
         else         { dw = w; dh = w / ia; dx = 0; dy = (h - dh) / 2; }
         ctx.drawImage(bgVideo, dx, dy, dw, dh);
+      } else {
+        drawPlaceholder(w, h, 'No video — drop one in the Video panel');
       }
     }
 
     texture.needsUpdate = true;
+  }
+
+  // Visible "empty media" placeholder — a neutral checkerboard so the
+  // viewport reads as "no media yet" instead of a confusing black box.
+  function drawPlaceholder(w, h, label) {
+    const cell = Math.max(16, Math.round(Math.min(w, h) / 16));
+    for (let y = 0; y < h; y += cell) {
+      for (let x = 0; x < w; x += cell) {
+        ctx.fillStyle = ((x / cell + y / cell) & 1) ? '#1b1b1b' : '#242424';
+        ctx.fillRect(x, y, cell, cell);
+      }
+    }
+    if (label) {
+      ctx.fillStyle = '#6a6a6a';
+      ctx.font = `${Math.max(18, Math.round(h / 28))}px Montserrat, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, w / 2, h / 2);
+    }
+  }
+
+  // Transparency is owned by the background mode now: "Transparent" mode
+  // drives state.bg.transparent + u_bgTransparent. Everything else is
+  // opaque. (The old export-modal toggle is gone.)
+  function applyTransparency() {
+    state.bg.transparent = (state.bg.mode === 'transparent');
+    if (uniforms && uniforms.u_bgTransparent) {
+      uniforms.u_bgTransparent.value = state.bg.transparent ? 1.0 : 0.0;
+    }
   }
 
   function applyBg() { redraw(); }
@@ -136,10 +158,10 @@ export function initBackground({ state, uniforms, viewport, history }) {
   // Tabs
   const tabs = document.querySelectorAll('#seg-bg .seg-btn');
   const panels = {
-    solid:    document.getElementById('bg-panel-solid'),
-    gradient: document.getElementById('bg-panel-gradient'),
-    image:    document.getElementById('bg-panel-image'),
-    video:    document.getElementById('bg-panel-video'),
+    transparent: document.getElementById('bg-panel-transparent'),
+    color:       document.getElementById('bg-panel-color'),
+    image:       document.getElementById('bg-panel-image'),
+    video:       document.getElementById('bg-panel-video'),
   };
   function showPanel(mode) {
     for (const k of Object.keys(panels)) {
@@ -152,12 +174,32 @@ export function initBackground({ state, uniforms, viewport, history }) {
       btn.classList.add('active');
       state.bg.mode = btn.dataset.bg;
       showPanel(state.bg.mode);
+      applyTransparency();
       if (state.bg.mode === 'video') { bgVideo.play().catch(()=>{}); startVideoPump(); }
       redraw();
       history?.push();
     });
   });
   showPanel(state.bg.mode);
+
+  // Color sub-mode (Solid | Gradient) inside the Color panel.
+  const colorSeg = document.querySelectorAll('#seg-colormode .seg-btn');
+  const solidRow = document.getElementById('bg-color-solid');
+  const gradRows = document.getElementById('bg-color-gradient');
+  function showColorMode(cm) {
+    if (solidRow) solidRow.style.display = (cm === 'gradient') ? 'none' : 'flex';
+    if (gradRows) gradRows.style.display = (cm === 'gradient') ? 'flex' : 'none';
+    colorSeg.forEach(b => b.classList.toggle('active', b.dataset.colormode === cm));
+  }
+  colorSeg.forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.bg.colorMode = btn.dataset.colormode;
+      showColorMode(state.bg.colorMode);
+      if (state.bg.mode === 'color') redraw();
+      history?.push();
+    });
+  });
+  showColorMode(state.bg.colorMode || 'solid');
 
   // Solid color
   const solidColor = document.getElementById('bg-solid-color');
@@ -167,7 +209,7 @@ export function initBackground({ state, uniforms, viewport, history }) {
   solidColor.addEventListener('input', (e) => {
     state.bg.solid = e.target.value;
     solidHex.textContent = e.target.value.toUpperCase();
-    if (state.bg.mode === 'solid') redraw();
+    if (state.bg.mode === 'color') redraw();
   });
   solidColor.addEventListener('change', () => { history?.push(); });
 
@@ -187,19 +229,19 @@ export function initBackground({ state, uniforms, viewport, history }) {
   gFrom.addEventListener('input', (e) => {
     state.bg.gradient.from = e.target.value;
     gFromHex.textContent = e.target.value.toUpperCase();
-    if (state.bg.mode === 'gradient') redraw();
+    if (state.bg.mode === 'color') redraw();
   });
   gFrom.addEventListener('change', () => { history?.push(); });
   gTo.addEventListener('input', (e) => {
     state.bg.gradient.to = e.target.value;
     gToHex.textContent = e.target.value.toUpperCase();
-    if (state.bg.mode === 'gradient') redraw();
+    if (state.bg.mode === 'color') redraw();
   });
   gTo.addEventListener('change', () => { history?.push(); });
   gAngle.addEventListener('input', (e) => {
     state.bg.gradient.angle = parseInt(e.target.value, 10);
     gAngleVal.textContent = state.bg.gradient.angle + '°';
-    if (state.bg.mode === 'gradient') redraw();
+    if (state.bg.mode === 'color') redraw();
   });
   gAngle.addEventListener('change', () => { history?.push(); });
 
@@ -321,21 +363,19 @@ export function initBackground({ state, uniforms, viewport, history }) {
     });
   }
 
-  // Initial paint.
+  // Initial paint + transparency sync (mode owns u_bgTransparent now).
+  applyTransparency();
   redraw();
 
-  // History helpers — image upload state is intentionally excluded
-  // (per design: history clears on main-ornament upload; bg image
-  // upload is treated similarly — it persists across undo/redo but
-  // isn't itself an undoable action).
+  // History helpers — image/video upload blobs are intentionally
+  // excluded (they persist across undo/redo but aren't undoable actions
+  // and can't be serialized to the project JSON).
   function snapshot() {
     return {
       mode: state.bg.mode,
-      // `transparent` is conceptually a bg property, but its toggle UI
-      // and uniform-push live in the Export control (it's a render-mode
-      // switch for export, not a bg design decision). We snapshot it
-      // here so project save/load round-trips it via the bg payload,
-      // then call out to the export control on restore to re-sync UI.
+      colorMode: state.bg.colorMode || 'solid',
+      // transparent is derived from mode, but we store it so older
+      // loaders / the WebM warning can still read state.bg.transparent.
       transparent: state.bg.transparent,
       solid: state.bg.solid,
       gradient: { ...state.bg.gradient },
@@ -345,15 +385,6 @@ export function initBackground({ state, uniforms, viewport, history }) {
     if (!snap) return;
     let needsRedraw = false;
 
-    // Transparent is owned in state.bg but the UI/uniform lives in
-    // export. Set state and fire an event the export control listens
-    // for; this keeps the two controls decoupled (export doesn't have
-    // to be initialized for the bg restore to succeed).
-    if (typeof snap.transparent === 'boolean' && snap.transparent !== state.bg.transparent) {
-      state.bg.transparent = snap.transparent;
-      window.dispatchEvent(new CustomEvent('wmf-transparent-changed'));
-    }
-
     if (snap.mode && snap.mode !== state.bg.mode) {
       state.bg.mode = snap.mode;
       tabs.forEach(b => b.classList.toggle('active', b.dataset.bg === state.bg.mode));
@@ -361,6 +392,13 @@ export function initBackground({ state, uniforms, viewport, history }) {
       if (state.bg.mode === 'video') { bgVideo.play().catch(()=>{}); startVideoPump(); }
       needsRedraw = true;
     }
+    if (snap.colorMode && snap.colorMode !== state.bg.colorMode) {
+      state.bg.colorMode = snap.colorMode;
+      showColorMode(state.bg.colorMode);
+      needsRedraw = true;
+    }
+    // Transparency follows mode regardless of any stored flag.
+    applyTransparency();
     if (snap.solid && snap.solid !== state.bg.solid) {
       state.bg.solid = snap.solid;
       solidColor.value = snap.solid;

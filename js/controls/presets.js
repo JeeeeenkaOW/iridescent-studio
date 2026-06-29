@@ -1,59 +1,19 @@
 // =========================================================
-// PRESETS — named whole-tool snapshots in the left rail
+// PRESETS — saved whole-tool snapshots
 // =========================================================
-// A preset is a captureState()-shaped snapshot — the exact same
-// payload used by undo/redo and project save/load. Clicking a preset
-// runs applyState() then pushes one history step.
+// A preset is a captureState()-shaped snapshot — the same payload used
+// by undo/redo and project save/load. No built-ins: the user builds a
+// look and saves it.
 //
-// Built-in presets ship as partial snapshots (family + material). They
-// set the material look and leave the rest of the document untouched —
-// think of them as good starting points, not full scenes. "Save current
-// as preset" captures EVERYTHING (material, lighting, effects, bg,
-// normals, motion, freeze) and persists to localStorage, so user
-// presets are full scenes.
+//   Save current as preset → (1) stores a "my preset" in localStorage
+//       so it's one click away in this browser, AND (2) downloads a
+//       .wmf.json file the user can keep and load in another session
+//       (there's no backend).
+//   Load preset → pick a .wmf.json (or project .json) and apply it.
 //
-// Swatch CSS classes (.pv-silver etc.) live in styles.css; user presets
-// get a neutral swatch.
+// Saved presets render as a chip grid; click to apply, × to delete.
 //
 const LS_KEY = 'wmf-presets-v1';
-
-// Solid-family snapshots are shaped { material: { ...fields } } to match
-// the Solid controls' snapshot()/restore() contract.
-const BUILTINS = [
-  {
-    id: 'silver', name: 'Silver', swatch: 'pv-silver', shaderId: 'solid',
-    material: { material: {
-      baseColor: '#C7BDB3', f0Color: '#E8DDC8', roughness: 0,
-      refraction: 0, refractionSlider: 0, refractionMix: 0, frost: 0,
-      sssColor: '#FFE3CC', sssStrength: 0, fresnel: 0, fresnelPower: 4,
-      blobEnabled: true, blobRadius: 0.22,
-    } },
-  },
-  {
-    id: 'obsidian', name: 'Obsidian', swatch: 'pv-obsidian', shaderId: 'solid',
-    material: { material: {
-      baseColor: '#0C0C10', f0Color: '#1A1D22', roughness: 0.25,
-      refraction: 0.08, refractionSlider: 40, refractionMix: 0.5, frost: 0.1,
-      sssColor: '#1A2230', sssStrength: 0, fresnel: 0.45, fresnelPower: 4,
-      blobEnabled: false, blobRadius: 0.22,
-    } },
-  },
-  {
-    id: 'pearl', name: 'Pearl', swatch: 'pv-pearl', shaderId: 'solid',
-    material: { material: {
-      baseColor: '#EDE6F0', f0Color: '#CDD6EA', roughness: 0.15,
-      refraction: 0, refractionSlider: 0, refractionMix: 0, frost: 0,
-      sssColor: '#F0D9E6', sssStrength: 0.4, fresnel: 0.25, fresnelPower: 4,
-      blobEnabled: false, blobRadius: 0.22,
-    } },
-  },
-  {
-    // Embers switches to the Particle family at its defaults — a safe
-    // starting point. Tune, then "Save current as preset" to capture it.
-    id: 'embers', name: 'Embers', swatch: 'pv-embers', shaderId: 'particles',
-    material: null,
-  },
-];
 
 function loadUser() {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
@@ -62,41 +22,47 @@ function loadUser() {
 function saveUser(list) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(list)); } catch {}
 }
+function downloadJSON(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
-export function initPresets({ host, saveBtn, captureState, applyState, history, toast }) {
+export function initPresets({ host, saveBtn, loadBtn, captureState, applyState, history, toast }) {
   if (!host) return null;
   let userPresets = loadUser();
-  let activeId = 'silver';
+  let activeId = null;
+
+  // Hidden file input for Load.
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
 
   function render() {
-    const all = [...BUILTINS, ...userPresets];
-    host.innerHTML = all.map(p => {
-      const swatch = p.swatch
-        ? `<span class="pv ${p.swatch}"></span>`
-        : `<span class="pv pv-user"></span>`;
-      const del = p.user
-        ? `<button class="preset-del" data-del="${p.id}" title="Delete preset">×</button>`
-        : '';
-      return `<button class="preset${p.id === activeId ? ' active' : ''}" data-preset="${p.id}">
-                ${swatch}<span class="pn">${p.name}</span>${del}
-              </button>`;
-    }).join('');
-  }
-
-  function find(id) {
-    return BUILTINS.find(p => p.id === id) || userPresets.find(p => p.id === id);
+    if (!userPresets.length) {
+      host.innerHTML = `<div class="preset-empty">No saved presets yet. Build a look, then “Save current as preset”.</div>`;
+      return;
+    }
+    host.innerHTML = userPresets.map(p => `
+      <button class="preset${p.id === activeId ? ' active' : ''}" data-preset="${p.id}" title="${p.name}">
+        <span class="pv pv-user"></span>
+        <span class="pn">${p.name}</span>
+        <span class="preset-del" data-del="${p.id}" title="Delete preset">×</span>
+      </button>
+    `).join('');
   }
 
   async function apply(id) {
-    const p = find(id);
+    const p = userPresets.find(x => x.id === id);
     if (!p) return;
     activeId = id;
     render();
-    // Build a snapshot from the current state, then overlay the preset's
-    // fields so partial built-ins only touch what they define.
-    const base = captureState();
-    const snap = p.user ? p.snapshot : { ...base, shaderId: p.shaderId, material: p.material };
-    await applyState(snap);
+    await applyState(p.snapshot);
     history?.push();
     toast?.('Applied preset · ' + p.name);
   }
@@ -108,7 +74,7 @@ export function initPresets({ host, saveBtn, captureState, applyState, history, 
       const id = del.dataset.del;
       userPresets = userPresets.filter(p => p.id !== id);
       saveUser(userPresets);
-      if (activeId === id) activeId = 'silver';
+      if (activeId === id) activeId = null;
       render();
       toast?.('Preset deleted');
       return;
@@ -122,18 +88,46 @@ export function initPresets({ host, saveBtn, captureState, applyState, history, 
       const name = (prompt('Name this preset:', 'My preset') || '').trim();
       if (!name) return;
       const id = 'user-' + Date.now().toString(36);
-      userPresets.push({ id, name, user: true, snapshot: captureState() });
+      const snapshot = captureState();
+      // (1) persist in-app
+      userPresets.push({ id, name, snapshot });
       saveUser(userPresets);
       activeId = id;
       render();
-      toast?.('Saved current as preset · ' + name);
+      // (2) download a portable file for other sessions
+      const safe = name.replace(/[^a-z0-9_-]+/gi, '_').toLowerCase();
+      downloadJSON({ _wmfPreset: 1, name, snapshot }, `${safe}.wmf.json`);
+      toast?.('Saved preset · ' + name);
     });
   }
 
+  if (loadBtn) {
+    loadBtn.addEventListener('click', () => fileInput.click());
+  }
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      // Accept either a preset wrapper or a raw captureState payload
+      // (so a project .json works too).
+      const snapshot = data.snapshot || data;
+      const name = data.name || file.name.replace(/\.(wmf\.)?json$/i, '');
+      await applyState(snapshot);
+      // Loading also adds it to the in-app list so it persists.
+      const id = 'user-' + Date.now().toString(36);
+      userPresets.push({ id, name, snapshot });
+      saveUser(userPresets);
+      activeId = id;
+      render();
+      history?.push();
+      toast?.('Loaded preset · ' + name);
+    } catch (err) {
+      alert('Could not load preset: ' + (err.message || err));
+    }
+  });
+
   render();
-  return {
-    // Let other surfaces clear the active highlight when the user edits
-    // away from a preset (optional; not currently wired).
-    clearActive() { activeId = null; render(); },
-  };
+  return { clearActive() { activeId = null; render(); } };
 }
