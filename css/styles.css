@@ -135,7 +135,7 @@ input[type=color]::-moz-color-swatch{border:none}
 .preset{position:relative;background:var(--s2);border:1px solid var(--b4);text-align:left;padding:0;overflow:hidden;transition:border-color .12s}
 .preset:hover{border-color:var(--b3)}
 .preset.active{border-color:var(--ow)}
-.preset .pv{display:block;height:44px}
+.preset .pv{display:block;height:34px;background-size:cover;background-position:center}
 .preset .pn{display:block;padding:6px 8px;font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);color:var(--t1);text-transform:uppercase;letter-spacing:.5px}
 .pv-silver{background:linear-gradient(120deg,#e8eaec,#a9b0b8 50%,#6e7682)}
 .pv-obsidian{background:linear-gradient(120deg,#2a2a2e,#0c0c10 60%,#1a1a22)}
@@ -145,6 +145,7 @@ input[type=color]::-moz-color-swatch{border:none}
 .preset-del{position:absolute;top:4px;right:4px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border:none;color:var(--t2);font-size:13px;line-height:1;border-radius:0;cursor:pointer}
 .preset-del:hover{background:var(--ow);color:#fff}
 .preset-empty{font-size:11px;line-height:1.5;color:var(--t3);grid-column:1 / -1}
+.preset-section-label{grid-column:1 / -1;margin-top:6px;font-family:var(--font-brand);font-size:10px;font-weight:var(--fw-med);letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
 
 /* ── viewport ── */
 .view{grid-area:view;margin:var(--sp-300);border:1px solid var(--b4);border-radius:5px;position:relative;overflow:hidden;

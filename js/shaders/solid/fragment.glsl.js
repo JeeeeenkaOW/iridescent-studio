@@ -118,6 +118,10 @@ function buildFragmentShader() {
       ${flowBlock}
       ${haloBlock}
 
+      // Emissive-effect accumulator. Effects add into it; composite adds
+      // it to ornament. Stays vec3(0) when the Emissive effect is off.
+      vec3 emissiveTerm = vec3(0.0);
+
       // ---- EFFECTS APPLY ----
       ${effectApply}
       // -----------------------

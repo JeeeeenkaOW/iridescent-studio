@@ -25,6 +25,8 @@ import { iridescenceEffect }         from './iridescence/index.js';
 import { displacementEffect }        from './displacement/index.js';
 import { bloomEffect }               from './bloom/index.js';
 import { chromaticAberrationEffect } from './chromatic-aberration/index.js';
+import { emissiveEffect }            from './emissive/index.js';
+import { scratchesEffect }           from './scratches/index.js';
 
 // Ordered list — controls the order effects appear in the sidebar
 // AND the order their applyGlsl runs in main().
@@ -46,6 +48,12 @@ export const EFFECTS = [
   iridescenceEffect,
   bloomEffect,
   chromaticAberrationEffect,
+  // Emissive adds into the per-material `emissiveTerm` accumulator
+  // (independent of the others), so its order here only sets sidebar
+  // position, not compositing.
+  emissiveEffect,
+  // Scratches modulates `specular` (uneven gloss + bright streaks).
+  scratchesEffect,
 ];
 
 export function listEffects() {

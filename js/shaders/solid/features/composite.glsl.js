@@ -38,6 +38,7 @@ export const compositeBlock = /* glsl */ `
     // a no-op then. When the metaball is disabled, blob is 0.
     diffuse += iridescence(iriT) * blob * 0.4;
 
-    // Final composite: diffuse body + specular highlight + fresnel rim.
-    vec3 ornament = diffuse + specular + fresnel * u_lightColor;
+    // Final composite: diffuse body + specular highlight + fresnel rim
+    // + emissive (procedural molten/lava glow; 0 when u_emissive = 0).
+    vec3 ornament = diffuse + specular + fresnel * u_lightColor + emissiveTerm;
 `;

@@ -58,8 +58,9 @@ export const compositeBlock = /* glsl */ `
     // Diffuse lighting.
     vec3 diffuse = ambient + base * u_diffuse * NdotL * u_lightColor;
 
-    // Composite particle = diffuse body + specular highlight.
-    vec3 ornament = diffuse + specular;
+    // Composite particle = diffuse body + specular highlight + emissive
+    // (the Emissive effect's accumulator; 0 when that effect is off).
+    vec3 ornament = diffuse + specular + emissiveTerm;
 `;
 
 export const outputBlock = /* glsl */ `

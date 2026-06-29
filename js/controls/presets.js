@@ -13,6 +13,8 @@
 //
 // Saved presets render as a chip grid; click to apply, × to delete.
 //
+import { BUILTIN_PRESETS } from '../presets/builtins.js';
+
 const LS_KEY = 'wmf-presets-v1';
 
 function loadUser() {
@@ -43,28 +45,46 @@ export function initPresets({ host, saveBtn, loadBtn, captureState, applyState, 
   fileInput.style.display = 'none';
   document.body.appendChild(fileInput);
 
-  function render() {
-    if (!userPresets.length) {
-      host.innerHTML = `<div class="preset-empty">No saved presets yet. Build a look, then “Save current as preset”.</div>`;
-      return;
-    }
-    host.innerHTML = userPresets.map(p => `
+  // Built-in gallery chips use an inline swatch background; user chips
+  // keep the neutral pv-user swatch and a delete affordance.
+  function builtinChip(p) {
+    // Real rendered thumbnail (baked from the live shader) layered over
+    // the swatch gradient — the gradient shows only if the image 404s.
+    const bg = `background:url('js/presets/thumbs/${p.id}.jpg') center/cover, ${p.swatch}`;
+    return `
+      <button class="preset${p.id === activeId ? ' active' : ''}" data-preset="${p.id}" title="${p.name}">
+        <span class="pv" style="${bg}"></span>
+        <span class="pn">${p.name}</span>
+      </button>`;
+  }
+  function userChip(p) {
+    return `
       <button class="preset${p.id === activeId ? ' active' : ''}" data-preset="${p.id}" title="${p.name}">
         <span class="pv pv-user"></span>
         <span class="pn">${p.name}</span>
         <span class="preset-del" data-del="${p.id}" title="Delete preset">×</span>
-      </button>
-    `).join('');
+      </button>`;
+  }
+
+  function render() {
+    const gallery = BUILTIN_PRESETS.map(builtinChip).join('');
+    const userBlock = userPresets.length
+      ? userPresets.map(userChip).join('')
+      : `<div class="preset-empty">No saved presets yet. Build a look, then “Save preset”.</div>`;
+    host.innerHTML =
+      gallery +
+      `<div class="preset-section-label">Your presets</div>` +
+      userBlock;
   }
 
   async function apply(id) {
-    const p = userPresets.find(x => x.id === id);
+    const p = BUILTIN_PRESETS.find(x => x.id === id) || userPresets.find(x => x.id === id);
     if (!p) return;
     activeId = id;
     render();
     await applyState(p.snapshot);
     history?.push();
-    toast?.('Applied preset · ' + p.name);
+    toast?.('Applied · ' + p.name);
   }
 
   host.addEventListener('click', (e) => {
