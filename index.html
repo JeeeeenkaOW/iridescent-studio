@@ -41,12 +41,6 @@
   <!-- ───── LEFT RAIL — Source / Presets / Background / Normals ───── -->
   <aside class="rail">
 
-    <div class="project-bar">
-      <button class="btn-s" id="btn-save-config">Save config</button>
-      <button class="btn-s" id="btn-load-config">Load config</button>
-      <input type="file" id="config-file-input" accept=".json,application/json" style="display:none">
-    </div>
-
     <!-- SOURCE -->
     <div class="section">
       <div class="section-title">Source vector</div>
@@ -71,11 +65,11 @@
     <div class="section">
       <div class="section-title">Presets</div>
       <div class="presets" id="presets"></div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn-s" id="btn-save-preset">Save current</button>
+      <div class="btn-row presets-actions" style="margin-top:10px">
+        <button class="btn-s" id="btn-save-preset">Save preset</button>
         <button class="btn-s" id="btn-load-preset">Load preset</button>
       </div>
-      <div class="note" style="margin-top:10px"><span class="sp">✦</span><span>Save stores a preset here and downloads a <b>.wmf.json</b> you can load in any session. Captures material, lighting, effects, background &amp; motion.</span></div>
+      <div class="note" style="margin-top:10px"><span class="sp">✦</span><span>Save stores a preset here and downloads a <b>.wmf.json</b> you can load in any session.<br>Captures material, lighting, effects, background &amp; motion.</span></div>
     </div>
 
     <!-- BACKGROUND -->
@@ -216,11 +210,13 @@
 
   <!-- ───── BOTTOM BAR ───── -->
   <footer class="bottom">
-    <span class="bottom-hint">Hover the canvas to pose · auto-drift when idle</span>
+    <button class="reset-link" id="btn-reset">Reset</button>
+    <button class="bbtn" id="anim-toggle">Stop animation</button>
     <div class="export-wrap">
       <button class="btn-p" id="export-btn">Export</button>
       <div class="pop" id="export-pop">
-        <div class="lbl-mini">Playback</div>
+
+        <div class="subdiv first">Editor preview</div>
         <div class="toggle-row">
           <label>Auto-drift when idle</label>
           <div class="toggle on" id="ctl-auto-drift"></div>
@@ -229,14 +225,15 @@
           <label>Preview loop in editor</label>
           <div class="toggle" id="ctl-preview-loop"></div>
         </div>
-        <div class="hint">Video &amp; PNG-sequence exports always loop seamlessly using the duration below.</div>
-        <div class="exp-div"></div>
+
+        <div class="subdiv">Still image (PNG)</div>
         <div class="toggle-row">
-          <label for="ctl-freeze">Freeze pose for export</label>
+          <label for="ctl-freeze">Freeze pose</label>
           <div class="toggle" id="ctl-freeze"></div>
         </div>
-        <div class="hint" id="ctl-freeze-hint">Click the canvas to set the highlight position.</div>
-        <div class="exp-div"></div>
+        <div class="hint" id="ctl-freeze-hint">Click the canvas to set the highlight position, then export a PNG.</div>
+
+        <div class="subdiv">Loop (WebM / sequence)</div>
         <div class="range-row">
           <div class="range-label"><span>Loop duration</span><span class="range-value" id="val-loop">4.0s</span></div>
           <input type="range" id="ctl-loop" min="1" max="10" step="0.5" value="4">
@@ -245,6 +242,9 @@
           <div class="range-label"><span>Framerate</span><span class="range-value" id="val-fps">30fps</span></div>
           <input type="range" id="ctl-fps" min="12" max="60" step="1" value="30">
         </div>
+        <div class="hint">Video &amp; PNG-sequence exports always loop seamlessly.</div>
+
+        <div class="subdiv">Output</div>
         <div class="ctl-label resolution-label">
           <span>Resolution</span>
           <span class="ctl-label-value" id="val-res-dims">— × — px</span>
@@ -254,17 +254,19 @@
           <button class="seg-btn" data-res="2">2×</button>
           <button class="seg-btn" data-res="4">4×</button>
         </div>
-        <div class="hint">Transparent background is set in the left rail (Background → Transparent).</div>
+        <div class="hint">Background &amp; transparency are set in the left rail.</div>
+
+        <div class="exp-div"></div>
         <div class="btn-row">
-          <button class="btn-s" id="btn-png">PNG</button>
-          <button class="btn-p" id="btn-webm">WebM</button>
+          <button class="btn-p" id="btn-png">PNG</button>
+          <button class="btn-s" id="btn-webm">WebM</button>
         </div>
         <button class="btn-s" id="btn-png-sequence">PNG sequence (for AE)</button>
         <div class="seq-progress" id="seq-progress" style="display:none">
           <div class="seq-progress-bar"><div class="seq-progress-fill" id="seq-progress-fill"></div></div>
           <div class="seq-progress-label" id="seq-progress-label">Preparing…</div>
         </div>
-        <button class="btn-s" id="btn-shader-html">Embed for web (LP)</button>
+        <button class="btn-s" id="btn-shader-html">Embedded HTML</button>
       </div>
     </div>
   </footer>

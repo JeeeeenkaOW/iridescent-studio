@@ -110,9 +110,9 @@ export function initPresets({ host, saveBtn, loadBtn, captureState, applyState, 
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      // Accept either a preset wrapper or a raw captureState payload
-      // (so a project .json works too).
-      const snapshot = data.snapshot || data;
+      // Accept a preset wrapper (.wmf.json), an old project config
+      // ({type,state,...}), or a raw captureState payload.
+      const snapshot = data.snapshot || data.state || data;
       const name = data.name || file.name.replace(/\.(wmf\.)?json$/i, '');
       await applyState(snapshot);
       // Loading also adds it to the in-app list so it persists.

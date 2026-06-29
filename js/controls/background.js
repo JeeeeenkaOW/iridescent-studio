@@ -105,7 +105,7 @@ export function initBackground({ state, uniforms, viewport, history }) {
         else         { dw = w; dh = w / ia; dx = 0; dy = (h - dh) / 2; }
         ctx.drawImage(bgImage, dx, dy, dw, dh);
       } else {
-        drawPlaceholder(w, h, 'No image — drop one in the Image panel');
+        drawPlaceholder(w, h);
       }
     } else if (state.bg.mode === 'video') {
       if (videoReady && bgVideo.videoWidth) {
@@ -116,7 +116,7 @@ export function initBackground({ state, uniforms, viewport, history }) {
         else         { dw = w; dh = w / ia; dx = 0; dy = (h - dh) / 2; }
         ctx.drawImage(bgVideo, dx, dy, dw, dh);
       } else {
-        drawPlaceholder(w, h, 'No video — drop one in the Video panel');
+        drawPlaceholder(w, h);
       }
     }
 

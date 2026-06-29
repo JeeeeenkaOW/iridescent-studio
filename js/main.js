@@ -30,7 +30,6 @@ import { initShader } from './controls/shader.js';
 import { initEffects } from './controls/effects.js';
 import { initLighting } from './controls/lighting.js';
 import { initShaderExport } from './controls/shader-export.js';
-import { initProject } from './controls/project.js';
 import { initHistory } from './controls/history.js';
 import { initCollapsibles } from './controls/collapsibles.js';
 import { initTabs } from './controls/tabs.js';
@@ -77,6 +76,10 @@ const state = {
   // uses resScale only).
   fps: 30,
   resScale: 1,        // 1, 2, or 4 — multiplier on viewport size
+  // Stop/resume the time-driven animation (noise, idle drift, particle
+  // motion). Hover still poses the highlight while stopped. Toggled by
+  // the bottom-bar button and the Space key.
+  animPaused: false,
 };
 
 // =========================================================
@@ -346,7 +349,7 @@ function loop() {
   const capturing = captureStart !== null;
   const loopDur = state.loopDuration || 4.0;
 
-  if (!capturing) animTime += dt;
+  if (!capturing && !state.animPaused) animTime += dt;
 
   // "Loop time domain" = circular cursor + periodic noise. Capture and
   // preview-loop opt in; otherwise the editor is interactive.
@@ -565,18 +568,14 @@ initShaderExport({
   getLightingSnapshot: () => lightingCtl?.snapshot?.() ?? null,
 });
 
-// Project save/load — reuses the same captureState / applyState used
-// for undo/redo, just serialized to a downloadable JSON file. Wired
-// last so all controls exist before captureState is invoked, and so
-// the load path can call history.push() on the freshly applied state.
-initProject({
-  captureState,
-  applyState,
-  history,
-});
-
 // Seed history's initial state now that every control exists.
 history.clear();
+
+// Capture the pristine default configuration so the bottom-bar Reset
+// can return to it. Taken right after history.clear() (before any user
+// edit) so it's the true defaults. Reset re-applies it and pushes one
+// history step, so an accidental reset is undoable with Ctrl+Z.
+const defaultSnapshot = captureState();
 
 // Click-to-toggle for sidebar collapsibles. Uses event delegation so
 // it works regardless of mount order. Safe to call last.
@@ -611,9 +610,51 @@ if (exportBtn && exportPop) {
   exportBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     exportPop.classList.toggle('open');
+    // Recompute the resolution readout on open — at this point the
+    // viewport has settled, so the dims are accurate (fixes the stale
+    // "tiny size" the label sometimes showed before first layout).
+    if (exportPop.classList.contains('open')) {
+      window.dispatchEvent(new Event('resize'));
+    }
   });
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.export-wrap')) exportPop.classList.remove('open');
+  });
+}
+
+// ---------------------------------------------------------
+// Animation stop/resume (bottom bar + Space key)
+// ---------------------------------------------------------
+const animToggle = document.getElementById('anim-toggle');
+function setAnimPaused(paused) {
+  state.animPaused = paused;
+  if (animToggle) {
+    animToggle.textContent = paused ? 'Resume animation' : 'Stop animation';
+    animToggle.classList.toggle('on', paused);
+  }
+}
+if (animToggle) {
+  animToggle.addEventListener('click', () => setAnimPaused(!state.animPaused));
+}
+// Space toggles animation, except while typing in a field.
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space') return;
+  const t = e.target;
+  const tag = t && t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+  e.preventDefault();
+  setAnimPaused(!state.animPaused);
+});
+
+// ---------------------------------------------------------
+// Reset everything to defaults (undoable)
+// ---------------------------------------------------------
+const resetBtn = document.getElementById('btn-reset');
+if (resetBtn) {
+  resetBtn.addEventListener('click', async () => {
+    await applyState(defaultSnapshot);
+    history.push();
+    toast('Reset to defaults · Ctrl+Z to undo');
   });
 }
 
