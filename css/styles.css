@@ -236,4 +236,61 @@ input[type=color]::-moz-color-swatch{border:none}
 .iri-stop-del:disabled{opacity:.4;cursor:not-allowed}
 .iri-hint{font-size:11px;color:var(--t3);line-height:1.4}
 
-@media (max-width:1180px){.app{grid-template-columns:264px 1fr 308px}}
+@media (max-width:1180px) and (min-width:861px){.app{grid-template-columns:264px 1fr 308px}}
+
+/* ── mobile tab bar (between viewport and controls; hidden on desktop) ── */
+.mobile-tabs{display:none}
+
+/* ───────────────────────── MOBILE LAYOUT (<=860px) ─────────────────────────
+   The desktop 3-column grid collapses to a single vertical column:
+   compact nav → viewport pinned on top → tab bar → ONE control group
+   (scrollable) → bottom bar. The tab bar (mobile-tabs) swaps which group
+   is visible, so every control stays one tap away without a giant scroll. */
+@media (max-width:860px){
+  .app{
+    display:flex;flex-direction:column;
+    height:100vh;height:100dvh;
+    grid-template-columns:none;grid-template-rows:none;grid-template-areas:none;
+  }
+
+  /* compact nav */
+  .nav{order:0;flex:none;height:52px;padding:0 var(--sp-400);gap:var(--sp-300)}
+  .nav-div,.nav-sec{display:none}
+  .nav-logo svg{width:96px;height:auto}
+  .nav-tag{margin-left:auto}
+
+  /* viewport pinned at the top, always visible */
+  .view{order:1;flex:none;height:38dvh;margin:var(--sp-200)}
+
+  /* tab bar */
+  #mobile-tabs{order:2;display:flex;flex:none;background:var(--s1);
+    border-top:1px solid var(--b4);border-bottom:1px solid var(--b4);overflow-x:auto}
+  .mtab{flex:1 0 auto;background:transparent;border:0;border-bottom:2px solid transparent;
+    margin-bottom:-1px;padding:13px 14px;font-family:var(--font-brand);font-size:11px;
+    font-weight:var(--fw-semi);letter-spacing:.7px;text-transform:uppercase;color:var(--t3);white-space:nowrap}
+  .mtab.active{color:#fff;border-bottom-color:var(--ow)}
+
+  /* the two control containers share the scroll area below the tabs;
+     only the active group is shown (driven by body[data-mtab]). */
+  .rail,.inspect{order:3;flex:1;min-height:0;display:none;border-left:0;border-right:0}
+  .rail{padding:var(--sp-300) var(--sp-400)}
+  body[data-mtab="setup"] .rail{display:flex;flex-direction:column}
+  body[data-mtab="material"] .inspect,
+  body[data-mtab="lighting"] .inspect,
+  body[data-mtab="effects"] .inspect{display:flex}
+
+  /* the inspector's own tab strip is redundant on mobile — the mobile
+     bar drives the panes. */
+  .inspect .tabs{display:none}
+  .pane{padding:var(--sp-400) var(--sp-400) var(--sp-600)}
+
+  /* bottom bar stays put for Reset / Stop / Export */
+  .bottom{order:4;flex:none;padding:var(--sp-200) var(--sp-300);gap:var(--sp-200)}
+  .bbtn{padding:0 10px}
+  .export-wrap .btn-p{padding:9px 18px}
+  /* export popover: keep it on-screen on a narrow viewport */
+  .pop{width:min(86vw,300px);max-height:60dvh}
+
+  /* a touch more finger room on the controls */
+  .seg-btn{padding:10px 4px}
+}

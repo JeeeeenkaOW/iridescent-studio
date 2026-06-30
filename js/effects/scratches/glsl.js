@@ -18,14 +18,16 @@ export const uniforms = /* glsl */ `
 `;
 
 export const helpers = /* glsl */ `
-  // Sparse, slightly-wobbly directional lines. Three families at spread
-  // angles give a cross-hatched brushed look rather than one clean grain.
+  // Sparse, slightly-wobbly directional lines. Three families share the
+  // dominant angle with only a tiny spread, so they read as ONE brushed
+  // grain (parallel-ish) rather than a chaotic cross-hatch — which is what
+  // made most slider settings look ugly before.
   float wmfScratches(vec2 uv){
     vec2 w = uv + (fbm(uv * 5.0) - 0.5) * 0.08;
     float acc = 0.0;
     for (int i = 0; i < 3; i++){
       float fi = float(i);
-      float ang = u_scratchAngle + fi * 1.13;
+      float ang = u_scratchAngle + fi * 0.12;
       vec2 dir = vec2(cos(ang), sin(ang));
       float coord = dot(w, dir) * u_scratchScale * (1.0 + fi * 0.35);
       float cell = floor(coord);

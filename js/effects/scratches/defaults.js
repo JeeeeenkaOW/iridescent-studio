@@ -14,8 +14,10 @@
 //
 export const defaults = {
   enabled:  false,
-  strength: 0.6,
-  density:  70,
-  angle:    35,
-  coverage: 0.45,
+  // Tuned so that simply enabling the effect looks like fine brushed metal
+  // rather than a heavy cross-hatch: low strength, fine + sparse lines.
+  strength: 0.22,
+  density:  170,
+  angle:    90,
+  coverage: 0.25,
 };

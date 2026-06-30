@@ -1,40 +1,58 @@
 // =========================================================
-// TABS — mobile tab bar wiring
+// MOBILE TABS — viewport-on-top layout switcher
 // =========================================================
-// On mobile, the sidebar's many sections are partitioned into 5
-// tabs: Material / Lighting / Effects / Setup / Export. Tapping a
-// tab updates `body[data-active-tab]`; CSS hides every section
-// whose `data-tab` attribute doesn't match.
+// On mobile (<=860px) the desktop 3-column layout collapses to a single
+// column: compact nav, the viewport pinned at the top, a tab bar, then
+// ONE control group filling the scrollable area below. This module wires
+// that tab bar. Desktop hides #mobile-tabs via media query and ignores
+// body[data-mtab], so this is a no-op there.
 //
-// On desktop the tab bar is hidden via media query and the
-// `data-active-tab` attribute is ignored — so this module is
-// effectively a no-op there. We still wire it in either way so the
-// behaviour is identical when the window resizes across the
-// breakpoint.
+// The four tabs map onto the existing DOM:
+//   Setup    → the left rail (.rail: source, presets, background, normals)
+//   Material → the inspector (.inspect) with its Material pane active
+//   Lighting → the inspector with its Lighting pane active
+//   Effects  → the inspector with its Effects pane active
 //
-// We deliberately don't push tab changes onto history. Switching
-// which group of controls you're looking at isn't a change to the
-// document; it's a viewport state, like which folder is open in a
-// file browser.
+// For Material/Lighting/Effects we drive the inspector's OWN tab strip
+// (which inspector-tabs.js manages) by clicking the matching tab, so the
+// two systems stay in sync and we don't duplicate pane logic. The
+// inspector tab strip itself is hidden on mobile — the mobile bar is the
+// single source of truth there.
 //
+// Switching tabs is viewport state, not a document edit, so it never
+// touches history.
+//
+const PANE = { material: 'material', lighting: 'light', effects: 'fx' };
+
 export function initTabs() {
-  const bar = document.getElementById('tab-bar');
+  const bar = document.getElementById('mobile-tabs');
   if (!bar) return;
 
-  bar.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-tab-btn]');
-    if (!btn) return;
-    const id = btn.dataset.tabBtn;
-    bar.querySelectorAll('.tab-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.tabBtn === id);
-    });
-    document.body.dataset.activeTab = id;
-    // Reset the page scroll so the user lands at the top of the new
-    // tab's content. Without this they'd be stuck deep in the
-    // previous tab's scroll position. Skip on desktop — the tab bar
-    // is hidden there and scroll resets would be jarring.
-    if (window.matchMedia('(max-width: 1000px)').matches) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  function setTab(id) {
+    document.body.dataset.mtab = id;
+    bar.querySelectorAll('[data-mtab-btn]').forEach(b =>
+      b.classList.toggle('active', b.dataset.mtabBtn === id));
+
+    // Sync the inspector's internal pane for the material/lighting/fx tabs.
+    const paneTab = PANE[id];
+    if (paneTab) {
+      const t = document.querySelector(`.inspect .tab[data-tab="${paneTab}"]`);
+      if (t && !t.classList.contains('active')) t.click();
     }
+
+    // Land at the top of the freshly-shown group.
+    const panel = id === 'setup'
+      ? document.querySelector('.rail')
+      : document.querySelector('.inspect .tabscroll');
+    if (panel) panel.scrollTop = 0;
+  }
+
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-mtab-btn]');
+    if (btn) setTab(btn.dataset.mtabBtn);
   });
+
+  // Default to Material (the primary creative controls). Presets live
+  // under Setup, one tap away.
+  setTab('material');
 }

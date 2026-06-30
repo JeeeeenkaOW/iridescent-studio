@@ -119,12 +119,16 @@ function build({ id, name, swatch, material, lighting, effects = {}, bg, normals
           ? { enabled: true, ...effects.scratches }
           : { enabled: false },
       },
+      // Background defaults to solid black for every preset — the look is
+      // about the material, and a changing backdrop between presets reads
+      // as noise. Only presets that NEED a backdrop to show their material
+      // (e.g. a transparent bubble needs something to refract) override it.
       bg: {
-        mode:        'color',
-        colorMode:   bg.colorMode,
+        mode:        bg?.mode ?? 'color',
+        colorMode:   bg?.colorMode ?? 'solid',
         transparent: false,
-        solid:       bg.solid,
-        gradient:    bg.gradient ?? { from: '#000000', to: '#202020', angle: 180 },
+        solid:       bg?.solid ?? '#000000',
+        gradient:    bg?.gradient ?? { from: '#000000', to: '#202020', angle: 180 },
       },
       normals: { normals: normals?.normals ?? 'edge', strength: normals?.strength ?? 4.0 },
       motion:  { autoDrift, previewLoop: false },
@@ -135,8 +139,8 @@ function build({ id, name, swatch, material, lighting, effects = {}, bg, normals
 
 export const BUILTIN_PRESETS = [
   build({
-    id: 'liquid-mercury',
-    name: 'Liquid Mercury',
+    id: 'chrome',
+    name: 'Chrome',
     swatch: 'linear-gradient(120deg,#f4eee0,#c7bdb3 50%,#6e675c)',
     material: {
       baseColor: '#C7BDB3', f0Color: '#F2EAD9', roughness: 0.0,
@@ -144,7 +148,6 @@ export const BUILTIN_PRESETS = [
     },
     lighting: { diffuse: 0.50, specular: 2.2, shininess: 64, height: 0.12, ambient: 1.0 },
     effects: { bloom: true, bloomStrength: 0.6, bloomColor: '#FFF3DE' },
-    bg: { colorMode: 'solid', solid: '#08080A' },
   }),
 
   build({
@@ -158,13 +161,15 @@ export const BUILTIN_PRESETS = [
     // opal fire.
     material: {
       baseColor: '#08090C', f0Color: '#222A36', roughness: 0.04,
-      refractionMix: 0.25, refractionSlider: 25, fresnel: 0.55, blobEnabled: false,
+      refractionMix: 0.25, refractionSlider: 25, fresnel: 0.55,
+      // Cursor blob ON with a generous radius — a polished obsidian
+      // surface throws a broad glassy reflection highlight, not a pinpoint.
+      blobEnabled: true, blobRadius: 0.55,
     },
-    lighting: { diffuse: 0.12, specular: 2.8, shininess: 130, height: 0.10, color: '#D6E2FF', ambient: 0.55 },
+    lighting: { diffuse: 0.12, specular: 2.8, shininess: 110, height: 0.10, color: '#D6E2FF', ambient: 0.55 },
     effects: {
       bloom: true, bloomStrength: 0.45, bloomColor: '#7C9CC8',
     },
-    bg: { colorMode: 'gradient', solid: '#04060A', gradient: { from: '#04060A', to: '#0C121C', angle: 160 } },
   }),
 
   build({
@@ -178,7 +183,6 @@ export const BUILTIN_PRESETS = [
     },
     lighting: { diffuse: 0.55, specular: 2.4, shininess: 48, height: 0.13, color: '#FFE9B0', ambient: 0.95 },
     effects: { bloom: true, bloomStrength: 0.8, bloomColor: '#FFCC66' },
-    bg: { colorMode: 'gradient', solid: '#0E0A05', gradient: { from: '#0E0A05', to: '#241803', angle: 160 } },
   }),
 
   build({
@@ -195,29 +199,29 @@ export const BUILTIN_PRESETS = [
       bloom: true, bloomStrength: 1.1, bloomColor: '#FFFFFF',
       displacement: true, displacementStrength: 0.20,
     },
-    bg: { colorMode: 'gradient', solid: '#04080A', gradient: { from: '#04080A', to: '#0C1A18', angle: 160 } },
   }),
 
   build({
     id: 'holographic-foil',
     name: 'Holo-foil',
     swatch: 'linear-gradient(120deg,#ff2d6f,#ffe92d 30%,#2dff7a 55%,#2dcbff 75%,#9e2dff)',
-    // Auto-drift OFF: the body hue is anchored to the cursor (NdotL), so
-    // with drift on, the idle cursor sweep cycles the whole object's hue.
-    // Off = the look holds still until you hover, which is what reads as
-    // "real foil" — the rainbow only moves where you point.
+    // The hover rainbow comes from the iridescent SPECULAR, which is
+    // anchored to surface + cursor angle (static when idle, shifts on
+    // hover — exactly what's wanted). Bloom is intentionally OFF: its halo
+    // tint is wall-time driven, so it cycled the glow's hue on its own,
+    // which read as "the whole model changes color." Without it the look
+    // is dead-still until you hover. Auto-drift also off so idle never
+    // sweeps the highlight.
     autoDrift: false,
     material: {
       baseColor: '#C0C0C8', f0Color: '#FFFFFF', roughness: 0.05,
-      fresnel: 0.20, blobEnabled: true, blobRadius: 0.25,
+      fresnel: 0.20, blobEnabled: true, blobRadius: 0.30,
     },
     lighting: { diffuse: 0.40, specular: 2.8, shininess: 56, height: 0.12, ambient: 1.0 },
     effects: {
       iridescence: { intensity: 2.9, stops: HOLO },
-      bloom: true, bloomStrength: 1.25, bloomColor: '#FFFFFF',
       ca: true, caStrength: 0.50,
     },
-    bg: { colorMode: 'solid', solid: '#060608' },
   }),
 
   build({
@@ -235,7 +239,10 @@ export const BUILTIN_PRESETS = [
       bloom: true, bloomStrength: 0.7, bloomColor: '#FFFFFF',
       ca: true, caStrength: 0.30,
     },
-    bg: { colorMode: 'gradient', solid: '#0A0A12', gradient: { from: '#0A0A12', to: '#1A1530', angle: 160 } },
+    // Image mode shows the checkerboard placeholder behind the bubble.
+    // A transparent material needs SOMETHING behind it to refract/distort,
+    // otherwise the transparency is invisible against flat black.
+    bg: { mode: 'image' },
   }),
 
   build({
@@ -255,26 +262,23 @@ export const BUILTIN_PRESETS = [
       displacement: true, displacementStrength: 0.10,
       emissive: { strength: 1.3, color: '#FF5A1E', scale: 3.5, speed: 1.0, sharpness: 3.2 },
     },
-    bg: { colorMode: 'gradient', solid: '#0A0604', gradient: { from: '#0A0604', to: '#1A0E06', angle: 160 } },
   }),
 
   build({
-    id: 'distressed-metal',
-    name: 'Distressed Metal',
-    swatch: 'linear-gradient(120deg,#cfd4da,#7c828b 50%,#a6acb4)',
-    // Shooter / gunmetal aesthetic: bright brushed steel (not dark) with a
-    // light surface roughness for grain, driven distressed by the
-    // Scratches effect (directional scratch streaks + uneven gloss). Broad
-    // metallic highlight, faint worn edge.
+    id: 'gunmetal',
+    name: 'Gunmetal',
+    swatch: 'linear-gradient(120deg,#c3c8cf,#7c828b 50%,#9aa0a8)',
+    // Brushed steel with a fine, subtle scratch grain (the values that
+    // read well: low strength, fine + sparse vertical lines). The Scratches
+    // effect now defaults near these, so the look isn't fragile.
     material: {
-      baseColor: '#8E9298', f0Color: '#C6CCD4', roughness: 0.30,
-      fresnel: 0.18, blobEnabled: false,
+      baseColor: '#9AA0A8', f0Color: '#CDD3DB', roughness: 0.22,
+      fresnel: 0.16, blobEnabled: false,
     },
-    lighting: { diffuse: 0.50, specular: 2.0, shininess: 40, height: 0.14, color: '#EEF1F6', ambient: 1.0 },
+    lighting: { diffuse: 0.52, specular: 2.0, shininess: 44, height: 0.14, color: '#EEF1F6', ambient: 1.0 },
     effects: {
-      bloom: true, bloomStrength: 0.30, bloomColor: '#AEB6C2',
-      scratches: { strength: 0.8, density: 80, angle: 35, coverage: 0.5 },
+      bloom: true, bloomStrength: 0.25, bloomColor: '#AEB6C2',
+      scratches: { strength: 0.2, density: 186, angle: 90, coverage: 0.22 },
     },
-    bg: { colorMode: 'gradient', solid: '#0E1013', gradient: { from: '#0E1013', to: '#1C1F24', angle: 160 } },
   }),
 ];
