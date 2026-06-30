@@ -15,6 +15,7 @@ export const uniforms = /* glsl */ `
   uniform float u_scratchScale;
   uniform float u_scratchAngle;
   uniform float u_scratchCoverage;
+  uniform vec3  u_scratchColor;
 `;
 
 export const helpers = /* glsl */ `
@@ -46,8 +47,9 @@ export const apply = /* glsl */ `
       float k = min(u_scratchStrength, 1.0);
       // Uneven wear: knock down uniform gloss so the surface reads worn.
       specular *= mix(1.0, 0.65 + 0.35 * fbm(texUV * 9.0), k);
-      // Bright scratch catches along the grain.
+      // Bright scratch catches along the grain. Tinted by the scratch
+      // color AND the light so streaks still read as reflected light.
       float scr = wmfScratches(texUV);
-      specular += scr * u_scratchStrength * 1.3 * u_lightColor;
+      specular += scr * u_scratchStrength * 1.3 * u_scratchColor * u_lightColor;
     }
 `;

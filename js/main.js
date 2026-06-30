@@ -94,7 +94,11 @@ viewport.appendChild(canvas);
 // rather than opaque black; the shader explicitly writes alpha=1 in normal
 // (non-transparent-bg) mode so non-transparent exports are unaffected.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// Phones report devicePixelRatio 2-3; rendering this fragment-heavy shader
+// at full DPR every frame is what makes mobile feel janky. Cap lower on
+// small screens — 1.5 is still crisp but much lighter on the GPU.
+const MAX_DPR = window.matchMedia('(max-width:860px)').matches ? 1.5 : 2;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
 renderer.setClearAlpha(0);
 
 const scene = new THREE.Scene();

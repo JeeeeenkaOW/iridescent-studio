@@ -20,4 +20,7 @@ export const defaults = {
   density:  170,
   angle:    90,
   coverage: 0.25,
+  // Scratch streak color. White = the previous behaviour (streaks read as
+  // plain reflected light); tint it for colored/anodized scratch looks.
+  color:    '#FFFFFF',
 };

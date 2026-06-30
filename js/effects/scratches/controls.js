@@ -2,6 +2,7 @@
 // SCRATCHES EFFECT — controls
 // =========================================================
 import { defaults } from './defaults.js';
+import { hexToVec3 } from '../../util/color.js';
 
 export function initControls({ host, uniforms, isEnabled, history }) {
   const d = defaults;
@@ -23,6 +24,13 @@ export function initControls({ host, uniforms, isEnabled, history }) {
       <div class="range-label"><span>Coverage</span><span class="range-value" data-sx-cov-val>${Math.round(d.coverage * 100)}%</span></div>
       <input type="range" data-sx-cov min="5" max="100" step="1" value="${Math.round(d.coverage * 100)}">
     </div>
+    <div class="color-row">
+      <span class="color-row-label">Color</span>
+      <div class="color-row-control">
+        <input type="color" data-sx-col value="${d.color}">
+        <span class="color-row-hex" data-sx-col-hex>${d.color.toUpperCase()}</span>
+      </div>
+    </div>
   `;
 
   const strIn = host.querySelector('[data-sx-str]');
@@ -33,6 +41,8 @@ export function initControls({ host, uniforms, isEnabled, history }) {
   const angVal = host.querySelector('[data-sx-ang-val]');
   const covIn = host.querySelector('[data-sx-cov]');
   const covVal = host.querySelector('[data-sx-cov-val]');
+  const colIn = host.querySelector('[data-sx-col]');
+  const colHex = host.querySelector('[data-sx-col-hex]');
 
   let strength = d.strength;
 
@@ -40,7 +50,7 @@ export function initControls({ host, uniforms, isEnabled, history }) {
     uniforms.u_scratchStrength.value = isEnabled() ? strength : 0.0;
   }
   function onEnabledChange() {
-    [strIn, denIn, angIn, covIn].forEach(el => el.disabled = !isEnabled());
+    [strIn, denIn, angIn, covIn, colIn].forEach(el => el.disabled = !isEnabled());
     pushStrength();
   }
 
@@ -72,6 +82,12 @@ export function initControls({ host, uniforms, isEnabled, history }) {
   });
   covIn.addEventListener('change', () => history?.push());
 
+  colIn.addEventListener('input', (e) => {
+    colHex.textContent = e.target.value.toUpperCase();
+    uniforms.u_scratchColor.value.copy(hexToVec3(e.target.value));
+  });
+  colIn.addEventListener('change', () => history?.push());
+
   onEnabledChange();
 
   return {
@@ -82,6 +98,7 @@ export function initControls({ host, uniforms, isEnabled, history }) {
         density:  parseInt(denIn.value, 10),
         angle:    parseInt(angIn.value, 10),
         coverage: parseInt(covIn.value, 10) / 100,
+        color:    colIn.value,
       };
     },
     restore(snap) {
@@ -105,6 +122,11 @@ export function initControls({ host, uniforms, isEnabled, history }) {
         covIn.value = String(Math.round(snap.coverage * 100));
         covVal.textContent = Math.round(snap.coverage * 100) + '%';
         uniforms.u_scratchCoverage.value = snap.coverage;
+      }
+      if (typeof snap.color === 'string') {
+        colIn.value = snap.color;
+        colHex.textContent = snap.color.toUpperCase();
+        uniforms.u_scratchColor.value.copy(hexToVec3(snap.color));
       }
       pushStrength();
     },

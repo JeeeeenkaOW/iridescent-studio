@@ -118,10 +118,13 @@ button{cursor:pointer;color:inherit}
 .color-row-label{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-med);letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
 .color-row-control{display:flex;align-items:center;gap:var(--sp-200)}
 .color-row-hex{font-family:var(--font-brand);font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;letter-spacing:.5px}
-input[type=color]{-webkit-appearance:none;appearance:none;width:28px;height:20px;padding:0;border:1px solid var(--b3);background:transparent;cursor:pointer}
-input[type=color]::-webkit-color-swatch-wrapper{padding:0}
-input[type=color]::-webkit-color-swatch{border:none}
-input[type=color]::-moz-color-swatch{border:none}
+/* border-radius:0 on the input AND the swatch pseudo-elements — mobile
+   webkit renders color inputs as an oval/circle by default; this forces
+   the same rectangular swatch as desktop. */
+input[type=color]{-webkit-appearance:none;appearance:none;width:28px;height:20px;padding:0;border:1px solid var(--b3);border-radius:0;background:transparent;cursor:pointer}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0;border-radius:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:0}
+input[type=color]::-moz-color-swatch{border:none;border-radius:0}
 
 /* ── sub-section divider / notes / badges ── */
 .subdiv{font-family:var(--font-brand);font-size:11px;font-weight:var(--fw-semi);letter-spacing:var(--ls-up);text-transform:uppercase;color:var(--t3);padding-top:8px;border-top:1px solid var(--b4);margin-top:2px;display:flex;align-items:center;gap:8px}
@@ -149,6 +152,7 @@ input[type=color]::-moz-color-swatch{border:none}
 
 /* ── viewport ── */
 .view{grid-area:view;margin:var(--sp-300);border:1px solid var(--b4);border-radius:5px;position:relative;overflow:hidden;
+  touch-action:none;
   background-color:#0e0e0e;
   background-image:
     linear-gradient(45deg,#191919 25%,transparent 25%),

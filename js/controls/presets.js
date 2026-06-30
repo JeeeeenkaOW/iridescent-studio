@@ -48,12 +48,12 @@ export function initPresets({ host, saveBtn, loadBtn, captureState, applyState, 
   // Built-in gallery chips use an inline swatch background; user chips
   // keep the neutral pv-user swatch and a delete affordance.
   function builtinChip(p) {
-    // Swatch gradient as the chip preview. (Baked photo thumbnails layer
-    // on top here when present — re-enable the url() once thumbs/<id>.jpg
-    // are baked from the live shader.)
+    // Baked photo thumbnail (rendered from the live shader) over the swatch
+    // gradient — the gradient shows only if the image is missing.
+    const bg = `background:url('js/presets/thumbs/${p.id}.jpg') center/cover, ${p.swatch}`;
     return `
       <button class="preset${p.id === activeId ? ' active' : ''}" data-preset="${p.id}" title="${p.name}">
-        <span class="pv" style="background:${p.swatch}"></span>
+        <span class="pv" style="${bg}"></span>
         <span class="pn">${p.name}</span>
       </button>`;
   }
